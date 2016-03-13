@@ -33,6 +33,9 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <alsa/asoundlib.h>
+#include <jack/jack.h>
+#include <jack/midiport.h>
+#include <jack/ringbuffer.h>
 #include <lo/lo.h>
 
 #ifdef HAVE_WIRINGPI_LIB
@@ -44,98 +47,316 @@
 
 #include "zyncoder.h"
 
-// ALSA MIDI vars
-snd_seq_t *rencoder_seq_handle=NULL;
-int rencoder_seq_portid;
-
-// Liblo OSC vars
-lo_address rencoder_lo_addr;
-char rencoder_osc_port_str[8];
-
-//Switch Polling interval
-int poll_switches_us=10000;
-
 //-----------------------------------------------------------------------------
 // Library Initialization
 //-----------------------------------------------------------------------------
 
-int init_rencoder(int osc_port) {
+//Switch Polling interval
+int poll_zynswitches_us=10000;
+
+pthread_t init_poll_zynswitches();
+int init_zyncoder_osc(int osc_port);
+int end_zyncoder_osc();
+int init_zyncoder_midi(char *name);
+int end_zyncoder_midi();
+
+int init_zyncoder(int osc_port) {
 	int i;
-	for (i=0;i<max_gpio_switches;i++) gpio_switches[i].enabled=0;
-	for (i=0;i<max_midi_rencoders;i++) midi_rencoders[i].enabled=0;
+	for (i=0;i<max_zynswitches;i++) zynswitches[i].enabled=0;
+	for (i=0;i<max_zyncoders;i++) zyncoders[i].enabled=0;
 	wiringPiSetup();
 	mcp23008Setup (100, 0x20);
-	init_poll_switches();
-	return init_seq_midi_rencoder(osc_port);
+	init_poll_zynswitches();
+	init_zyncoder_osc(osc_port);
+	return init_zyncoder_midi("Zyncoder");
 }
 
-int init_seq_midi_rencoder(int osc_port) {
-	if (snd_seq_open(&rencoder_seq_handle, "default", SND_SEQ_OPEN_DUPLEX, 0) < 0) {
-		fprintf(stderr, "Error creating ALSA client.\n");
+int end_zyncoder() {
+	end_zyncoder_osc();
+	return end_zyncoder_midi();
+}
+
+//-----------------------------------------------------------------------------
+// OSC Message processing
+//-----------------------------------------------------------------------------
+
+lo_address osc_lo_addr;
+char osc_port_str[8];
+
+int init_zyncoder_osc(int osc_port) {
+	if (osc_port) {
+		sprintf(osc_port_str,"%d",osc_port);
+		//printf("OSC PORT: %s\n",osc_port_str);
+		osc_lo_addr=lo_address_new(NULL,osc_port_str);
+		return 0;
+	}
+	return -1;
+}
+
+int end_zyncoder_osc() {
+	return 0;
+}
+
+//-----------------------------------------------------------------------------
+// Alsa MIDI processing
+//-----------------------------------------------------------------------------
+#ifdef USE_ALSASEQ_MIDI
+
+snd_seq_t *alsaseq_handle=NULL;
+int alsaseq_port_id;
+
+int init_zyncoder_midi(char *name) {
+	if (snd_seq_open(&alsaseq_handle, "default", SND_SEQ_OPEN_DUPLEX, 0) < 0) {
+		fprintf(stderr, "Error creating alsaseq client.\n");
 		return -1;
 	}
-	snd_seq_set_client_name(rencoder_seq_handle, "Zynthian_rencoder" );
+	snd_seq_set_client_name(alsaseq_handle, name);
 
-	if (( rencoder_seq_portid = snd_seq_create_simple_port(rencoder_seq_handle, "Output port",
+	if (( alsaseq_port_id = snd_seq_create_simple_port(alsaseq_handle, "output",
 		SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,
 		//SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
 		SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
-		fprintf(stderr, "Error creating output port.\n" );
+		fprintf(stderr, "Error creating alsaseq output port.\n" );
 		return -2;
 	}
 
-	if (osc_port) {
-		sprintf(rencoder_osc_port_str,"%d",osc_port);
-		//printf("OSC PORT: %s\n",rencoder_osc_port_str);
-		rencoder_lo_addr=lo_address_new(NULL,rencoder_osc_port_str);
+	return 0;
+}
+
+int end_zyncoder_midi() {
+	return 0;
+}
+
+int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val) {
+	if (alsaseq_handle!=NULL) {
+		snd_seq_event_t ev;
+		snd_seq_ev_clear(&ev);
+		snd_seq_ev_set_direct(&ev);
+		snd_seq_ev_set_subs(&ev);        /* send to subscribers of source port */
+		snd_seq_ev_set_controller(&ev, chan, ctrl, val);
+		snd_seq_event_output_direct(alsaseq_handle, &ev);
+		//snd_seq_drain_output(alsaseq_handle);
+		return 0;
+	}
+	return -1;
+}
+
+int zynmidi_set_program(unsigned char chan, unsigned char prgm) {
+	if (alsaseq_handle!=NULL) {
+		snd_seq_event_t ev;
+		snd_seq_ev_clear(&ev);
+		snd_seq_ev_set_direct(&ev);
+		snd_seq_ev_set_subs(&ev);        /* send to subscribers of source port */
+		snd_seq_ev_set_pgmchange(&ev, chan, prgm);
+		snd_seq_event_output_direct(alsaseq_handle, &ev);
+		//snd_seq_drain_output(alsaseq_handle);
+		return 0;
+	}
+	return -1;
+}
+
+//-----------------------------------------------------------------------------
+// Jack MIDI processing
+//-----------------------------------------------------------------------------
+#else
+
+jack_client_t *jack_client;
+jack_port_t *jack_midi_output_port;
+jack_port_t *jack_midi_input_port;
+jack_ringbuffer_t *jack_ring_output_buffer;
+jack_ringbuffer_t *jack_ring_input_buffer;
+unsigned char jack_midi_data[3*256];
+
+int jack_process(jack_nframes_t nframes, void *arg);
+int jack_write_midi_event(unsigned char *ctrl_event);
+
+int init_zyncoder_midi(char *name) {
+	if ((jack_client = jack_client_open(name, JackNullOption , 0 , 0 )) == NULL) {
+		fprintf (stderr, "Error connecting with jack server.\n");
+		return -1;
+	}
+	jack_midi_output_port = jack_port_register(jack_client, "output", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
+	if (jack_midi_output_port == NULL) {
+		fprintf (stderr, "Error creating jack midi output port.\n");
+		return -2;
+	}
+	jack_midi_input_port = jack_port_register(jack_client, "input", JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
+	if (jack_midi_input_port == NULL) {
+		fprintf (stderr, "Error creating jack midi input port.\n");
+		return -2;
+	}
+	jack_ring_output_buffer = jack_ringbuffer_create(3*256);
+	jack_ring_input_buffer = jack_ringbuffer_create(3*256);
+	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
+	if (jack_ringbuffer_mlock(jack_ring_output_buffer)) {
+		fprintf (stderr, "Error locking memory for jack ring output buffer.\n");
+		return -3;
+	}
+	if (jack_ringbuffer_mlock(jack_ring_input_buffer)) {
+		fprintf (stderr, "Error locking memory for jack ring input buffer.\n");
+		return -3;
+	}
+	jack_set_process_callback(jack_client, jack_process, 0);
+	if (jack_activate(jack_client)) {
+		fprintf (stderr, "Error activating jack client.\n");
+		return -4;
+	}
+	return 0;
+}
+
+int end_zyncoder_midi() {
+	return jack_client_close(jack_client);
+}
+
+int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val) {
+	unsigned char buffer[3];
+	buffer[0] = 0xB0 + chan;
+	buffer[1] = ctrl;
+	buffer[2] = val;
+	return jack_write_midi_event(buffer);
+}
+
+int zynmidi_set_program(unsigned char chan, unsigned char prgm) {
+	unsigned char buffer[3];
+	buffer[0] = 0xC0 + chan;
+	buffer[1] = prgm;
+	buffer[2] = 0;
+	return jack_write_midi_event(buffer);
+}
+
+int jack_process(jack_nframes_t nframes, void *arg) {
+	//MIDI Output
+	void *output_port_buffer = jack_port_get_buffer(jack_midi_output_port, nframes);
+	if (output_port_buffer==NULL) {
+		fprintf (stderr, "Error allocating jack output port buffer: %d frames\n", nframes);
+		return -1;
+	}
+	jack_midi_clear_buffer(output_port_buffer);
+
+	int nb=jack_ringbuffer_read_space(jack_ring_output_buffer);
+	if (jack_ringbuffer_read(jack_ring_output_buffer, jack_midi_data, nb)!=nb) {
+		fprintf (stderr, "Error reading midi data from jack ring output buffer: %d bytes\n", nb);
+		return -1;
 	}
 
-	return rencoder_seq_portid;
+	int i=0;
+	int pos=0;
+	unsigned char event_type;
+	unsigned int event_size;
+	unsigned char *buffer;
+	while (pos < nb) {
+		event_type= jack_midi_data[pos] >> 4;
+		if (event_type==0xC || event_type==0xD) event_size=2;
+		else event_size=3;
+		
+		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
+		memcpy(buffer, jack_midi_data+pos, event_size);
+		pos+=3;
+
+		if (i>nframes) {
+			fprintf (stderr, "Error processing jack midi output events: TOO MANY EVENTS\n");
+			return -1;
+		}
+		i++;
+	}
+	
+	//MIDI Input
+	void *input_port_buffer = jack_port_get_buffer(jack_midi_input_port, nframes);
+	if (input_port_buffer==NULL) {
+		fprintf (stderr, "Error allocating jack input port buffer: %d frames\n", nframes);
+		return -1;
+	}
+	i=0;
+	int j;
+	jack_midi_event_t ev;
+	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
+		event_type=ev.buffer[0] >> 4;
+		if (event_type==0xB || event_type==0xC) {
+			if (event_type==0xB) {
+				//TODO => Optimize this fragment!!!
+				for (j=0;j<max_zyncoders;j++) {
+					if (zyncoders[j].enabled && zyncoders[j].midi_chan==(ev.buffer[0] & 0xF) && zyncoders[j].midi_ctrl==ev.buffer[1]) {
+						zyncoders[j].value=ev.buffer[2];
+					}
+				}
+			}
+			if (jack_ringbuffer_write_space(jack_ring_input_buffer)>=ev.size) {
+				if (jack_ringbuffer_write(jack_ring_input_buffer, ev.buffer, ev.size)!=ev.size) {
+					fprintf (stderr, "Error writing jack ring input buffer: INCOMPLETE\n");
+					return -1;
+				}
+			}
+		}
+		if (i>nframes) {
+			fprintf (stderr, "Error processing jack midi input events: TOO MANY EVENTS\n");
+			return -1;
+		}
+		i++;
+	}
+	
+
+	return 0;
 }
+
+int jack_write_midi_event(unsigned char *ctrl_event) {
+	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=3) {
+		if (jack_ringbuffer_write(jack_ring_output_buffer, ctrl_event, 3)!=3) {
+			fprintf (stderr, "Error writing jack ring output buffer: INCOMPLETE\n");
+			return -1;
+		}
+	}
+	else {
+		fprintf (stderr, "Error writing jack ring output buffer: FULL\n");
+		return -1;
+	}
+	return 0;
+}
+
+#endif
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
 //Update ISR switches (native GPIO)
-void update_gpio_switch(unsigned int i) {
+void update_zynswitch(unsigned int i) {
 	struct timespec ts;
 	double tsns;
 
-	if (i>=max_gpio_switches) return;
-	struct gpio_switch *gpio_switch = gpio_switches + i;
-	if (gpio_switch->enabled==0) return;
+	if (i>=max_zynswitches) return;
+	struct zynswitch_st *zynswitch = zynswitches + i;
+	if (zynswitch->enabled==0) return;
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	tsns=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	gpio_switch->status=digitalRead(gpio_switch->pin);
-	if (gpio_switch->status==1) {
-		if (gpio_switch->tsus>0) gpio_switch->dtus=tsns-gpio_switch->tsus;
-	} else gpio_switch->tsus=tsns;
+	zynswitch->status=digitalRead(zynswitch->pin);
+	if (zynswitch->status==1) {
+		if (zynswitch->tsus>0) zynswitch->dtus=tsns-zynswitch->tsus;
+	} else zynswitch->tsus=tsns;
 }
 
-void update_gpio_switch_0() { update_gpio_switch(0); }
-void update_gpio_switch_1() { update_gpio_switch(1); }
-void update_gpio_switch_2() { update_gpio_switch(2); }
-void update_gpio_switch_3() { update_gpio_switch(3); }
-void update_gpio_switch_4() { update_gpio_switch(4); }
-void update_gpio_switch_5() { update_gpio_switch(5); }
-void update_gpio_switch_6() { update_gpio_switch(6); }
-void update_gpio_switch_7() { update_gpio_switch(7); }
-void (*update_gpio_switch_funcs[8])={
-	update_gpio_switch_0,
-	update_gpio_switch_1,
-	update_gpio_switch_2,
-	update_gpio_switch_3,
-	update_gpio_switch_4,
-	update_gpio_switch_5,
-	update_gpio_switch_6,
-	update_gpio_switch_7
+void update_zynswitch_0() { update_zynswitch(0); }
+void update_zynswitch_1() { update_zynswitch(1); }
+void update_zynswitch_2() { update_zynswitch(2); }
+void update_zynswitch_3() { update_zynswitch(3); }
+void update_zynswitch_4() { update_zynswitch(4); }
+void update_zynswitch_5() { update_zynswitch(5); }
+void update_zynswitch_6() { update_zynswitch(6); }
+void update_zynswitch_7() { update_zynswitch(7); }
+void (*update_zynswitch_funcs[8])={
+	update_zynswitch_0,
+	update_zynswitch_1,
+	update_zynswitch_2,
+	update_zynswitch_3,
+	update_zynswitch_4,
+	update_zynswitch_5,
+	update_zynswitch_6,
+	update_zynswitch_7
 };
 
 //Update NON-ISR switches (expanded GPIO)
-void update_expanded_gpio_switches() {
+void update_expanded_zynswitches() {
 	struct timespec ts;
 	double tsns;
 	unsigned int status;
@@ -144,187 +365,178 @@ void update_expanded_gpio_switches() {
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	tsns=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	for (i=0;i<max_gpio_switches;i++) {
-		struct gpio_switch *gpio_switch = gpio_switches + i;
-		if (!gpio_switch->enabled || gpio_switch->pin<100) continue;
-		status=digitalRead(gpio_switch->pin);
-		//printf("POLLING SWITCH %d (%d) => %d\n",i,gpio_switch->pin,status);
-		if (status==gpio_switch->status) continue;
-		gpio_switch->status=status;
-		if (gpio_switch->status==1) {
-			if (gpio_switch->tsus>0) gpio_switch->dtus=tsns-gpio_switch->tsus;
-		} else gpio_switch->tsus=tsns;
+	for (i=0;i<max_zynswitches;i++) {
+		struct zynswitch_st *zynswitch = zynswitches + i;
+		if (!zynswitch->enabled || zynswitch->pin<100) continue;
+		status=digitalRead(zynswitch->pin);
+		//printf("POLLING SWITCH %d (%d) => %d\n",i,zynswitch->pin,status);
+		if (status==zynswitch->status) continue;
+		zynswitch->status=status;
+		if (zynswitch->status==1) {
+			if (zynswitch->tsus>0) zynswitch->dtus=tsns-zynswitch->tsus;
+		} else zynswitch->tsus=tsns;
 	}
 }
 
-void * poll_switches(void *arg) {
+void * poll_zynswitches(void *arg) {
 	while (1) {
-		update_expanded_gpio_switches();
-		usleep(poll_switches_us);
+		update_expanded_zynswitches();
+		usleep(poll_zynswitches_us);
 	}
 	return NULL;
 }
 
-pthread_t init_poll_switches() {
+pthread_t init_poll_zynswitches() {
 	pthread_t tid;
-	int err=pthread_create(&tid, NULL, &poll_switches, NULL);
+	int err=pthread_create(&tid, NULL, &poll_zynswitches, NULL);
 	if (err != 0) {
-		printf("Can't create poll thread :[%s]", strerror(err));
+		printf("Can't create zynswitches poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("Poll thread created successfully\n");
+		printf("Zynswitches poll thread created successfully\n");
 		return tid;
 	}
 }
 
 //-----------------------------------------------------------------------------
 
-struct gpio_switch *setup_gpio_switch(unsigned int i, unsigned int pin) {
-	if (i >= max_gpio_switches) {
-		printf("Maximum number of gpio switches exceded: %i\n", max_gpio_switches);
+struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
+	if (i >= max_zynswitches) {
+		printf("Maximum number of gpio switches exceded: %i\n", max_zynswitches);
 		return NULL;
 	}
 	
-	struct gpio_switch *gpio_switch = gpio_switches + i;
-	gpio_switch->enabled = 1;
-	gpio_switch->pin = pin;
-	gpio_switch->tsus = 0;
-	gpio_switch->dtus = 0;
-	gpio_switch->status = 0;
+	struct zynswitch_st *zynswitch = zynswitches + i;
+	zynswitch->enabled = 1;
+	zynswitch->pin = pin;
+	zynswitch->tsus = 0;
+	zynswitch->dtus = 0;
+	zynswitch->status = 0;
 
 	pinMode(pin, INPUT);
 	pullUpDnControl(pin, PUD_UP);
-	if (pin<100) wiringPiISR(pin,INT_EDGE_BOTH, update_gpio_switch_funcs[i]);
+	if (pin<100) wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
 
-	return gpio_switch;
+	return zynswitch;
 }
 
-unsigned int get_gpio_switch_dtus(unsigned int i) {
-	if (i >= max_gpio_switches) return 0;
-	unsigned int dtus=gpio_switches[i].dtus;
-	gpio_switches[i].dtus=0;
+unsigned int get_zynswitch_dtus(unsigned int i) {
+	if (i >= max_zynswitches) return 0;
+	unsigned int dtus=zynswitches[i].dtus;
+	zynswitches[i].dtus=0;
 	return dtus;
 }
 
-unsigned int get_gpio_switch(unsigned int i) {
-	return get_gpio_switch_dtus(i);
+unsigned int get_zynswitch(unsigned int i) {
+	return get_zynswitch_dtus(i);
 }
 
 //-----------------------------------------------------------------------------
 // Generic Rotary Encoders
 //-----------------------------------------------------------------------------
 
-void send_midi_rencoder(unsigned int i) {
-	if (i>=max_midi_rencoders) return;
-	struct midi_rencoder *midi_rencoder = midi_rencoders + i;
-	if (midi_rencoder->enabled==0) return;
-
-	if (rencoder_seq_handle!=NULL && midi_rencoder->midi_ctrl>0) {
-		snd_seq_event_t ev;
-		snd_seq_ev_clear(&ev);
-		snd_seq_ev_set_direct(&ev);
-		//snd_seq_ev_set_dest(&ev, 64, 0); /* send to 64:0 */
-		snd_seq_ev_set_subs(&ev);        /* send to subscribers of source port */
-		snd_seq_ev_set_controller(&ev, midi_rencoder->midi_chan, midi_rencoder->midi_ctrl, midi_rencoder->value);
-		snd_seq_event_output_direct(rencoder_seq_handle, &ev);
-		//snd_seq_drain_output(rencoder_seq_handle);
-		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",midi_rencoder->midi_chan,midi_rencoder->midi_ctrl,midi_rencoder->value);
-	}
-	else if (rencoder_lo_addr!=NULL && midi_rencoder->osc_path[0]) {
-		lo_send(rencoder_lo_addr,midi_rencoder->osc_path, "i", midi_rencoder->value);
-		//printf("SEND OSC %s => %d\n",midi_rencoder->osc_path,midi_rencoder->value);
+void send_zyncoder(unsigned int i) {
+	if (i>=max_zyncoders) return;
+	struct zyncoder_st *zyncoder = zyncoders + i;
+	if (zyncoder->enabled==0) return;
+	if (zyncoder->midi_ctrl>0) {
+		zynmidi_set_control(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+	} else if (osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
+		lo_send(osc_lo_addr,zyncoder->osc_path, "i", zyncoder->value);
+		//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
 	}
 }
 
-void update_midi_rencoder(unsigned int i) {
-	if (i>=max_midi_rencoders) return;
-	struct midi_rencoder *midi_rencoder = midi_rencoders + i;
-	if (midi_rencoder->enabled==0) return;
+void update_zyncoder(unsigned int i) {
+	if (i>=max_zyncoders) return;
+	struct zyncoder_st *zyncoder = zyncoders + i;
+	if (zyncoder->enabled==0) return;
 
-	unsigned int MSB = digitalRead(midi_rencoder->pin_a);
-	unsigned int LSB = digitalRead(midi_rencoder->pin_b);
+	unsigned int MSB = digitalRead(zyncoder->pin_a);
+	unsigned int LSB = digitalRead(zyncoder->pin_b);
 	unsigned int encoded = (MSB << 1) | LSB;
-	unsigned int sum = (midi_rencoder->last_encoded << 2) | encoded;
-	unsigned int last_value=midi_rencoder->value;
+	unsigned int sum = (zyncoder->last_encoded << 2) | encoded;
+	unsigned int last_value=zyncoder->value;
 
-	if (midi_rencoder->value>midi_rencoder->max_value) midi_rencoder->value=midi_rencoder->max_value;
+	if (zyncoder->value>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
 
-	if (midi_rencoder->max_value-midi_rencoder->value>=midi_rencoder->step && (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)) {
-		midi_rencoder->value+=midi_rencoder->step;
+	if (zyncoder->max_value-zyncoder->value>=zyncoder->step && (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)) {
+		zyncoder->value+=zyncoder->step;
 	}
-	else if (midi_rencoder->value>=midi_rencoder->step && (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)) {
-		midi_rencoder->value-=midi_rencoder->step;
+	else if (zyncoder->value>=zyncoder->step && (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)) {
+		zyncoder->value-=zyncoder->step;
 	}
-	midi_rencoder->last_encoded = encoded;
+	zyncoder->last_encoded = encoded;
 
-	if (last_value!=midi_rencoder->value) send_midi_rencoder(i);
+	if (last_value!=zyncoder->value) send_zyncoder(i);
 }
 
-void update_midi_rencoder_0() { update_midi_rencoder(0); }
-void update_midi_rencoder_1() { update_midi_rencoder(1); }
-void update_midi_rencoder_2() { update_midi_rencoder(2); }
-void update_midi_rencoder_3() { update_midi_rencoder(3); }
-void update_midi_rencoder_4() { update_midi_rencoder(4); }
-void update_midi_rencoder_5() { update_midi_rencoder(5); }
-void update_midi_rencoder_6() { update_midi_rencoder(6); }
-void update_midi_rencoder_7() { update_midi_rencoder(7); }
-void (*update_midi_rencoder_funcs[8])={
-	update_midi_rencoder_0,
-	update_midi_rencoder_1,
-	update_midi_rencoder_2,
-	update_midi_rencoder_3,
-	update_midi_rencoder_4,
-	update_midi_rencoder_5,
-	update_midi_rencoder_6,
-	update_midi_rencoder_7
+void update_zyncoder_0() { update_zyncoder(0); }
+void update_zyncoder_1() { update_zyncoder(1); }
+void update_zyncoder_2() { update_zyncoder(2); }
+void update_zyncoder_3() { update_zyncoder(3); }
+void update_zyncoder_4() { update_zyncoder(4); }
+void update_zyncoder_5() { update_zyncoder(5); }
+void update_zyncoder_6() { update_zyncoder(6); }
+void update_zyncoder_7() { update_zyncoder(7); }
+void (*update_zyncoder_funcs[8])={
+	update_zyncoder_0,
+	update_zyncoder_1,
+	update_zyncoder_2,
+	update_zyncoder_3,
+	update_zyncoder_4,
+	update_zyncoder_5,
+	update_zyncoder_6,
+	update_zyncoder_7
 };
 
 //-----------------------------------------------------------------------------
 
-struct midi_rencoder *setup_midi_rencoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
-	if (i > max_midi_rencoders) {
-		printf("Maximum number of midi rotary encoders exceded: %i\n", max_midi_rencoders);
+struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
+	if (i > max_zyncoders) {
+		printf("Maximum number of zyncoders exceded: %i\n", max_zyncoders);
 		return NULL;
 	}
 
-	struct midi_rencoder *rencoder = midi_rencoders + i;
+	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (midi_chan>15) midi_chan=0;
 	if (midi_ctrl>127) midi_ctrl=1;
 	if (value>max_value) value=max_value;
-	rencoder->midi_chan = midi_chan;
-	rencoder->midi_ctrl = midi_ctrl;
+	zyncoder->midi_chan = midi_chan;
+	zyncoder->midi_ctrl = midi_ctrl;
 	//printf("OSC PATH: %s\n",osc_path);
-	if (osc_path) strcpy(rencoder->osc_path,osc_path);
-	else rencoder->osc_path[0]=0;
-	rencoder->max_value = max_value;
-	rencoder->step = step;
-	rencoder->value = value;
+	if (osc_path) strcpy(zyncoder->osc_path,osc_path);
+	else zyncoder->osc_path[0]=0;
+	zyncoder->max_value = max_value;
+	zyncoder->step = step;
+	zyncoder->value = value;
 
-	if (rencoder->enabled==0 || rencoder->pin_a!=pin_a || rencoder->pin_b!=pin_b) {
-		rencoder->enabled = 1;
-		rencoder->pin_a = pin_a;
-		rencoder->pin_b = pin_b;
-		rencoder->last_encoded = 0;
+	if (zyncoder->enabled==0 || zyncoder->pin_a!=pin_a || zyncoder->pin_b!=pin_b) {
+		zyncoder->enabled = 1;
+		zyncoder->pin_a = pin_a;
+		zyncoder->pin_b = pin_b;
+		zyncoder->last_encoded = 0;
 
 		pinMode(pin_a, INPUT);
 		pinMode(pin_b, INPUT);
 		pullUpDnControl(pin_a, PUD_UP);
 		pullUpDnControl(pin_b, PUD_UP);
-		wiringPiISR(pin_a,INT_EDGE_BOTH, update_midi_rencoder_funcs[i]);
-		wiringPiISR(pin_b,INT_EDGE_BOTH, update_midi_rencoder_funcs[i]);
+		wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+		wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 	}
 
-	return rencoder;
+	return zyncoder;
 }
 
-unsigned int get_value_midi_rencoder(unsigned int i) {
-	if (i >= max_midi_rencoders) return 0;
-	return midi_rencoders[i].value;
+unsigned int get_value_zyncoder(unsigned int i) {
+	if (i >= max_zyncoders) return 0;
+	return zyncoders[i].value;
 }
 
-void set_value_midi_rencoder(unsigned int i, unsigned int v) {
-	if (i >= max_midi_rencoders) return;
-	if (v>midi_rencoders[i].max_value) v=midi_rencoders[i].max_value;
-	midi_rencoders[i].value=v;
-	send_midi_rencoder(i);
+void set_value_zyncoder(unsigned int i, unsigned int v) {
+	if (i >= max_zyncoders) return;
+	if (v>zyncoders[i].max_value) v=zyncoders[i].max_value;
+	zyncoders[i].value=v;
+	send_zyncoder(i);
 }

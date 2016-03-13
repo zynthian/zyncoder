@@ -29,18 +29,24 @@
 // Library Initialization
 //-----------------------------------------------------------------------------
 
-int init_rencoder(int osc_port);
-int init_seq_midi_rencoder(int osc_port);
-pthread_t init_poll_switches();
+int init_zyncoder(int osc_port);
+int end_zyncoder();
+
+//-----------------------------------------------------------------------------
+// MIDI Send
+//-----------------------------------------------------------------------------
+
+int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val);
+int zynmidi_set_program(unsigned char chan, unsigned char pgrm);
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
 // The real limit in RPi2 is 17
-#define max_gpio_switches 8
+#define max_zynswitches 8
 
-struct gpio_switch
+struct zynswitch_st
 {
 	unsigned int enabled;
 	unsigned int pin;
@@ -48,21 +54,20 @@ struct gpio_switch
 	volatile unsigned int dtus;
 	volatile unsigned int status;
 };
-struct gpio_switch gpio_switches[max_gpio_switches];
+struct zynswitch_st zynswitches[max_zynswitches];
 
-void update_gpio_switch(unsigned int i);
-struct gpio_switch *setup_gpio_switch(unsigned int i, unsigned int pin); 
-unsigned int get_gpio_switch(unsigned int i);
-unsigned int get_gpio_switch_dtus(unsigned int i);
+struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin); 
+unsigned int get_zynswitch(unsigned int i);
+unsigned int get_zynswitch_dtus(unsigned int i);
 
 //-----------------------------------------------------------------------------
 // MIDI Rotary Encoders
 //-----------------------------------------------------------------------------
 
 // 17 pins / 2 pins per encoder = 8 maximum encoders
-#define max_midi_rencoders 8
+#define max_zyncoders 8
 
-struct midi_rencoder
+struct zyncoder_st
 {
 	unsigned int enabled;
 	unsigned int pin_a;
@@ -75,10 +80,8 @@ struct midi_rencoder
 	volatile unsigned int value;
 	volatile unsigned int last_encoded;
 };
-struct midi_rencoder midi_rencoders[max_midi_rencoders];
+struct zyncoder_st zyncoders[max_zyncoders];
 
-void send_seq_midi_reconder(unsigned int i);
-void update_midi_rencoder(unsigned int i);
-struct midi_rencoder *setup_midi_rencoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
-unsigned int get_value_midi_rencoder(unsigned int i);
-void set_value_midi_rencoder(unsigned int i, unsigned int v);
+struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
+unsigned int get_value_zyncoder(unsigned int i);
+void set_value_zyncoder(unsigned int i, unsigned int v);
