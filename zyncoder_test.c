@@ -31,35 +31,35 @@
 
 #include "zyncoder.h"
 
-int main() {
-	printf("INITIALIZING ZYNCODER LIBRARY!\n");
+int zyncoder_pin_a[4]={27,21,3,7};
+int zyncoder_pin_b[4]={25,26,4,0};
+int zynswitch_pin[4]={107,23,106,2};
 
+int main() {
+	int i;
+
+	printf("INITIALIZING ZYNCODER LIBRARY!\n");
 	init_zyncoder(6699);
 
 	printf("SETTING UP ZYNSWITCHES!\n");
-
-	setup_zynswitch(0,3);
-	setup_zynswitch(0,4);
+	for (i=0;i<4;i++) {
+		setup_zynswitch(i,zynswitch_pin[i]);
+	}
 
 	printf("SETTING UP ZYNCODERS!\n");
-
-	setup_zyncoder(0,25,27,0,1,NULL,90,127,1);
-	setup_zyncoder(1,26,21,0,10,NULL,90,127,1);
-	setup_zyncoder(2,4,3,0,71,NULL,90,127,1);
-	setup_zyncoder(3,0,7,0,74,NULL,90,127,1);
+	for (i=0;i<4;i++) {
+		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,1,NULL,90,127,1);
+	}
 
 	printf("TESTING ...\n");
-
 	while(1) {
-		printf("SW0 = %d\n", get_zynswitch(0));
-		printf("SW1 = %d\n", get_zynswitch(1));
-		printf("ZC0 = %d\n", get_value_zyncoder(0));
-		printf("ZC1 = %d\n", get_value_zyncoder(1));
-		printf("ZC2 = %d\n", get_value_zyncoder(2));
-		printf("ZC3 = %d\n", get_value_zyncoder(3));
+		for (i=0;i<4;i++) {
+			printf("SW%d = %d\n", i, get_zynswitch(i));
+			printf("ZC%d = %d\n", i, get_value_zyncoder(i));
+		}
+		printf("-----------------------\n");
 		usleep(500000);
 	}
 
 	return 0;
 }
-
