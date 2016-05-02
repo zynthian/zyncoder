@@ -321,7 +321,7 @@ int jack_write_midi_event(unsigned char *ctrl_event) {
 //Update ISR switches (native GPIO)
 void update_zynswitch(unsigned int i) {
 	struct timespec ts;
-	double tsns;
+	unsigned long int tsns;
 
 	if (i>=max_zynswitches) return;
 	struct zynswitch_st *zynswitch = zynswitches + i;
@@ -331,6 +331,7 @@ void update_zynswitch(unsigned int i) {
 	tsns=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
 	zynswitch->status=digitalRead(zynswitch->pin);
+	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsns);
 	if (zynswitch->status==1) {
 		if (zynswitch->tsus>0) zynswitch->dtus=tsns-zynswitch->tsus;
 	} else zynswitch->tsus=tsns;
@@ -358,7 +359,7 @@ void (*update_zynswitch_funcs[8])={
 //Update NON-ISR switches (expanded GPIO)
 void update_expanded_zynswitches() {
 	struct timespec ts;
-	double tsns;
+	unsigned long int tsns;
 	unsigned int status;
 	int i;
 
