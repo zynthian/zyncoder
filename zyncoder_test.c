@@ -31,8 +31,13 @@
 
 #include "zyncoder.h"
 
-int zyncoder_pin_a[4]={27,21,3,7};
-int zyncoder_pin_b[4]={25,26,4,0};
+//PROTOTYPE-3
+//int zyncoder_pin_a[4]={27,21,3,7};
+//int zyncoder_pin_b[4]={25,26,4,0};
+//PROTOTYPE-4
+int zyncoder_pin_a[4]={26,25,0,4};
+int zyncoder_pin_b[4]={21,27,7,3};
+
 int zynswitch_pin[4]={107,23,106,2};
 
 int main() {
@@ -48,7 +53,7 @@ int main() {
 
 	printf("SETTING UP ZYNCODERS!\n");
 	for (i=0;i<4;i++) {
-		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,1,NULL,90,127,1);
+		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,1,NULL,64,127,1);
 	}
 
 	printf("TESTING ...\n");
