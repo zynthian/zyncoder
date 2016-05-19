@@ -1,6 +1,5 @@
 # zyncoder library
 
-[![Join the chat at https://gitter.im/zynthian/zyncoder](https://badges.gitter.im/zynthian/zyncoder.svg)](https://gitter.im/zynthian/zyncoder?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Rotary encoder &amp; switch library for RBPi GPIO (wiringPi). 
 
 This library implements an interface for rotary encoders and switches connected to the RBPi GPIO.
@@ -27,3 +26,5 @@ $ cd build
 $ cmake ..
 $ make
 ```
+
+[![Join the chat at https://gitter.im/zynthian/zyncoder](https://badges.gitter.im/zynthian/zyncoder.svg)](https://gitter.im/zynthian/zyncoder?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
