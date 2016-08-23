@@ -62,8 +62,8 @@ int end_zyncoder_midi();
 
 int init_zyncoder(int osc_port) {
 	int i;
-	for (i=0;i<max_zynswitches;i++) zynswitches[i].enabled=0;
-	for (i=0;i<max_zyncoders;i++) zyncoders[i].enabled=0;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
+	for (i=0;i<MAX_NUM_ZYNCODERS;i++) zyncoders[i].enabled=0;
 	wiringPiSetup();
 	mcp23008Setup (100, 0x20);
 	init_poll_zynswitches();
@@ -274,7 +274,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		if (event_type==0xB || event_type==0xC) {
 			if (event_type==0xB) {
 				//TODO => Optimize this fragment!!!
-				for (j=0;j<max_zyncoders;j++) {
+				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
 					if (zyncoders[j].enabled && zyncoders[j].midi_chan==(ev.buffer[0] & 0xF) && zyncoders[j].midi_ctrl==ev.buffer[1]) {
 						zyncoders[j].value=ev.buffer[2];
 					}
@@ -320,21 +320,20 @@ int jack_write_midi_event(unsigned char *ctrl_event) {
 
 //Update ISR switches (native GPIO)
 void update_zynswitch(unsigned int i) {
-	struct timespec ts;
-	unsigned long int tsns;
-
-	if (i>=max_zynswitches) return;
+	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	if (zynswitch->enabled==0) return;
 
+	struct timespec ts;
+	unsigned long int tsus;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	tsns=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
 	zynswitch->status=digitalRead(zynswitch->pin);
-	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsns);
+	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 	if (zynswitch->status==1) {
-		if (zynswitch->tsus>0) zynswitch->dtus=tsns-zynswitch->tsus;
-	} else zynswitch->tsus=tsns;
+		if (zynswitch->tsus>0) zynswitch->dtus=tsus-zynswitch->tsus;
+	} else zynswitch->tsus=tsus;
 }
 
 void update_zynswitch_0() { update_zynswitch(0); }
@@ -359,14 +358,13 @@ void (*update_zynswitch_funcs[8])={
 //Update NON-ISR switches (expanded GPIO)
 void update_expanded_zynswitches() {
 	struct timespec ts;
-	unsigned long int tsns;
-	unsigned int status;
-	int i;
-
+	unsigned long int tsus;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	tsns=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	for (i=0;i<max_zynswitches;i++) {
+	int i;
+	unsigned int status;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		struct zynswitch_st *zynswitch = zynswitches + i;
 		if (!zynswitch->enabled || zynswitch->pin<100) continue;
 		status=digitalRead(zynswitch->pin);
@@ -374,8 +372,8 @@ void update_expanded_zynswitches() {
 		if (status==zynswitch->status) continue;
 		zynswitch->status=status;
 		if (zynswitch->status==1) {
-			if (zynswitch->tsus>0) zynswitch->dtus=tsns-zynswitch->tsus;
-		} else zynswitch->tsus=tsns;
+			if (zynswitch->tsus>0) zynswitch->dtus=tsus-zynswitch->tsus;
+		} else zynswitch->tsus=tsus;
 	}
 }
 
@@ -402,8 +400,8 @@ pthread_t init_poll_zynswitches() {
 //-----------------------------------------------------------------------------
 
 struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
-	if (i >= max_zynswitches) {
-		printf("Maximum number of gpio switches exceded: %i\n", max_zynswitches);
+	if (i >= MAX_NUM_ZYNSWITCHES) {
+		printf("Maximum number of gpio switches exceded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return NULL;
 	}
 	
@@ -422,7 +420,7 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 }
 
 unsigned int get_zynswitch_dtus(unsigned int i) {
-	if (i >= max_zynswitches) return 0;
+	if (i >= MAX_NUM_ZYNSWITCHES) return 0;
 	unsigned int dtus=zynswitches[i].dtus;
 	zynswitches[i].dtus=0;
 	return dtus;
@@ -437,20 +435,20 @@ unsigned int get_zynswitch(unsigned int i) {
 //-----------------------------------------------------------------------------
 
 void send_zyncoder(unsigned int i) {
-	if (i>=max_zyncoders) return;
+	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 	if (zyncoder->midi_ctrl>0) {
 		zynmidi_set_control(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
-		lo_send(osc_lo_addr,zyncoder->osc_path, "i", zyncoder->value);
+		lo_send(osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
 		//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
 	}
 }
 
 void update_zyncoder(unsigned int i) {
-	if (i>=max_zyncoders) return;
+	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 
@@ -458,19 +456,54 @@ void update_zyncoder(unsigned int i) {
 	unsigned int LSB = digitalRead(zyncoder->pin_b);
 	unsigned int encoded = (MSB << 1) | LSB;
 	unsigned int sum = (zyncoder->last_encoded << 2) | encoded;
-	unsigned int last_value=zyncoder->value;
+	unsigned int up=(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011);
+	unsigned int down=0;
+	if (!up) down=(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000);
+	zyncoder->last_encoded=encoded;
 
-	if (zyncoder->value>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
+	if (zyncoder->step==0) {
+		struct timespec ts;
+		unsigned long int tsus;
+		unsigned int dsval=1;
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+		unsigned int dtus=tsus-zyncoder->tsus;
+		if (dtus < 10000) dsval=ZYNCODER_TICKS_PER_RETENT;
+		else if (dtus < 40000) dsval=ZYNCODER_TICKS_PER_RETENT/2;
 
-	if (zyncoder->max_value-zyncoder->value>=zyncoder->step && (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)) {
-		zyncoder->value+=zyncoder->step;
+		unsigned int value;
+		if (up) {
+			if (zyncoder->max_value-zyncoder->subvalue>=dsval) {
+				zyncoder->subvalue=(zyncoder->subvalue+dsval)/dsval;
+				zyncoder->subvalue*=dsval;
+			}
+			else zyncoder->subvalue=zyncoder->max_value;
+			value=zyncoder->subvalue/ZYNCODER_TICKS_PER_RETENT;
+		}
+		else if (down) {
+			if (zyncoder->subvalue>=dsval) {
+				zyncoder->subvalue=(zyncoder->subvalue-dsval)/dsval;
+				zyncoder->subvalue*=dsval;
+			}
+			else zyncoder->subvalue=0;
+			value=(zyncoder->subvalue+3)/ZYNCODER_TICKS_PER_RETENT;
+		}
+		else value=zyncoder->value; 
+		if (zyncoder->value!=value) {
+			//printf("DTUS=%d, %d (%d)\n",dtus,value,dsval);
+			zyncoder->value=value;
+			zyncoder->tsus=tsus;
+			send_zyncoder(i);
+		}
+	} 
+	else {
+		unsigned int last_value=zyncoder->value;
+		if (zyncoder->value>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
+		if (zyncoder->max_value-zyncoder->value>=zyncoder->step && up) zyncoder->value+=zyncoder->step;
+		else if (zyncoder->value>=zyncoder->step && down) zyncoder->value-=zyncoder->step;
+		if (last_value!=zyncoder->value) send_zyncoder(i);
 	}
-	else if (zyncoder->value>=zyncoder->step && (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)) {
-		zyncoder->value-=zyncoder->step;
-	}
-	zyncoder->last_encoded = encoded;
 
-	if (last_value!=zyncoder->value) send_zyncoder(i);
 }
 
 void update_zyncoder_0() { update_zyncoder(0); }
@@ -495,8 +528,8 @@ void (*update_zyncoder_funcs[8])={
 //-----------------------------------------------------------------------------
 
 struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
-	if (i > max_zyncoders) {
-		printf("Maximum number of zyncoders exceded: %i\n", max_zyncoders);
+	if (i > MAX_NUM_ZYNCODERS) {
+		printf("Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
 		return NULL;
 	}
 
@@ -509,15 +542,23 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 	//printf("OSC PATH: %s\n",osc_path);
 	if (osc_path) strcpy(zyncoder->osc_path,osc_path);
 	else zyncoder->osc_path[0]=0;
-	zyncoder->max_value = max_value;
 	zyncoder->step = step;
-	zyncoder->value = value;
+	if (step>0) {
+		zyncoder->value = value;
+		zyncoder->subvalue = 0;
+		zyncoder->max_value = max_value;
+	} else {
+		zyncoder->value = value;
+		zyncoder->subvalue = ZYNCODER_TICKS_PER_RETENT*value;
+		zyncoder->max_value = ZYNCODER_TICKS_PER_RETENT*max_value;
+	}
 
 	if (zyncoder->enabled==0 || zyncoder->pin_a!=pin_a || zyncoder->pin_b!=pin_b) {
 		zyncoder->enabled = 1;
 		zyncoder->pin_a = pin_a;
 		zyncoder->pin_b = pin_b;
 		zyncoder->last_encoded = 0;
+		zyncoder->tsus = 0;
 
 		pinMode(pin_a, INPUT);
 		pinMode(pin_b, INPUT);
@@ -531,13 +572,25 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 }
 
 unsigned int get_value_zyncoder(unsigned int i) {
-	if (i >= max_zyncoders) return 0;
+	if (i >= MAX_NUM_ZYNCODERS) return 0;
 	return zyncoders[i].value;
 }
 
 void set_value_zyncoder(unsigned int i, unsigned int v) {
-	if (i >= max_zyncoders) return;
-	if (v>zyncoders[i].max_value) v=zyncoders[i].max_value;
-	zyncoders[i].value=v;
+	if (i >= MAX_NUM_ZYNCODERS) return;
+	struct zyncoder_st *zyncoder = zyncoders + i;
+	if (zyncoder->enabled==0) return;
+
+	//unsigned int last_value=zyncoder->value;
+	if (zyncoder->step==0) {
+		v*=ZYNCODER_TICKS_PER_RETENT;
+		if (v>zyncoder->max_value) zyncoder->subvalue=zyncoder->max_value;
+		else zyncoder->subvalue=v;
+		zyncoder->value=zyncoder->subvalue/ZYNCODER_TICKS_PER_RETENT;
+	} else {
+		if (v>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
+		else zyncoder->value=v;
+	}
+	//if (last_value!=zyncoder->value) 
 	send_zyncoder(i);
 }
