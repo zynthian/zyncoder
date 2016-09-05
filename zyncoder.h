@@ -90,3 +90,17 @@ struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
 unsigned int get_value_zyncoder(unsigned int i);
 void set_value_zyncoder(unsigned int i, unsigned int v);
+
+//-----------------------------------------------------------------------------
+// MIDI Events to Return
+//-----------------------------------------------------------------------------
+
+#define ZYNMIDI_BUFFER_SIZE 32
+unsigned int zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
+int zynmidi_buffer_read;
+int zynmidi_buffer_write;
+
+int write_zynmidi(unsigned int ev);
+unsigned int read_zynmidi();
+
+

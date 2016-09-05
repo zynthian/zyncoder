@@ -64,6 +64,8 @@ int init_zyncoder(int osc_port) {
 	int i;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) zyncoders[i].enabled=0;
+	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
+	zynmidi_buffer_read=zynmidi_buffer_write=0;
 	wiringPiSetup();
 	mcp23008Setup (100, 0x20);
 	init_poll_zynswitches();
@@ -272,6 +274,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
 		event_type=ev.buffer[0] >> 4;
 		if (event_type==0xB || event_type==0xC) {
+			//MIDI CC Events
 			if (event_type==0xB) {
 				//TODO => Optimize this fragment!!!
 				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
@@ -279,6 +282,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 						zyncoders[j].value=ev.buffer[2];
 					}
 				}
+			}
+			//Return this events => [Program Change]
+			if (event_type==0xC) {
+				write_zynmidi((ev.buffer[0])|(ev.buffer[1]<<8)|(ev.buffer[2]<<16));
 			}
 			if (jack_ringbuffer_write_space(jack_ring_input_buffer)>=ev.size) {
 				if (jack_ringbuffer_write(jack_ring_input_buffer, ev.buffer, ev.size)!=ev.size) {
@@ -594,3 +601,24 @@ void set_value_zyncoder(unsigned int i, unsigned int v) {
 	//if (last_value!=zyncoder->value) 
 	send_zyncoder(i);
 }
+
+//-----------------------------------------------------------------------------
+// MIDI Events to Return
+//-----------------------------------------------------------------------------
+
+int write_zynmidi(unsigned int ev) {
+	int nptr=zynmidi_buffer_write+1;
+	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
+	if (nptr==zynmidi_buffer_read) return 0;
+	zynmidi_buffer[zynmidi_buffer_write]=ev;
+	zynmidi_buffer_write=nptr;
+	return 1;
+}
+
+unsigned int read_zynmidi() {
+	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
+	unsigned int ev=zynmidi_buffer[zynmidi_buffer_read++];
+	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
+	return ev;
+}
+
