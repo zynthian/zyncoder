@@ -449,8 +449,18 @@ void send_zyncoder(unsigned int i) {
 		zynmidi_set_control(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
-		lo_send(osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
-		//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
+		if (zyncoder->step >= 8) {
+			if (zyncoder->value>=64) {
+				lo_send(osc_lo_addr,zyncoder->osc_path, "T");
+				//printf("SEND OSC %s => T\n",zyncoder->osc_path);
+			} else {
+				lo_send(osc_lo_addr,zyncoder->osc_path, "F");
+				//printf("SEND OSC %s => F\n",zyncoder->osc_path);
+			}
+		} else {
+			lo_send(osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
+			//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
+		}
 	}
 }
 
