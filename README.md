@@ -26,5 +26,3 @@ $ cd build
 $ cmake ..
 $ make
 ```
-
-[![Join the chat at https://gitter.im/zynthian/zyncoder](https://badges.gitter.im/zynthian/zyncoder.svg)](https://gitter.im/zynthian/zyncoder?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
