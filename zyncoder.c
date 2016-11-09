@@ -488,7 +488,7 @@ void update_zyncoder(unsigned int i) {
 		if (dtus < 10000) dsval=ZYNCODER_TICKS_PER_RETENT;
 		else if (dtus < 40000) dsval=ZYNCODER_TICKS_PER_RETENT/2;
 
-		unsigned int value;
+		int value=-1;
 		if (up) {
 			if (zyncoder->max_value-zyncoder->subvalue>=dsval) {
 				zyncoder->subvalue=(zyncoder->subvalue+dsval)/dsval;
@@ -505,11 +505,11 @@ void update_zyncoder(unsigned int i) {
 			else zyncoder->subvalue=0;
 			value=(zyncoder->subvalue+3)/ZYNCODER_TICKS_PER_RETENT;
 		}
-		else value=zyncoder->value; 
-		if (zyncoder->value!=value) {
+
+		zyncoder->tsus=tsus;
+		if (value>=0 && zyncoder->value!=value) {
 			//printf("DTUS=%d, %d (%d)\n",dtus,value,dsval);
 			zyncoder->value=value;
-			zyncoder->tsus=tsus;
 			send_zyncoder(i);
 		}
 	} 
