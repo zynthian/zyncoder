@@ -84,6 +84,7 @@ struct zyncoder_st
 	volatile unsigned int value;
 	volatile unsigned int last_encoded;
 	volatile unsigned long tsus;
+	unsigned int dtus[ZYNCODER_TICKS_PER_RETENT];
 };
 struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 

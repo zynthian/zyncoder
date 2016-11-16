@@ -61,9 +61,12 @@ int init_zyncoder_midi(char *name);
 int end_zyncoder_midi();
 
 int init_zyncoder(int osc_port) {
-	int i;
+	int i,j;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
-	for (i=0;i<MAX_NUM_ZYNCODERS;i++) zyncoders[i].enabled=0;
+	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
+		zyncoders[i].enabled=0;
+		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++) zyncoders[i].dtus[j]=0;
+	}
 	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
 	zynmidi_buffer_read=zynmidi_buffer_write=0;
 	wiringPiSetup();
@@ -479,36 +482,44 @@ void update_zyncoder(unsigned int i) {
 	zyncoder->last_encoded=encoded;
 
 	if (zyncoder->step==0) {
+		//Get time interval from last tick
 		struct timespec ts;
 		unsigned long int tsus;
-		unsigned int dsval=1;
 		clock_gettime(CLOCK_MONOTONIC, &ts);
 		tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 		unsigned int dtus=tsus-zyncoder->tsus;
-		if (dtus < 10000) dsval=ZYNCODER_TICKS_PER_RETENT;
-		else if (dtus < 40000) dsval=ZYNCODER_TICKS_PER_RETENT/2;
+		//Ignore spurious ticks
+		if (dtus<500) return;
+		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
+		int i;
+		unsigned int dtus_avg=dtus;
+		for (i=0;i<ZYNCODER_TICKS_PER_RETENT;i++) dtus_avg+=zyncoder->dtus[i];
+		dtus_avg/=(ZYNCODER_TICKS_PER_RETENT+1);
+		//Add last dtus to fifo array
+		zyncoder->dtus[0]=zyncoder->dtus[1];
+		zyncoder->dtus[1]=zyncoder->dtus[2];
+		zyncoder->dtus[2]=zyncoder->dtus[3];
+		zyncoder->dtus[3]=dtus;
+		//Calculate step value
+		unsigned int dsval=1;
+		if (dtus_avg < 10000) dsval=ZYNCODER_TICKS_PER_RETENT;
+		else if (dtus_avg < 30000) dsval=ZYNCODER_TICKS_PER_RETENT/2;
 
 		int value=-1;
 		if (up) {
-			if (zyncoder->max_value-zyncoder->subvalue>=dsval) {
-				zyncoder->subvalue=(zyncoder->subvalue+dsval)/dsval;
-				zyncoder->subvalue*=dsval;
-			}
+			if (zyncoder->max_value-zyncoder->subvalue>=dsval) zyncoder->subvalue=(zyncoder->subvalue+dsval);
 			else zyncoder->subvalue=zyncoder->max_value;
 			value=zyncoder->subvalue/ZYNCODER_TICKS_PER_RETENT;
 		}
 		else if (down) {
-			if (zyncoder->subvalue>=dsval) {
-				zyncoder->subvalue=(zyncoder->subvalue-dsval)/dsval;
-				zyncoder->subvalue*=dsval;
-			}
+			if (zyncoder->subvalue>=dsval) zyncoder->subvalue=(zyncoder->subvalue-dsval);
 			else zyncoder->subvalue=0;
-			value=(zyncoder->subvalue+3)/ZYNCODER_TICKS_PER_RETENT;
+			value=(zyncoder->subvalue+ZYNCODER_TICKS_PER_RETENT-1)/ZYNCODER_TICKS_PER_RETENT;
 		}
 
 		zyncoder->tsus=tsus;
 		if (value>=0 && zyncoder->value!=value) {
-			//printf("DTUS=%d, %d (%d)\n",dtus,value,dsval);
+			//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 			zyncoder->value=value;
 			send_zyncoder(i);
 		}
