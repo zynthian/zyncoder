@@ -283,6 +283,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
 					if (zyncoders[j].enabled && zyncoders[j].midi_chan==(ev.buffer[0] & 0xF) && zyncoders[j].midi_ctrl==ev.buffer[1]) {
 						zyncoders[j].value=ev.buffer[2];
+						zyncoders[j].subvalue=ev.buffer[2]*ZYNCODER_TICKS_PER_RETENT;
 					}
 				}
 			}
