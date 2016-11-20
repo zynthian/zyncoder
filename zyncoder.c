@@ -491,9 +491,9 @@ void update_zyncoder(unsigned int i) {
 		//Ignore spurious ticks
 		if (dtus<500) return;
 		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
-		int i;
+		int j;
 		unsigned int dtus_avg=dtus;
-		for (i=0;i<ZYNCODER_TICKS_PER_RETENT;i++) dtus_avg+=zyncoder->dtus[i];
+		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++) dtus_avg+=zyncoder->dtus[j];
 		dtus_avg/=(ZYNCODER_TICKS_PER_RETENT+1);
 		//Add last dtus to fifo array
 		zyncoder->dtus[0]=zyncoder->dtus[1];
