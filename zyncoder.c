@@ -335,15 +335,21 @@ void update_zynswitch(unsigned int i) {
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	if (zynswitch->enabled==0) return;
 
+	unsigned int status=digitalRead(zynswitch->pin);
+	if (status==zynswitch->status) return;
+	zynswitch->status=status;
+
 	struct timespec ts;
 	unsigned long int tsus;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	zynswitch->status=digitalRead(zynswitch->pin);
 	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 	if (zynswitch->status==1) {
-		if (zynswitch->tsus>0) zynswitch->dtus=tsus-zynswitch->tsus;
+		int dtus=tsus-zynswitch->tsus;
+		//Ignore spurious ticks
+		if (dtus<500) return;
+		if (zynswitch->tsus>0) zynswitch->dtus=dtus;
 	} else zynswitch->tsus=tsus;
 }
 
@@ -425,7 +431,10 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 
 	pinMode(pin, INPUT);
 	pullUpDnControl(pin, PUD_UP);
-	if (pin<100) wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
+	if (pin<100) {
+		wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
+		update_zynswitch(i);
+	}
 
 	return zynswitch;
 }
