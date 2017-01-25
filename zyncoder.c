@@ -348,7 +348,8 @@ void update_zynswitch(unsigned int i) {
 	if (zynswitch->status==1) {
 		int dtus=tsus-zynswitch->tsus;
 		//Ignore spurious ticks
-		if (dtus<500) return;
+		if (dtus<1000) return;
+		//printf("Debounced Switch %d\n",i);
 		if (zynswitch->tsus>0) zynswitch->dtus=dtus;
 	} else zynswitch->tsus=tsus;
 }
@@ -388,8 +389,13 @@ void update_expanded_zynswitches() {
 		//printf("POLLING SWITCH %d (%d) => %d\n",i,zynswitch->pin,status);
 		if (status==zynswitch->status) continue;
 		zynswitch->status=status;
+		//printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 		if (zynswitch->status==1) {
-			if (zynswitch->tsus>0) zynswitch->dtus=tsus-zynswitch->tsus;
+			int dtus=tsus-zynswitch->tsus;
+			//Ignore spurious ticks
+			if (dtus<1000) return;
+			//printf("Debounced Switch %d\n",i);
+			if (zynswitch->tsus>0) zynswitch->dtus=dtus;
 		} else zynswitch->tsus=tsus;
 	}
 }
@@ -498,8 +504,10 @@ void update_zyncoder(unsigned int i) {
 		clock_gettime(CLOCK_MONOTONIC, &ts);
 		tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 		unsigned int dtus=tsus-zyncoder->tsus;
+		//printf("ZYNCODER ISR %d => SUBVALUE=%d (%u)\n",i,zyncoder->subvalue,dtus);
 		//Ignore spurious ticks
-		if (dtus<500) return;
+		if (dtus<1000) return;
+		//printf("ZYNCODER DEBOUNCED ISR %d => SUBVALUE=%d (%u)\n",i,zyncoder->subvalue,dtus);
 		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
 		int j;
 		unsigned int dtus_avg=dtus;
