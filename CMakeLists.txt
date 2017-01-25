@@ -8,7 +8,7 @@ link_directories(/usr/local/lib)
 
 check_library_exists(wiringPi wiringPiSetup "" HAVE_WIRINGPI_LIB)
 
-if(${HAVE_WIRINGPI_LIB})
+if(${HAVE_WIRINGPI_LIB} AND NOT DEFINED ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU})
 	add_library(zyncoder SHARED zyncoder.h zyncoder.c)
 	target_link_libraries(zyncoder wiringPi asound jack lo)
 else()
