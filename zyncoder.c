@@ -435,11 +435,13 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 	zynswitch->dtus = 0;
 	zynswitch->status = 0;
 
-	pinMode(pin, INPUT);
-	pullUpDnControl(pin, PUD_UP);
-	if (pin<100) {
-		wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
-		update_zynswitch(i);
+	if (pin>0) {
+		pinMode(pin, INPUT);
+		pullUpDnControl(pin, PUD_UP);
+		if (pin<100) {
+			wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
+			update_zynswitch(i);
+		}
 	}
 
 	return zynswitch;
@@ -606,12 +608,14 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 		zyncoder->last_encoded = 0;
 		zyncoder->tsus = 0;
 
-		pinMode(pin_a, INPUT);
-		pinMode(pin_b, INPUT);
-		pullUpDnControl(pin_a, PUD_UP);
-		pullUpDnControl(pin_b, PUD_UP);
-		wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
-		wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+		if (zyncoder->pin_a!=zyncoder->pin_b) {
+			pinMode(pin_a, INPUT);
+			pinMode(pin_b, INPUT);
+			pullUpDnControl(pin_a, PUD_UP);
+			pullUpDnControl(pin_b, PUD_UP);
+			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+		}
 	}
 
 	return zyncoder;
