@@ -50,7 +50,7 @@ struct gpio_pin gpio[GPIO_MAX];
 void signal_handler(int signo) {
 	if (signo>=SIGRTMIN && signo<=SIGRTMAX) {
 		int pin=(signo-SIGRTMIN);
-		int val=pin%2;
+		int val=pin&0x01;
 		pin=pin>>1;
 		gpio[pin].status=val;
 		if (gpio[pin].isrfunc) gpio[pin].isrfunc();
@@ -64,16 +64,18 @@ void signal_handler(int signo) {
 
 int wiringPiSetup(void) {
 	int i,signo;
-	for (i=0;i<2*GPIO_MAX;i++) {
-		signo=SIGRTMIN+i;
-		//Reset GPIO Data Structures
+	//Reset GPIO Data Structures
+	for (i=0;i<GPIO_MAX;i++) {
 		gpio[i].pin=i;
 		gpio[i].pinmode=INPUT;
 		gpio[i].pullUpDnCtr=PUD_OFF;
 		gpio[i].isrmode=INT_EDGE_SETUP;
 		gpio[i].isrfunc=NULL;
 		gpio[i].status=0;
-		//Setup Signal Catching for GPIO Emulation
+	}
+	//Setup Signal Catching for GPIO Emulation
+	for (i=0;i<2*GPIO_MAX;i++) {
+		signo=SIGRTMIN+i;
 		if (signal(signo,signal_handler)==SIG_ERR) {
 			printf("ERROR WiringPiEmu: Can't catch signal %d\n",signo);
 		}
