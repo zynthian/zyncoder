@@ -38,9 +38,26 @@
 #include <jack/ringbuffer.h>
 #include <lo/lo.h>
 
+//#undef MCP23017_ENCODERS
+#define MCP23017_ENCODERS
+#ifdef MCP23017_ENCODERS
+#define HAVE_WIRINGPI_LIB
+#include <stdint.h>
+
+#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
+#define bitSet(value, bit) ((value) |= (1UL << (bit)))
+#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
+#endif
+
 #ifdef HAVE_WIRINGPI_LIB
 	#include <wiringPi.h>
+#ifdef MCP23017_ENCODERS
+	#include <mcp23017.h>
+	#include <mcp23x0817.h>
+#else
 	#include <mcp23008.h>
+#endif
 #else
 	#include "wiringPiEmu.h"
 #endif
@@ -60,6 +77,32 @@ int end_zyncoder_osc();
 int init_zyncoder_midi(char *name);
 int end_zyncoder_midi();
 
+#ifdef MCP23017_ENCODERS
+// pins 100-115 are located on our mcp23017
+#define MCP23017_BASE_PIN 100
+
+// wiringpi node structure for direct access to the mcp23017
+struct wiringPiNodeStruct *mcp23017_node;
+
+// interrupt pins for the mcp
+#define MCP23017_INTA_PIN 27
+#define MCP23017_INTB_PIN 25
+
+// two ISR routines for the two banks
+void mcp23017_bank_ISR(uint8_t bank);
+void mcp23017_bankA_ISR() { mcp23017_bank_ISR(0); }
+void mcp23017_bankB_ISR() { mcp23017_bank_ISR(1); }
+void (*mcp23017_bank_ISRs[2])={
+	mcp23017_bankA_ISR,
+	mcp23017_bankB_ISR
+};
+
+unsigned int int_to_int(unsigned int k) {
+    return (k == 0 || k == 1 ? k : ((k % 2) + 10 * int_to_int(k / 2)));
+}
+
+#endif
+
 int init_zyncoder(int osc_port) {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
@@ -70,8 +113,69 @@ int init_zyncoder(int osc_port) {
 	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
 	zynmidi_buffer_read=zynmidi_buffer_write=0;
 	wiringPiSetup();
+#ifdef MCP23017_ENCODERS
+	uint8_t reg;
+
+	wiringPiSetup();
+	mcp23017Setup(MCP23017_BASE_PIN, 0x20);
+
+	// get the node cooresponding to our mcp23017 so we can do direct writes
+	mcp23017_node = wiringPiFindNode(MCP23017_BASE_PIN);
+
+	// setup all the pins on the banks as inputs and disable pullups on
+	// the zyncoder input
+	reg = 0xff;
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRA, reg);
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRB, reg);
+
+	// enable pullups on the unused pins (high two bits on each bank)
+	reg = 0x60;
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUA, reg);
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUB, reg);
+
+	// disable polarity inversion
+	reg = 0;
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLA, reg);
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLB, reg);
+
+	// disable the comparison to DEFVAL register
+	reg = 0;
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONA, reg);
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONB, reg);
+
+	// configure the interrupt behavior for bank A
+	uint8_t ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCON);
+	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
+	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
+	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCON, ioconf_value);
+
+	// configure the interrupt behavior for bank B
+	ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCONB);
+	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
+	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
+	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCONB, ioconf_value);
+
+	// finally, enable the interrupt pins for banks a and b
+	// enable interrupts on all pins
+	reg = 0xff;
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENA, reg);
+	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENB, reg);
+
+	// pi ISRs for the 23017
+	// bank A
+	wiringPiISR(MCP23017_INTA_PIN, INT_EDGE_RISING, mcp23017_bank_ISRs[0]);
+	// bank B
+	wiringPiISR(MCP23017_INTB_PIN, INT_EDGE_RISING, mcp23017_bank_ISRs[1]);
+
+#ifdef DEBUG
+	printf("mcp23017 initialized\n");
+#endif
+#else
 	mcp23008Setup (100, 0x20);
 	init_poll_zynswitches();
+#endif
 	init_zyncoder_osc(osc_port);
 	return init_zyncoder_midi("Zyncoder");
 }
@@ -329,13 +433,20 @@ int jack_write_midi_event(unsigned char *ctrl_event) {
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
+#ifdef MCP23017_ENCODERS
+// Update the mcp23017 based switches from ISR routine
+void update_zynswitch(unsigned int i, unsigned int status) {
+#else
 //Update ISR switches (native GPIO)
 void update_zynswitch(unsigned int i) {
+#endif
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	if (zynswitch->enabled==0) return;
 
+#ifndef MCP23017_ENCODERS
 	unsigned int status=digitalRead(zynswitch->pin);
+#endif
 	if (status==zynswitch->status) return;
 	zynswitch->status=status;
 
@@ -354,6 +465,7 @@ void update_zynswitch(unsigned int i) {
 	} else zynswitch->tsus=tsus;
 }
 
+#ifndef MCP23017_ENCODERS
 void update_zynswitch_0() { update_zynswitch(0); }
 void update_zynswitch_1() { update_zynswitch(1); }
 void update_zynswitch_2() { update_zynswitch(2); }
@@ -372,6 +484,7 @@ void (*update_zynswitch_funcs[8])={
 	update_zynswitch_6,
 	update_zynswitch_7
 };
+#endif
 
 //Update NON-ISR switches (expanded GPIO)
 void update_expanded_zynswitches() {
@@ -438,10 +551,16 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 	if (pin>0) {
 		pinMode(pin, INPUT);
 		pullUpDnControl(pin, PUD_UP);
+#ifndef MCP23017_ENCODERS
 		if (pin<100) {
 			wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
 			update_zynswitch(i);
 		}
+#else
+		// this is a bit brute force, but update all the banks
+		mcp23017_bank_ISR(0);
+		mcp23017_bank_ISR(1);
+#endif
 	}
 
 	return zynswitch;
@@ -485,18 +604,27 @@ void send_zyncoder(unsigned int i) {
 	}
 }
 
+#ifdef MCP23017_ENCODERS
+void update_zyncoder(unsigned int i, unsigned int MSB, unsigned int LSB) {
+#else
 void update_zyncoder(unsigned int i) {
+#endif
 	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 
+#ifndef MCP23017_ENCODERS
 	unsigned int MSB = digitalRead(zyncoder->pin_a);
 	unsigned int LSB = digitalRead(zyncoder->pin_b);
+#endif
 	unsigned int encoded = (MSB << 1) | LSB;
 	unsigned int sum = (zyncoder->last_encoded << 2) | encoded;
 	unsigned int up=(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011);
 	unsigned int down=0;
 	if (!up) down=(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000);
+#ifdef DEBUG
+	printf("zyncoder %2d - %08d\t%08d\t%d\t%d\n", i, int_to_int(encoded), int_to_int(sum), up, down);
+#endif
 	zyncoder->last_encoded=encoded;
 
 	if (zyncoder->step==0) {
@@ -554,6 +682,7 @@ void update_zyncoder(unsigned int i) {
 
 }
 
+#ifndef MCP23017_ENCODERS
 void update_zyncoder_0() { update_zyncoder(0); }
 void update_zyncoder_1() { update_zyncoder(1); }
 void update_zyncoder_2() { update_zyncoder(2); }
@@ -572,6 +701,7 @@ void (*update_zyncoder_funcs[8])={
 	update_zyncoder_6,
 	update_zyncoder_7
 };
+#endif
 
 //-----------------------------------------------------------------------------
 
@@ -613,8 +743,14 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 			pinMode(pin_b, INPUT);
 			pullUpDnControl(pin_a, PUD_UP);
 			pullUpDnControl(pin_b, PUD_UP);
+#ifndef MCP23017_ENCODERS
 			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+#else
+			// this is a bit brute force, but update all the banks
+			mcp23017_bank_ISR(0);
+			mcp23017_bank_ISR(1);
+#endif
 		}
 	}
 
@@ -665,3 +801,69 @@ unsigned int read_zynmidi() {
 	return ev;
 }
 
+#ifdef MCP23017_ENCODERS
+//-----------------------------------------------------------------------------
+// MCP23017 based encoders & switches
+//-----------------------------------------------------------------------------
+
+// ISR for handling the mcp23017 interrupts
+void mcp23017_bank_ISR(uint8_t bank) {
+	// the interrupt has gone off for a pin change on the mcp23017
+	// read the appropriate bank and compare pin states to last
+	// on a change, call the update function as appropriate
+	unsigned int i;
+	uint8_t reg;
+	unsigned int pin_min, pin_max;
+
+	if (bank == 0) {
+		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
+		pin_min = MCP23017_BASE_PIN;
+	} else {
+		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOB);
+		pin_min = MCP23017_BASE_PIN + 8;
+	}
+	pin_max = pin_min + 7;
+
+	// search all encoders and switches for a pin in the bank's range
+	// if the last state != current state then this pin has changed
+	// call the update function
+	for (i = 0; i < MAX_NUM_ZYNCODERS; ++i) {
+		struct zyncoder_st *zyncoder = zyncoders + i;
+		if (zyncoder->enabled==0) continue;
+
+		// if either pin is in the range
+		if ((zyncoder->pin_a >= pin_min && zyncoder->pin_a <= pin_max) ||
+		    (zyncoder->pin_b >= pin_min && zyncoder->pin_b <= pin_max)) {
+			uint8_t bit_a = zyncoder->pin_a - pin_min;
+			uint8_t bit_b = zyncoder->pin_b - pin_min;
+			uint8_t state_a = bitRead(reg, bit_a);
+			uint8_t state_b = bitRead(reg, bit_b);
+			// if either bit is different
+			if ((state_a != zyncoder->pin_a_last_state) ||
+			    (state_b != zyncoder->pin_b_last_state)) {
+				// call the update function
+				update_zyncoder(i, state_a, state_b);
+				// update the last state
+				zyncoder->pin_a_last_state = state_a;
+				zyncoder->pin_b_last_state = state_b;
+			}
+		}
+	}
+	for (i = 0; i < MAX_NUM_ZYNSWITCHES; ++i) {
+		struct zynswitch_st *zynswitch = zynswitches + i;
+		if (zynswitch->enabled == 0) continue;
+
+		// check the pin range
+		if (zynswitch->pin >= pin_min && zynswitch->pin <= pin_max) {
+			uint8_t bit = zynswitch->pin - pin_min;
+			uint8_t state = bitRead(reg, bit);
+			if (state != zynswitch->status) {
+				update_zynswitch(i, state);
+				// note that the update function updates status with state
+			}
+		}
+	}
+}
+
+
+#endif

@@ -52,6 +52,8 @@ struct zynswitch_st
 	unsigned int pin;
 	volatile unsigned long tsus;
 	volatile unsigned int dtus;
+	// note that this status is like the pin_[ab]_last_state for the 
+	// zyncoders
 	volatile unsigned int status;
 };
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
@@ -75,6 +77,10 @@ struct zyncoder_st
 	unsigned int enabled;
 	unsigned int pin_a;
 	unsigned int pin_b;
+#ifdef MCP23017_ENCODERS
+	volatile uint8_t pin_a_last_state;
+	volatile uint8_t pin_b_last_state;
+#endif
 	unsigned int midi_chan;
 	unsigned int midi_ctrl;
 	char osc_path[512];
@@ -104,4 +110,9 @@ int zynmidi_buffer_write;
 int write_zynmidi(unsigned int ev);
 unsigned int read_zynmidi();
 
+#ifdef MCP23017_ENCODERS
+//-----------------------------------------------------------------------------
+// MCP23017 based encoders & switches
+//-----------------------------------------------------------------------------
 
+#endif
