@@ -27,18 +27,24 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "zyncoder.h"
 
+#ifndef MCP23017_ENCODERS
 //PROTOTYPE-3
-//int zyncoder_pin_a[4]={27,21,3,7};
-//int zyncoder_pin_b[4]={25,26,4,0};
+//unsigned int zyncoder_pin_a[4]={27,21,3,7};
+//unsigned int zyncoder_pin_b[4]={25,26,4,0};
 //PROTOTYPE-4
-int zyncoder_pin_a[4]={26,25,0,4};
-int zyncoder_pin_b[4]={21,27,7,3};
-
-int zynswitch_pin[4]={107,23,106,2};
+unsigned int zyncoder_pin_a[4]={26,25,0,4};
+unsigned int zyncoder_pin_b[4]={21,27,7,3};
+unsigned int zynswitch_pin[4]={107,23,106,2};
+#else
+unsigned int zyncoder_pin_a[4] = { 102, 105, 110, 113 };
+unsigned int zyncoder_pin_b[4] = { 101, 104, 109, 112 };
+unsigned int zynswitch_pin[4]  = { 100, 103, 108, 111 };
+#endif
 
 int main() {
 	int i;
