@@ -38,31 +38,22 @@
 #include <jack/ringbuffer.h>
 #include <lo/lo.h>
 
-//#undef MCP23017_ENCODERS
-#define MCP23017_ENCODERS
-#ifdef MCP23017_ENCODERS
-#define HAVE_WIRINGPI_LIB
-#include <stdint.h>
+#include "zyncoder.h"
 
-#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-#define bitSet(value, bit) ((value) |= (1UL << (bit)))
-#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
-#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
-#endif
-
-#ifdef HAVE_WIRINGPI_LIB
+#if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
 	#include <wiringPi.h>
-#ifdef MCP23017_ENCODERS
 	#include <mcp23017.h>
 	#include <mcp23x0817.h>
-#else
+	#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
+	#define bitSet(value, bit) ((value) |= (1UL << (bit)))
+	#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+	#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
+#elif HAVE_WIRINGPI_LIB
+	#include <wiringPi.h>
 	#include <mcp23008.h>
-#endif
 #else
 	#include "wiringPiEmu.h"
 #endif
-
-#include "zyncoder.h"
 
 //-----------------------------------------------------------------------------
 // Library Initialization
@@ -98,7 +89,7 @@ void (*mcp23017_bank_ISRs[2])={
 };
 
 unsigned int int_to_int(unsigned int k) {
-    return (k == 0 || k == 1 ? k : ((k % 2) + 10 * int_to_int(k / 2)));
+	return (k == 0 || k == 1 ? k : ((k % 2) + 10 * int_to_int(k / 2)));
 }
 
 #endif
