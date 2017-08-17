@@ -325,55 +325,26 @@ int zynmidi_set_program(unsigned char chan, unsigned char prgm) {
 }
 
 int jack_process(jack_nframes_t nframes, void *arg) {
-	//MIDI Output
-	void *output_port_buffer = jack_port_get_buffer(jack_midi_output_port, nframes);
-	if (output_port_buffer==NULL) {
-		fprintf (stderr, "Error allocating jack output port buffer: %d frames\n", nframes);
-		return -1;
-	}
-	jack_midi_clear_buffer(output_port_buffer);
-
-	int nb=jack_ringbuffer_read_space(jack_ring_output_buffer);
-	if (jack_ringbuffer_read(jack_ring_output_buffer, jack_midi_data, nb)!=nb) {
-		fprintf (stderr, "Error reading midi data from jack ring output buffer: %d bytes\n", nb);
-		return -1;
-	}
-
 	int i=0;
-	int pos=0;
+	int j;
 	unsigned char event_type;
-	unsigned int event_size;
 	unsigned char *buffer;
-	while (pos < nb) {
-		event_type= jack_midi_data[pos] >> 4;
-		if (event_type==0xC || event_type==0xD) event_size=2;
-		else event_size=3;
-		
-		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
-		memcpy(buffer, jack_midi_data+pos, event_size);
-		pos+=3;
 
-		if (i>nframes) {
-			fprintf (stderr, "Error processing jack midi output events: TOO MANY EVENTS\n");
-			return -1;
-		}
-		i++;
-	}
-	
 	//MIDI Input
 	void *input_port_buffer = jack_port_get_buffer(jack_midi_input_port, nframes);
 	if (input_port_buffer==NULL) {
 		fprintf (stderr, "Error allocating jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
-	i=0;
-	int j;
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
 		event_type=ev.buffer[0] >> 4;
-		if (event_type==0xB || event_type==0xC) {
+		if (event_type==0xB || event_type==0xC || event_type==0x8 || event_type==0x9 || event_type==0xE) {
 			//MIDI CC Events
 			if (event_type==0xB) {
+				//CC-mapping
+				// TODO
+
 				//TODO => Optimize this fragment!!!
 				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
 					if (zyncoders[j].enabled && zyncoders[j].midi_chan==(ev.buffer[0] & 0xF) && zyncoders[j].midi_ctrl==ev.buffer[1]) {
@@ -382,8 +353,17 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					}
 				}
 			}
-			//Return this events => [Program Change]
-			if (event_type==0xC) {
+			//Transposing: Note-on & Note-Off messages
+			if (0 && (event_type==0x8 || event_type==0x9)) {
+				//TODO
+			}
+			// Fine-Tuning: Note-On && Pitch-Bending messages
+			if (0 && (event_type==0x9 || event_type==0xE)) {
+				//TODO
+			}
+
+			//Return this events => [Program-Change, Note-Off, Note-On]
+			if (event_type==0xC || event_type==0x8 || event_type==0x9) {
 				write_zynmidi((ev.buffer[0])|(ev.buffer[1]<<8)|(ev.buffer[2]<<16));
 			}
 			if (jack_ringbuffer_write_space(jack_ring_input_buffer)>=ev.size) {
@@ -399,7 +379,38 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 		i++;
 	}
-	
+
+	//MIDI Output
+	i=0;
+	int pos=0;
+	unsigned int event_size;
+
+	void *output_port_buffer = jack_port_get_buffer(jack_midi_output_port, nframes);
+	if (output_port_buffer==NULL) {
+		fprintf (stderr, "Error allocating jack output port buffer: %d frames\n", nframes);
+		return -1;
+	}
+	jack_midi_clear_buffer(output_port_buffer);
+	int nb=jack_ringbuffer_read_space(jack_ring_output_buffer);
+	if (jack_ringbuffer_read(jack_ring_output_buffer, jack_midi_data, nb)!=nb) {
+		fprintf (stderr, "Error reading midi data from jack ring output buffer: %d bytes\n", nb);
+		return -1;
+	}
+	while (pos < nb) {
+		event_type= jack_midi_data[pos] >> 4;
+		if (event_type==0xC || event_type==0xD) event_size=2;
+		else event_size=3;
+		
+		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
+		memcpy(buffer, jack_midi_data+pos, event_size);
+		pos+=3;
+
+		if (i>nframes) {
+			fprintf (stderr, "Error processing jack midi output events: TOO MANY EVENTS\n");
+			return -1;
+		}
+		i++;
+	}
 
 	return 0;
 }
