@@ -36,11 +36,40 @@ int init_zyncoder(int osc_port);
 int end_zyncoder();
 
 //-----------------------------------------------------------------------------
-// MIDI Send
+// MIDI filter
 //-----------------------------------------------------------------------------
 
-int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val);
-int zynmidi_set_program(unsigned char chan, unsigned char pgrm);
+struct midi_filter_st
+{
+	int tuning_pitchbend;
+	int transpose[16];
+	int cc_map[16][128];
+};
+struct midi_filter_st midi_filter;
+
+void init_midi_filter();
+void set_midi_filter_tuning_freq(int freq);
+
+//-----------------------------------------------------------------------------
+// MIDI Input Events Buffer Management
+//-----------------------------------------------------------------------------
+
+#define ZYNMIDI_BUFFER_SIZE 32
+unsigned int zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
+int zynmidi_buffer_read;
+int zynmidi_buffer_write;
+
+unsigned int read_zynmidi();
+
+//-----------------------------------------------------------------------------
+// MIDI Send Functions
+//-----------------------------------------------------------------------------
+
+int zynmidi_send_note_off(unsigned char chan, unsigned char note, unsigned char vel);
+int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char vel);
+int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigned char val);
+int zynmidi_send_program_change(unsigned char chan, unsigned char prgm);
+int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb);
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
@@ -101,14 +130,3 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 unsigned int get_value_zyncoder(unsigned int i);
 void set_value_zyncoder(unsigned int i, unsigned int v);
 
-//-----------------------------------------------------------------------------
-// MIDI Events to Return
-//-----------------------------------------------------------------------------
-
-#define ZYNMIDI_BUFFER_SIZE 32
-unsigned int zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
-int zynmidi_buffer_read;
-int zynmidi_buffer_write;
-
-int write_zynmidi(unsigned int ev);
-unsigned int read_zynmidi();

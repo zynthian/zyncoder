@@ -29,10 +29,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <alsa/asoundlib.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <jack/ringbuffer.h>
@@ -103,6 +103,7 @@ int init_zyncoder(int osc_port) {
 	}
 	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
 	zynmidi_buffer_read=zynmidi_buffer_write=0;
+	init_midi_filter();
 	wiringPiSetup();
 #ifdef MCP23017_ENCODERS
 	uint8_t reg;
@@ -198,67 +199,55 @@ int end_zyncoder_osc() {
 }
 
 //-----------------------------------------------------------------------------
-// Alsa MIDI processing
+// MIDI filter management
 //-----------------------------------------------------------------------------
-#ifdef USE_ALSASEQ_MIDI
 
-snd_seq_t *alsaseq_handle=NULL;
-int alsaseq_port_id;
-
-int init_zyncoder_midi(char *name) {
-	if (snd_seq_open(&alsaseq_handle, "default", SND_SEQ_OPEN_DUPLEX, 0) < 0) {
-		fprintf(stderr, "Error creating alsaseq client.\n");
-		return -1;
+void init_midi_filter() {
+	int i,j;
+	midi_filter.tuning_pitchbend=-1;
+	for (i=0;i<16;i++) {
+		midi_filter.transpose[i]=-1;
 	}
-	snd_seq_set_client_name(alsaseq_handle, name);
-
-	if (( alsaseq_port_id = snd_seq_create_simple_port(alsaseq_handle, "output",
-		SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,
-		//SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
-		SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
-		fprintf(stderr, "Error creating alsaseq output port.\n" );
-		return -2;
+	for (i=0;i<16;i++) {
+		for (j=0;j<128;j++) {
+			midi_filter.cc_map[i][j]=-1;
+		}
 	}
-
-	return 0;
 }
 
-int end_zyncoder_midi() {
-	return 0;
+void set_midi_filter_tuning_freq(int freq) {
+	double pb=6*log((double)freq/440.0)/log(2.0);
+	if (pb<1.0 && pb>-1.0) {
+		midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
+		fprintf (stdout, "MIDI tuning frequency: %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+	} else {
+		fprintf (stderr, "MIDI tuning frequency out of range!\n");
+	}
 }
 
-int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val) {
-	if (alsaseq_handle!=NULL) {
-		snd_seq_event_t ev;
-		snd_seq_ev_clear(&ev);
-		snd_seq_ev_set_direct(&ev);
-		snd_seq_ev_set_subs(&ev);        /* send to subscribers of source port */
-		snd_seq_ev_set_controller(&ev, chan, ctrl, val);
-		snd_seq_event_output_direct(alsaseq_handle, &ev);
-		//snd_seq_drain_output(alsaseq_handle);
-		return 0;
-	}
-	return -1;
+//-----------------------------------------------------------------------------
+// MIDI Input Events Buffer Management
+//-----------------------------------------------------------------------------
+
+int write_zynmidi(unsigned int ev) {
+	int nptr=zynmidi_buffer_write+1;
+	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
+	if (nptr==zynmidi_buffer_read) return 0;
+	zynmidi_buffer[zynmidi_buffer_write]=ev;
+	zynmidi_buffer_write=nptr;
+	return 1;
 }
 
-int zynmidi_set_program(unsigned char chan, unsigned char prgm) {
-	if (alsaseq_handle!=NULL) {
-		snd_seq_event_t ev;
-		snd_seq_ev_clear(&ev);
-		snd_seq_ev_set_direct(&ev);
-		snd_seq_ev_set_subs(&ev);        /* send to subscribers of source port */
-		snd_seq_ev_set_pgmchange(&ev, chan, prgm);
-		snd_seq_event_output_direct(alsaseq_handle, &ev);
-		//snd_seq_drain_output(alsaseq_handle);
-		return 0;
-	}
-	return -1;
+unsigned int read_zynmidi() {
+	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
+	unsigned int ev=zynmidi_buffer[zynmidi_buffer_read++];
+	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
+	return ev;
 }
 
 //-----------------------------------------------------------------------------
 // Jack MIDI processing
 //-----------------------------------------------------------------------------
-#else
 
 jack_client_t *jack_client;
 jack_port_t *jack_midi_output_port;
@@ -308,26 +297,25 @@ int end_zyncoder_midi() {
 	return jack_client_close(jack_client);
 }
 
-int zynmidi_set_control(unsigned char chan, unsigned char ctrl, unsigned char val) {
-	unsigned char buffer[3];
-	buffer[0] = 0xB0 + chan;
-	buffer[1] = ctrl;
-	buffer[2] = val;
-	return jack_write_midi_event(buffer);
-}
-
-int zynmidi_set_program(unsigned char chan, unsigned char prgm) {
-	unsigned char buffer[3];
-	buffer[0] = 0xC0 + chan;
-	buffer[1] = prgm;
-	buffer[2] = 0;
-	return jack_write_midi_event(buffer);
+int jack_write_midi_event(unsigned char *ctrl_event) {
+	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=3) {
+		if (jack_ringbuffer_write(jack_ring_output_buffer, ctrl_event, 3)!=3) {
+			fprintf (stderr, "Error writing jack ring output buffer: INCOMPLETE\n");
+			return -1;
+		}
+	}
+	else {
+		fprintf (stderr, "Error writing jack ring output buffer: FULL\n");
+		return -1;
+	}
+	return 0;
 }
 
 int jack_process(jack_nframes_t nframes, void *arg) {
 	int i=0;
 	int j;
 	unsigned char event_type;
+	unsigned char event_chan;
 	unsigned char *buffer;
 
 	//MIDI Input
@@ -358,8 +346,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				//TODO
 			}
 			// Fine-Tuning: Note-On && Pitch-Bending messages
-			if (0 && (event_type==0x9 || event_type==0xE)) {
-				//TODO
+			if (midi_filter.tuning_pitchbend>=0 && (event_type==0x9 || event_type==0xE)) {
+				//TODO => modify pitch in pitchbending events!
+				event_chan=ev.buffer[0] & 0xF;
+				zynmidi_send_pitchbend_change(event_chan,midi_filter.tuning_pitchbend);
 			}
 
 			//Return this events => [Program-Change, Note-Off, Note-On]
@@ -415,21 +405,49 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	return 0;
 }
 
-int jack_write_midi_event(unsigned char *ctrl_event) {
-	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=3) {
-		if (jack_ringbuffer_write(jack_ring_output_buffer, ctrl_event, 3)!=3) {
-			fprintf (stderr, "Error writing jack ring output buffer: INCOMPLETE\n");
-			return -1;
-		}
-	}
-	else {
-		fprintf (stderr, "Error writing jack ring output buffer: FULL\n");
-		return -1;
-	}
-	return 0;
+//-----------------------------------------------------------------------------
+// MIDI Send Functions
+//-----------------------------------------------------------------------------
+
+int zynmidi_send_note_off(unsigned char chan, unsigned char note, unsigned char vel) {
+	unsigned char buffer[3];
+	buffer[0] = 0x80 + chan;
+	buffer[1] = note;
+	buffer[2] = vel;
+	return jack_write_midi_event(buffer);
 }
 
-#endif
+int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char vel) {
+	unsigned char buffer[3];
+	buffer[0] = 0x90 + chan;
+	buffer[1] = note;
+	buffer[2] = vel;
+	return jack_write_midi_event(buffer);
+}
+
+int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigned char val) {
+	unsigned char buffer[3];
+	buffer[0] = 0xB0 + chan;
+	buffer[1] = ctrl;
+	buffer[2] = val;
+	return jack_write_midi_event(buffer);
+}
+
+int zynmidi_send_program_change(unsigned char chan, unsigned char prgm) {
+	unsigned char buffer[3];
+	buffer[0] = 0xC0 + chan;
+	buffer[1] = prgm;
+	buffer[2] = 0;
+	return jack_write_midi_event(buffer);
+}
+
+int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb) {
+	unsigned char buffer[3];
+	buffer[0] = 0xE0 + chan;
+	buffer[1] = pb & 0x7F;
+	buffer[2] = (pb >> 7) & 0x7F;
+	return jack_write_midi_event(buffer);
+}
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
@@ -588,7 +606,7 @@ void send_zyncoder(unsigned int i) {
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 	if (zyncoder->midi_ctrl>0) {
-		zynmidi_set_control(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {
@@ -781,26 +799,6 @@ void set_value_zyncoder(unsigned int i, unsigned int v) {
 	}
 	//if (last_value!=zyncoder->value) 
 	send_zyncoder(i);
-}
-
-//-----------------------------------------------------------------------------
-// MIDI Events to Return
-//-----------------------------------------------------------------------------
-
-int write_zynmidi(unsigned int ev) {
-	int nptr=zynmidi_buffer_write+1;
-	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
-	if (nptr==zynmidi_buffer_read) return 0;
-	zynmidi_buffer[zynmidi_buffer_write]=ev;
-	zynmidi_buffer_write=nptr;
-	return 1;
-}
-
-unsigned int read_zynmidi() {
-	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
-	unsigned int ev=zynmidi_buffer[zynmidi_buffer_read++];
-	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
-	return ev;
 }
 
 #ifdef MCP23017_ENCODERS
