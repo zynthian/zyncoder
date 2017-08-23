@@ -206,7 +206,7 @@ void init_midi_filter() {
 	int i,j;
 	midi_filter.tuning_pitchbend=-1;
 	for (i=0;i<16;i++) {
-		midi_filter.transpose[i]=-1;
+		midi_filter.transpose[i]=0;
 	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<128;j++) {
@@ -219,9 +219,72 @@ void set_midi_filter_tuning_freq(int freq) {
 	double pb=6*log((double)freq/440.0)/log(2.0);
 	if (pb<1.0 && pb>-1.0) {
 		midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
-		fprintf (stdout, "MIDI tuning frequency: %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+		fprintf (stdout, "Zyncoder: MIDI tuning frequency set to %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
 	} else {
-		fprintf (stderr, "MIDI tuning frequency out of range!\n");
+		fprintf (stderr, "Zyncoder: MIDI tuning frequency out of range!\n");
+	}
+}
+
+int get_midi_filter_tuning_pitchbend() {
+	return midi_filter.tuning_pitchbend;
+}
+
+void set_midi_filter_transpose(unsigned int chan, int offset) {
+	if (chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI Transpose channel (%d) is out of range!\n",chan);
+		return;
+	}
+	if (offset<-60 || offset>60) {
+		fprintf (stderr, "Zyncoder: MIDI Transpose offset (%d) is out of range!\n",offset);
+		return;
+	}
+	midi_filter.transpose[chan]=offset;
+}
+
+int get_midi_filter_transpose(unsigned int chan) {
+	if (chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI Transpose channel (%d) is out of range!\n",chan);
+		return 0;
+	}
+	return midi_filter.transpose[chan];
+}
+
+void set_midi_filter_cc_map(unsigned int chan, unsigned int cc_from, unsigned int cc_to) {
+	if (chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
+		return;
+	}
+	if (cc_from>127) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map 'from' control number (%d) is out of range!\n",cc_from);
+		return;
+	}
+	if (cc_to>127) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map 'to' control number (%d) is out of range!\n",cc_to);
+		return;
+	}
+	midi_filter.cc_map[chan][cc_from]=cc_to;
+}
+
+int get_midi_filter_cc_map(unsigned int chan, unsigned int cc_from) {
+	if (chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
+		return -1;
+	}
+	if (cc_from>127) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map 'from' control number (%d) is out of range!\n",cc_from);
+		return -1;
+	}
+	return midi_filter.cc_map[chan][cc_from];
+}
+
+void reset_midi_filter_cc_map(unsigned int chan) {
+	int i;
+	if (chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
+		return;
+	}
+	for (i=0;i<128;i++) {
+		midi_filter.cc_map[chan][i]=-1;
 	}
 }
 
@@ -253,41 +316,35 @@ jack_client_t *jack_client;
 jack_port_t *jack_midi_output_port;
 jack_port_t *jack_midi_input_port;
 jack_ringbuffer_t *jack_ring_output_buffer;
-jack_ringbuffer_t *jack_ring_input_buffer;
-unsigned char jack_midi_data[3*256];
+unsigned char jack_midi_data[3*1024];
 
 int jack_process(jack_nframes_t nframes, void *arg);
-int jack_write_midi_event(unsigned char *ctrl_event);
+int jack_write_midi_event(unsigned char *event, int event_size);
 
 int init_zyncoder_midi(char *name) {
 	if ((jack_client = jack_client_open(name, JackNullOption , 0 , 0 )) == NULL) {
-		fprintf (stderr, "Error connecting with jack server.\n");
+		fprintf (stderr, "Zyncoder: Error connecting with jack server.\n");
 		return -1;
 	}
 	jack_midi_output_port = jack_port_register(jack_client, "output", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
 	if (jack_midi_output_port == NULL) {
-		fprintf (stderr, "Error creating jack midi output port.\n");
+		fprintf (stderr, "Zyncoder: Error creating jack midi output port.\n");
 		return -2;
 	}
 	jack_midi_input_port = jack_port_register(jack_client, "input", JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
 	if (jack_midi_input_port == NULL) {
-		fprintf (stderr, "Error creating jack midi input port.\n");
+		fprintf (stderr, "Zyncoder: Error creating jack midi input port.\n");
 		return -2;
 	}
-	jack_ring_output_buffer = jack_ringbuffer_create(3*256);
-	jack_ring_input_buffer = jack_ringbuffer_create(3*256);
+	jack_ring_output_buffer = jack_ringbuffer_create(3*1024);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_output_buffer)) {
-		fprintf (stderr, "Error locking memory for jack ring output buffer.\n");
-		return -3;
-	}
-	if (jack_ringbuffer_mlock(jack_ring_input_buffer)) {
-		fprintf (stderr, "Error locking memory for jack ring input buffer.\n");
+		fprintf (stderr, "Zyncoder: Error locking memory for jack ring output buffer.\n");
 		return -3;
 	}
 	jack_set_process_callback(jack_client, jack_process, 0);
 	if (jack_activate(jack_client)) {
-		fprintf (stderr, "Error activating jack client.\n");
+		fprintf (stderr, "Zyncoder: Error activating jack client.\n");
 		return -4;
 	}
 	return 0;
@@ -297,15 +354,15 @@ int end_zyncoder_midi() {
 	return jack_client_close(jack_client);
 }
 
-int jack_write_midi_event(unsigned char *ctrl_event) {
-	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=3) {
-		if (jack_ringbuffer_write(jack_ring_output_buffer, ctrl_event, 3)!=3) {
-			fprintf (stderr, "Error writing jack ring output buffer: INCOMPLETE\n");
+int jack_write_midi_event(unsigned char *event_buffer, int event_size) {
+	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=event_size) {
+		if (jack_ringbuffer_write(jack_ring_output_buffer, event_buffer, event_size)!=event_size) {
+			fprintf (stderr, "Zyncoder: Error writing jack ring output buffer: INCOMPLETE\n");
 			return -1;
 		}
 	}
 	else {
-		fprintf (stderr, "Error writing jack ring output buffer: FULL\n");
+		fprintf (stderr, "Zyncoder: Error writing jack ring output buffer: FULL\n");
 		return -1;
 	}
 	return 0;
@@ -321,50 +378,62 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	//MIDI Input
 	void *input_port_buffer = jack_port_get_buffer(jack_midi_input_port, nframes);
 	if (input_port_buffer==NULL) {
-		fprintf (stderr, "Error allocating jack input port buffer: %d frames\n", nframes);
+		fprintf (stderr, "Zyncoder: Error allocating jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
 		event_type=ev.buffer[0] >> 4;
 		if (event_type==0xB || event_type==0xC || event_type==0x8 || event_type==0x9 || event_type==0xE) {
-			//MIDI CC Events
-			if (event_type==0xB) {
-				//CC-mapping
-				// TODO
+			event_chan=ev.buffer[0] & 0xF;
 
+			//MIDI CC messages
+			if (event_type==0xB) {
+				//CC map
+				if (midi_filter.cc_map[event_chan][ev.buffer[1]]>=0) {
+					ev.buffer[1]=midi_filter.cc_map[event_chan][ev.buffer[1]];
+				}
 				//TODO => Optimize this fragment!!!
 				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
-					if (zyncoders[j].enabled && zyncoders[j].midi_chan==(ev.buffer[0] & 0xF) && zyncoders[j].midi_ctrl==ev.buffer[1]) {
+					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==ev.buffer[1]) {
 						zyncoders[j].value=ev.buffer[2];
 						zyncoders[j].subvalue=ev.buffer[2]*ZYNCODER_TICKS_PER_RETENT;
 					}
 				}
 			}
-			//Transposing: Note-on & Note-Off messages
-			if (0 && (event_type==0x8 || event_type==0x9)) {
-				//TODO
-			}
-			// Fine-Tuning: Note-On && Pitch-Bending messages
-			if (midi_filter.tuning_pitchbend>=0 && (event_type==0x9 || event_type==0xE)) {
-				//TODO => modify pitch in pitchbending events!
-				event_chan=ev.buffer[0] & 0xF;
-				zynmidi_send_pitchbend_change(event_chan,midi_filter.tuning_pitchbend);
+			//Note-on/off messages
+			else if (event_type==0x8 || event_type==0x9) {
+				//Transpose
+				if (midi_filter.transpose[event_chan]!=0) {
+					int note=ev.buffer[1]+midi_filter.transpose[event_chan];
+					//If transposed note is out of range, ignore message ...
+					if (note>0x7F || note<0) {
+						i++;
+						continue;
+					}
+					ev.buffer[1]=(unsigned char)(note & 0x7F);
+				}
 			}
 
-			//Return this events => [Program-Change, Note-Off, Note-On]
+			// Fine-Tuning, using pitch-bending messages ...
+			if (midi_filter.tuning_pitchbend>=0) {
+				if (event_type==0x9) {
+					zynmidi_send_pitchbend_change(event_chan,midi_filter.tuning_pitchbend);
+				} else if (event_type==0xE) {
+					//TODO => modify pitch on pitchbending events!
+				}
+			}
+
+			//Capture events for GUI => [Program-Change, Note-Off, Note-On]
 			if (event_type==0xC || event_type==0x8 || event_type==0x9) {
 				write_zynmidi((ev.buffer[0])|(ev.buffer[1]<<8)|(ev.buffer[2]<<16));
 			}
-			if (jack_ringbuffer_write_space(jack_ring_input_buffer)>=ev.size) {
-				if (jack_ringbuffer_write(jack_ring_input_buffer, ev.buffer, ev.size)!=ev.size) {
-					fprintf (stderr, "Error writing jack ring input buffer: INCOMPLETE\n");
-					return -1;
-				}
-			}
+			
+			//Forward message
+			jack_write_midi_event(ev.buffer,ev.size);
 		}
 		if (i>nframes) {
-			fprintf (stderr, "Error processing jack midi input events: TOO MANY EVENTS\n");
+			fprintf (stderr, "Zyncoder: Error processing jack midi input events: TOO MANY EVENTS\n");
 			return -1;
 		}
 		i++;
@@ -377,13 +446,13 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 	void *output_port_buffer = jack_port_get_buffer(jack_midi_output_port, nframes);
 	if (output_port_buffer==NULL) {
-		fprintf (stderr, "Error allocating jack output port buffer: %d frames\n", nframes);
+		fprintf (stderr, "Zyncoder: Error allocating jack output port buffer: %d frames\n", nframes);
 		return -1;
 	}
 	jack_midi_clear_buffer(output_port_buffer);
 	int nb=jack_ringbuffer_read_space(jack_ring_output_buffer);
 	if (jack_ringbuffer_read(jack_ring_output_buffer, jack_midi_data, nb)!=nb) {
-		fprintf (stderr, "Error reading midi data from jack ring output buffer: %d bytes\n", nb);
+		fprintf (stderr, "Zyncoder: Error reading midi data from jack ring output buffer: %d bytes\n", nb);
 		return -1;
 	}
 	while (pos < nb) {
@@ -396,7 +465,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		pos+=3;
 
 		if (i>nframes) {
-			fprintf (stderr, "Error processing jack midi output events: TOO MANY EVENTS\n");
+			fprintf (stderr, "Zyncoder: Error processing jack midi output events: TOO MANY EVENTS\n");
 			return -1;
 		}
 		i++;
@@ -414,7 +483,7 @@ int zynmidi_send_note_off(unsigned char chan, unsigned char note, unsigned char 
 	buffer[0] = 0x80 + chan;
 	buffer[1] = note;
 	buffer[2] = vel;
-	return jack_write_midi_event(buffer);
+	return jack_write_midi_event(buffer,3);
 }
 
 int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char vel) {
@@ -422,7 +491,7 @@ int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char v
 	buffer[0] = 0x90 + chan;
 	buffer[1] = note;
 	buffer[2] = vel;
-	return jack_write_midi_event(buffer);
+	return jack_write_midi_event(buffer,3);
 }
 
 int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigned char val) {
@@ -430,7 +499,7 @@ int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigne
 	buffer[0] = 0xB0 + chan;
 	buffer[1] = ctrl;
 	buffer[2] = val;
-	return jack_write_midi_event(buffer);
+	return jack_write_midi_event(buffer,3);
 }
 
 int zynmidi_send_program_change(unsigned char chan, unsigned char prgm) {
@@ -438,7 +507,7 @@ int zynmidi_send_program_change(unsigned char chan, unsigned char prgm) {
 	buffer[0] = 0xC0 + chan;
 	buffer[1] = prgm;
 	buffer[2] = 0;
-	return jack_write_midi_event(buffer);
+	return jack_write_midi_event(buffer,3);
 }
 
 int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb) {
@@ -446,7 +515,7 @@ int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb) {
 	buffer[0] = 0xE0 + chan;
 	buffer[1] = pb & 0x7F;
 	buffer[2] = (pb >> 7) & 0x7F;
-	return jack_write_midi_event(buffer);
+	return jack_write_midi_event(buffer,3);
 }
 
 //-----------------------------------------------------------------------------
@@ -545,10 +614,10 @@ pthread_t init_poll_zynswitches() {
 	pthread_t tid;
 	int err=pthread_create(&tid, NULL, &poll_zynswitches, NULL);
 	if (err != 0) {
-		printf("Can't create zynswitches poll thread :[%s]", strerror(err));
+		printf("Zyncoder: Can't create zynswitches poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("Zynswitches poll thread created successfully\n");
+		printf("Zyncoder: Zynswitches poll thread created successfully\n");
 		return tid;
 	}
 }
@@ -557,7 +626,7 @@ pthread_t init_poll_zynswitches() {
 
 struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("Maximum number of gpio switches exceded: %d\n", MAX_NUM_ZYNSWITCHES);
+		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return NULL;
 	}
 	
@@ -727,7 +796,7 @@ void (*update_zyncoder_funcs[8])={
 
 struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
-		printf("Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
+		printf("Zyncoder: Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
 		return NULL;
 	}
 

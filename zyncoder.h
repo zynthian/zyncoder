@@ -48,7 +48,16 @@ struct midi_filter_st
 struct midi_filter_st midi_filter;
 
 void init_midi_filter();
+
 void set_midi_filter_tuning_freq(int freq);
+int get_midi_filter_tuning_pitchbend();
+
+void set_midi_filter_transpose(unsigned int chan, int offset);
+int get_midi_filter_transpose(unsigned int chan);
+
+void set_midi_filter_cc_map(unsigned int chan, unsigned int cc_from, unsigned int cc_to);
+int get_midi_filter_cc_map(unsigned int chan, unsigned int cc_from);
+void reset_midi_filter_cc_map(unsigned int chan);
 
 //-----------------------------------------------------------------------------
 // MIDI Input Events Buffer Management
