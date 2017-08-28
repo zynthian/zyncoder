@@ -425,8 +425,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 
 			//Capture events for GUI => [Program-Change, Note-Off, Note-On]
-			if (event_type==0xC || event_type==0x8 || event_type==0x9) {
-				write_zynmidi((ev.buffer[0])|(ev.buffer[1]<<8)|(ev.buffer[2]<<16));
+			if (event_type==0xB || event_type==0xC || event_type==0x8 || event_type==0x9) {
+				write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
 			}
 			
 			//Forward message
