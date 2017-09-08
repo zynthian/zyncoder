@@ -204,6 +204,7 @@ int end_zyncoder_osc() {
 
 void init_midi_filter() {
 	int i,j;
+	midi_filter.master_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
@@ -211,8 +212,17 @@ void init_midi_filter() {
 	for (i=0;i<16;i++) {
 		for (j=0;j<128;j++) {
 			midi_filter.cc_map[i][j]=-1;
+			midi_filter.last_ctrl_val[i][j]=0;
 		}
 	}
+}
+
+void set_midi_master_chan(int chan) {
+	if (chan>15 || chan<0) {
+		fprintf (stderr, "Zyncoder: MIDI Master channel (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.master_chan=chan;
 }
 
 void set_midi_filter_tuning_freq(int freq) {
@@ -373,14 +383,22 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	int j;
 	unsigned char event_type;
 	unsigned char event_chan;
+	unsigned char event_ctrl;
+	unsigned char event_val;
+	unsigned int event_size;
 	unsigned char *buffer;
 
+	//---------------------------------
 	//MIDI Input
+	//---------------------------------
+
+	//Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(jack_midi_input_port, nframes);
 	if (input_port_buffer==NULL) {
 		fprintf (stderr, "Zyncoder: Error allocating jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
+	//Process MIDI messages
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
 		event_type=ev.buffer[0] >> 4;
@@ -389,15 +407,17 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			//MIDI CC messages
 			if (event_type==0xB) {
+				event_ctrl=ev.buffer[1] & 0x7F;
+				event_val=ev.buffer[2] & 0x7F;
 				//CC map
-				if (midi_filter.cc_map[event_chan][ev.buffer[1]]>=0) {
-					ev.buffer[1]=midi_filter.cc_map[event_chan][ev.buffer[1]];
+				if (midi_filter.cc_map[event_chan][event_ctrl]>=0) {
+					ev.buffer[1]=midi_filter.cc_map[event_chan][event_ctrl];
 				}
-				//TODO => Optimize this fragment!!!
+				//Update Zyncoder value => TODO Optimize this fragment!!!
 				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
-					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==ev.buffer[1]) {
-						zyncoders[j].value=ev.buffer[2];
-						zyncoders[j].subvalue=ev.buffer[2]*ZYNCODER_TICKS_PER_RETENT;
+					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_ctrl) {
+						zyncoders[j].value=event_val;
+						zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
 					}
 				}
 			}
@@ -439,11 +459,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		i++;
 	}
 
+	//---------------------------------
 	//MIDI Output
-	i=0;
-	int pos=0;
-	unsigned int event_size;
+	//---------------------------------
 
+	//Get internal MIDI data buffer
 	void *output_port_buffer = jack_port_get_buffer(jack_midi_output_port, nframes);
 	if (output_port_buffer==NULL) {
 		fprintf (stderr, "Zyncoder: Error allocating jack output port buffer: %d frames\n", nframes);
@@ -455,11 +475,42 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		fprintf (stderr, "Zyncoder: Error reading midi data from jack ring output buffer: %d bytes\n", nb);
 		return -1;
 	}
+
+	//Write MIDI data
+	int pos=0;
+	i=0;
 	while (pos < nb) {
 		event_type= jack_midi_data[pos] >> 4;
 		if (event_type==0xC || event_type==0xD) event_size=2;
 		else event_size=3;
-		
+
+		//Master Channel Control
+		if (event_type==0xB) {
+			event_chan=jack_midi_data[pos] & 0xF;
+			event_ctrl=jack_midi_data[pos+1] & 0x7F;
+			event_val=jack_midi_data[pos+2] & 0x7F;
+
+			//Save last controller values for Master Channel calculation ...
+			midi_filter.last_ctrl_val[event_chan][event_ctrl]=event_val;
+
+			//Captured Controllers => volume
+			if (event_ctrl==0x7) {
+				if (midi_filter.master_chan>=0) {
+					//if channel is master, resend ctrl messages to all normal channels ...
+					if (event_chan==midi_filter.master_chan) {
+						for (j=0;j<16;j++) {
+							if (j==midi_filter.master_chan) continue;
+							zynmidi_send_ccontrol_change(j,event_ctrl,midi_filter.last_ctrl_val[j][event_ctrl]);
+						}
+					//if channel is not master, scale value proportionally to Master Channel value ...
+					} else {
+						jack_midi_data[pos+2]=((unsigned int)event_val*(unsigned int)midi_filter.last_ctrl_val[midi_filter.master_chan][event_ctrl])>>7;
+					}
+				}
+			}
+		}
+
+		//Write to Jackd buffer
 		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
 		memcpy(buffer, jack_midi_data+pos, event_size);
 		pos+=3;
@@ -517,6 +568,13 @@ int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb) {
 	buffer[2] = (pb >> 7) & 0x7F;
 	return jack_write_midi_event(buffer,3);
 }
+
+int zynmidi_send_master_ccontrol_change(unsigned char ctrl, unsigned char val) {
+	if (midi_filter.master_chan>=0) {
+		return zynmidi_send_ccontrol_change(midi_filter.master_chan, ctrl, val);
+	}
+}
+
 
 //-----------------------------------------------------------------------------
 // GPIO Switches

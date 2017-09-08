@@ -44,10 +44,15 @@ struct midi_filter_st
 	int tuning_pitchbend;
 	int transpose[16];
 	int cc_map[16][128];
+
+	int master_chan;
+	unsigned char last_ctrl_val[16][128];
 };
 struct midi_filter_st midi_filter;
 
 void init_midi_filter();
+
+void set_midi_master_chan(int chan);
 
 void set_midi_filter_tuning_freq(int freq);
 int get_midi_filter_tuning_pitchbend();
@@ -79,6 +84,8 @@ int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char v
 int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigned char val);
 int zynmidi_send_program_change(unsigned char chan, unsigned char prgm);
 int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb);
+
+int zynmidi_send_master_ccontrol_change(unsigned char ctrl, unsigned char val);
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
