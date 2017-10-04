@@ -41,6 +41,11 @@
 #include "zyncoder.h"
 
 #if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
+	// pins 100-115 are located on our mcp23017
+	#define MCP23017_BASE_PIN 100
+	// interrupt pins for the mcp
+	#define MCP23017_INTA_PIN 27
+	#define MCP23017_INTB_PIN 25
 	#include <wiringPi.h>
 	#include <mcp23017.h>
 	#include <mcp23x0817.h>
@@ -49,9 +54,11 @@
 	#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
 	#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
 #elif HAVE_WIRINGPI_LIB
+	#define MCP23008_BASE_PIN 100
 	#include <wiringPi.h>
 	#include <mcp23008.h>
 #else
+	#define MCP23008_BASE_PIN 100
 	#include "wiringPiEmu.h"
 #endif
 
@@ -69,15 +76,8 @@ int init_zyncoder_midi(char *name);
 int end_zyncoder_midi();
 
 #ifdef MCP23017_ENCODERS
-// pins 100-115 are located on our mcp23017
-#define MCP23017_BASE_PIN 100
-
 // wiringpi node structure for direct access to the mcp23017
 struct wiringPiNodeStruct *mcp23017_node;
-
-// interrupt pins for the mcp
-#define MCP23017_INTA_PIN 27
-#define MCP23017_INTB_PIN 25
 
 // two ISR routines for the two banks
 void mcp23017_bank_ISR(uint8_t bank);
@@ -91,7 +91,6 @@ void (*mcp23017_bank_ISRs[2])={
 unsigned int int_to_int(unsigned int k) {
 	return (k == 0 || k == 1 ? k : ((k % 2) + 10 * int_to_int(k / 2)));
 }
-
 #endif
 
 int init_zyncoder(int osc_port) {
@@ -203,15 +202,21 @@ int end_zyncoder_osc() {
 //-----------------------------------------------------------------------------
 
 void init_midi_filter() {
-	int i,j;
+	int i,j,k;
 	midi_filter.master_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
 	}
+	for (i=0;i<8;i++) {
+		for (j=0;j<16;j++) {
+			for (k=0;k<128;k++) {
+				midi_filter.event_map[i][j][k].type=THRU_EVENT;
+			}
+		}
+	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<128;j++) {
-			midi_filter.cc_map[i][j]=-1;
 			midi_filter.last_ctrl_val[i][j]=0;
 		}
 	}
@@ -239,7 +244,7 @@ int get_midi_filter_tuning_pitchbend() {
 	return midi_filter.tuning_pitchbend;
 }
 
-void set_midi_filter_transpose(unsigned int chan, int offset) {
+void set_midi_filter_transpose(uint8_t chan, int offset) {
 	if (chan>15) {
 		fprintf (stderr, "Zyncoder: MIDI Transpose channel (%d) is out of range!\n",chan);
 		return;
@@ -251,7 +256,7 @@ void set_midi_filter_transpose(unsigned int chan, int offset) {
 	midi_filter.transpose[chan]=offset;
 }
 
-int get_midi_filter_transpose(unsigned int chan) {
+int get_midi_filter_transpose(uint8_t chan) {
 	if (chan>15) {
 		fprintf (stderr, "Zyncoder: MIDI Transpose channel (%d) is out of range!\n",chan);
 		return 0;
@@ -259,42 +264,109 @@ int get_midi_filter_transpose(unsigned int chan) {
 	return midi_filter.transpose[chan];
 }
 
-void set_midi_filter_cc_map(unsigned int chan, unsigned int cc_from, unsigned int cc_to) {
-	if (chan>15) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
-		return;
+
+int validate_midi_event(struct midi_event_st *ev) {
+	if (ev->type>0xE) {
+		fprintf (stderr, "Zyncoder: MIDI Event type (%d) is out of range!\n",ev->type);
+		return 0;
 	}
-	if (cc_from>127) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map 'from' control number (%d) is out of range!\n",cc_from);
-		return;
+	if (ev->chan>15) {
+		fprintf (stderr, "Zyncoder: MIDI Event channel (%d) is out of range!\n",ev->chan);
+		return 0;
 	}
-	if (cc_to>127) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map 'to' control number (%d) is out of range!\n",cc_to);
-		return;
+	if (ev->num>127) {
+		fprintf (stderr, "Zyncoder: MIDI Event num (%d) is out of range!\n",ev->num);
+		return 0;
 	}
-	midi_filter.cc_map[chan][cc_from]=cc_to;
+	return 1;
 }
 
-int get_midi_filter_cc_map(unsigned int chan, unsigned int cc_from) {
-	if (chan>15) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
-		return -1;
+void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to) {
+	if (validate_midi_event(ev_from) && validate_midi_event(ev_to)) {
+		//memcpy(&midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num],ev_to,sizeof(ev_to));
+		struct midi_event_st *event_map=&midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num];
+		event_map->type=ev_to->type;
+		event_map->chan=ev_to->chan;
+		event_map->num=ev_to->num;
 	}
-	if (cc_from>127) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map 'from' control number (%d) is out of range!\n",cc_from);
-		return -1;
-	}
-	return midi_filter.cc_map[chan][cc_from];
 }
 
-void reset_midi_filter_cc_map(unsigned int chan) {
-	int i;
-	if (chan>15) {
-		fprintf (stderr, "Zyncoder: MIDI CC Map channel (%d) is out of range!\n",chan);
-		return;
+void set_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from,
+															enum midi_event_type_enum type_to, uint8_t chan_to, uint8_t num_to) {
+	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+	struct midi_event_st ev_to={ .type=type_to, .chan=chan_to, .num=num_to };
+	set_midi_filter_event_map_st(&ev_from, &ev_to);
+}
+
+void set_midi_filter_event_ignore_st(struct midi_event_st *ev_from) {
+	if (validate_midi_event(ev_from)) {
+		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].type=IGNORE_EVENT;
 	}
-	for (i=0;i<128;i++) {
-		midi_filter.cc_map[chan][i]=-1;
+}
+
+void set_midi_filter_event_ignore(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
+	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+	set_midi_filter_event_ignore_st(&ev_from);
+}
+
+struct midi_event_st *get_midi_filter_event_map_st(struct midi_event_st *ev_from) {
+	if (validate_midi_event(ev_from)) {
+		return &midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num];
+	}
+	return NULL;
+}
+
+struct midi_event_st *get_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
+	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+	return get_midi_filter_event_map_st(&ev_from);
+}
+
+void del_midi_filter_event_map_st(struct midi_event_st *ev_from) {
+	if (validate_midi_event(ev_from)) {
+		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].type=THRU_EVENT;
+	}
+}
+
+void del_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
+	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+	del_midi_filter_event_map_st(&ev_from);
+}
+
+void reset_midi_filter_event_map() {
+	int i,j,k;
+	for (i=0;i<8;i++) {
+		for (j=0;j<16;j++) {
+			for (k=0;k<128;k++) {
+				midi_filter.event_map[i][j][k].type=THRU_EVENT;
+			}
+		}
+	}
+}
+
+void set_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from, uint8_t chan_to, uint8_t cc_to) {
+	set_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from,CTRL_CHANGE,chan_to,cc_to);
+}
+
+void set_midi_filter_cc_ignore(uint8_t chan_from, uint8_t cc_from) {
+	set_midi_filter_event_ignore(CTRL_CHANGE,chan_from,cc_from);
+}
+
+//TODO: It doesn't take into account if chan_from!=chan_to
+uint8_t get_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from) {
+	struct midi_event_st *ev=get_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from);
+	return ev->num;
+}
+
+void del_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from) {
+	del_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from);
+}
+
+void reset_midi_filter_cc_map() {
+	int i,j;
+	for (i=0;i<16;i++) {
+		for (j=0;j<128;j++) {
+			del_midi_filter_event_map(CTRL_CHANGE,i,j);
+		}
 	}
 }
 
@@ -302,7 +374,7 @@ void reset_midi_filter_cc_map(unsigned int chan) {
 // MIDI Input Events Buffer Management
 //-----------------------------------------------------------------------------
 
-int write_zynmidi(unsigned int ev) {
+int write_zynmidi(uint32_t ev) {
 	int nptr=zynmidi_buffer_write+1;
 	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
 	if (nptr==zynmidi_buffer_read) return 0;
@@ -311,9 +383,9 @@ int write_zynmidi(unsigned int ev) {
 	return 1;
 }
 
-unsigned int read_zynmidi() {
+uint32_t read_zynmidi() {
 	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
-	unsigned int ev=zynmidi_buffer[zynmidi_buffer_read++];
+	uint32_t ev=zynmidi_buffer[zynmidi_buffer_read++];
 	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
 	return ev;
 }
@@ -326,10 +398,10 @@ jack_client_t *jack_client;
 jack_port_t *jack_midi_output_port;
 jack_port_t *jack_midi_input_port;
 jack_ringbuffer_t *jack_ring_output_buffer;
-unsigned char jack_midi_data[3*1024];
+uint8_t jack_midi_data[3*1024];
 
 int jack_process(jack_nframes_t nframes, void *arg);
-int jack_write_midi_event(unsigned char *event, int event_size);
+int jack_write_midi_event(uint8_t *event, int event_size);
 
 int init_zyncoder_midi(char *name) {
 	if ((jack_client = jack_client_open(name, JackNullOption , 0 , 0 )) == NULL) {
@@ -364,7 +436,7 @@ int end_zyncoder_midi() {
 	return jack_client_close(jack_client);
 }
 
-int jack_write_midi_event(unsigned char *event_buffer, int event_size) {
+int jack_write_midi_event(uint8_t *event_buffer, int event_size) {
 	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=event_size) {
 		if (jack_ringbuffer_write(jack_ring_output_buffer, event_buffer, event_size)!=event_size) {
 			fprintf (stderr, "Zyncoder: Error writing jack ring output buffer: INCOMPLETE\n");
@@ -381,12 +453,12 @@ int jack_write_midi_event(unsigned char *event_buffer, int event_size) {
 int jack_process(jack_nframes_t nframes, void *arg) {
 	int i=0;
 	int j;
-	unsigned char event_type;
-	unsigned char event_chan;
-	unsigned char event_ctrl;
-	unsigned char event_val;
-	unsigned int event_size;
-	unsigned char *buffer;
+	uint8_t event_type;
+	uint8_t event_chan;
+	uint8_t event_num;
+	uint8_t event_val;
+	uint8_t event_size;
+	uint8_t *buffer;
 
 	//---------------------------------
 	//MIDI Input
@@ -402,56 +474,93 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
 		event_type=ev.buffer[0] >> 4;
-		if (event_type==0xB || event_type==0xC || event_type==0x8 || event_type==0x9 || event_type==0xE) {
-			event_chan=ev.buffer[0] & 0xF;
+		event_chan=ev.buffer[0] & 0xF;
+		ev.buffer[1]&=0x7F;
+		ev.buffer[2]&=0x7F;
 
-			//MIDI CC messages
-			if (event_type==0xB) {
-				event_ctrl=ev.buffer[1] & 0x7F;
-				event_val=ev.buffer[2] & 0x7F;
-				//CC map
-				if (midi_filter.cc_map[event_chan][event_ctrl]>=0) {
-					ev.buffer[1]=midi_filter.cc_map[event_chan][event_ctrl];
-				}
-				//Update Zyncoder value => TODO Optimize this fragment!!!
-				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
-					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_ctrl) {
-						zyncoders[j].value=event_val;
-						zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
-					}
-				}
+		if (ev.size==3) {
+			if (event_type==PITCH_BENDING) {
+				event_num=0;
+				event_val=ev.buffer[2];
+			} else {
+				event_num=ev.buffer[1];
+				event_val=ev.buffer[2];
 			}
-			//Note-on/off messages
-			else if (event_type==0x8 || event_type==0x9) {
-				//Transpose
-				if (midi_filter.transpose[event_chan]!=0) {
-					int note=ev.buffer[1]+midi_filter.transpose[event_chan];
-					//If transposed note is out of range, ignore message ...
-					if (note>0x7F || note<0) {
-						i++;
-						continue;
-					}
-					ev.buffer[1]=(unsigned char)(note & 0x7F);
-				}
-			}
-
-			// Fine-Tuning, using pitch-bending messages ...
-			if (midi_filter.tuning_pitchbend>=0) {
-				if (event_type==0x9) {
-					zynmidi_send_pitchbend_change(event_chan,midi_filter.tuning_pitchbend);
-				} else if (event_type==0xE) {
-					//TODO => modify pitch on pitchbending events!
-				}
-			}
-
-			//Capture events for GUI => [Program-Change, Note-Off, Note-On]
-			if (event_type==0xB || event_type==0xC || event_type==0x8 || event_type==0x9) {
-				write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
-			}
-			
-			//Forward message
-			jack_write_midi_event(ev.buffer,ev.size);
+		} else {
+			event_num=0;
+			event_val=ev.buffer[1];
 		}
+
+		//Event Mapping
+		struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
+		//Ignore event...
+		if (event_map->type==IGNORE_EVENT)
+			continue;
+		//Map event ...
+		if (event_map->type>=0) {
+			//fprintf (stdout, "Zyncoder: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
+			event_type=event_map->type;
+			event_chan=event_map->chan;
+			ev.buffer[0]=(event_type << 4) | event_chan;
+			if (event_map->type==PROG_CHANGE || event_map->type==CHAN_PRESS) {
+				event_num=0;
+				ev.buffer[1]=event_val;
+				ev.size=2;
+			} else if (event_map->type==PITCH_BENDING) {
+				event_num=0;
+				ev.buffer[1]=0;
+				ev.buffer[2]=event_val;
+				ev.size=3;
+			} else {
+				event_num=event_map->num;
+				ev.buffer[1]=event_num;
+				ev.buffer[2]=event_val;
+				ev.size=3;
+			}
+			//fprintf (stdout, "%d, %d\n",ev.buffer[0],ev.buffer[1]);
+		}
+
+		//MIDI CC messages
+		if (event_type==CTRL_CHANGE) {
+			//Update Zyncoder value => TODO Optimize this fragment!!!
+			for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
+				if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
+					zyncoders[j].value=event_val;
+					zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
+				}
+			}
+		}
+		//Note-on/off messages
+		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
+			//Transpose
+			if (midi_filter.transpose[event_chan]!=0) {
+				int note=ev.buffer[1]+midi_filter.transpose[event_chan];
+				//If transposed note is out of range, ignore message ...
+				if (note>0x7F || note<0) {
+					i++;
+					continue;
+				}
+				ev.buffer[1]=(uint8_t)(note & 0x7F);
+			}
+		}
+
+		// Fine-Tuning, using pitch-bending messages ...
+		if (midi_filter.tuning_pitchbend>=0) {
+			if (event_type==NOTE_ON) {
+				zynmidi_send_pitchbend_change(event_chan,midi_filter.tuning_pitchbend);
+			} else if (event_type==PITCH_BENDING) {
+				//TODO => modify pitch on pitchbending events!
+			}
+		}
+
+		//Capture events for GUI => [Note-Off, Note-On, Control-Change, Program-Change]
+		if (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type==PROG_CHANGE) {
+			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+		}
+		
+		//Forward message
+		jack_write_midi_event(ev.buffer,ev.size);
+
 		if (i>nframes) {
 			fprintf (stderr, "Zyncoder: Error processing jack midi input events: TOO MANY EVENTS\n");
 			return -1;
@@ -481,30 +590,30 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	i=0;
 	while (pos < nb) {
 		event_type= jack_midi_data[pos] >> 4;
-		if (event_type==0xC || event_type==0xD) event_size=2;
+		if (event_type==PROG_CHANGE || event_type==CHAN_PRESS) event_size=2;
 		else event_size=3;
 
 		//Master Channel Control
-		if (event_type==0xB) {
+		if (event_type==CTRL_CHANGE) {
 			event_chan=jack_midi_data[pos] & 0xF;
-			event_ctrl=jack_midi_data[pos+1] & 0x7F;
+			event_num=jack_midi_data[pos+1] & 0x7F;
 			event_val=jack_midi_data[pos+2] & 0x7F;
 
 			//Save last controller values for Master Channel calculation ...
-			midi_filter.last_ctrl_val[event_chan][event_ctrl]=event_val;
+			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
 
 			//Captured Controllers => volume
-			if (event_ctrl==0x7) {
+			if (event_num==0x7) {
 				if (midi_filter.master_chan>=0) {
 					//if channel is master, resend ctrl messages to all normal channels ...
 					if (event_chan==midi_filter.master_chan) {
 						for (j=0;j<16;j++) {
 							if (j==midi_filter.master_chan) continue;
-							zynmidi_send_ccontrol_change(j,event_ctrl,midi_filter.last_ctrl_val[j][event_ctrl]);
+							zynmidi_send_ccontrol_change(j,event_num,midi_filter.last_ctrl_val[j][event_num]);
 						}
 					//if channel is not master, scale value proportionally to Master Channel value ...
 					} else {
-						jack_midi_data[pos+2]=((unsigned int)event_val*(unsigned int)midi_filter.last_ctrl_val[midi_filter.master_chan][event_ctrl])>>7;
+						jack_midi_data[pos+2]=((int32_t)event_val*(uint32_t)midi_filter.last_ctrl_val[midi_filter.master_chan][event_num])>>7;
 					}
 				}
 			}
@@ -529,47 +638,47 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 // MIDI Send Functions
 //-----------------------------------------------------------------------------
 
-int zynmidi_send_note_off(unsigned char chan, unsigned char note, unsigned char vel) {
-	unsigned char buffer[3];
+int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel) {
+	uint8_t buffer[3];
 	buffer[0] = 0x80 + chan;
 	buffer[1] = note;
 	buffer[2] = vel;
 	return jack_write_midi_event(buffer,3);
 }
 
-int zynmidi_send_note_on(unsigned char chan, unsigned char note, unsigned char vel) {
-	unsigned char buffer[3];
+int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel) {
+	uint8_t buffer[3];
 	buffer[0] = 0x90 + chan;
 	buffer[1] = note;
 	buffer[2] = vel;
 	return jack_write_midi_event(buffer,3);
 }
 
-int zynmidi_send_ccontrol_change(unsigned char chan, unsigned char ctrl, unsigned char val) {
-	unsigned char buffer[3];
+int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
+	uint8_t buffer[3];
 	buffer[0] = 0xB0 + chan;
 	buffer[1] = ctrl;
 	buffer[2] = val;
 	return jack_write_midi_event(buffer,3);
 }
 
-int zynmidi_send_program_change(unsigned char chan, unsigned char prgm) {
-	unsigned char buffer[3];
+int zynmidi_send_program_change(uint8_t chan, uint8_t prgm) {
+	uint8_t buffer[3];
 	buffer[0] = 0xC0 + chan;
 	buffer[1] = prgm;
 	buffer[2] = 0;
 	return jack_write_midi_event(buffer,3);
 }
 
-int zynmidi_send_pitchbend_change(unsigned char chan, unsigned int pb) {
-	unsigned char buffer[3];
+int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb) {
+	uint8_t buffer[3];
 	buffer[0] = 0xE0 + chan;
 	buffer[1] = pb & 0x7F;
 	buffer[2] = (pb >> 7) & 0x7F;
 	return jack_write_midi_event(buffer,3);
 }
 
-int zynmidi_send_master_ccontrol_change(unsigned char ctrl, unsigned char val) {
+int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val) {
 	if (midi_filter.master_chan>=0) {
 		return zynmidi_send_ccontrol_change(midi_filter.master_chan, ctrl, val);
 	}
@@ -582,17 +691,17 @@ int zynmidi_send_master_ccontrol_change(unsigned char ctrl, unsigned char val) {
 
 #ifdef MCP23017_ENCODERS
 // Update the mcp23017 based switches from ISR routine
-void update_zynswitch(unsigned int i, unsigned int status) {
+void update_zynswitch(uint8_t i, uint8_t status) {
 #else
 //Update ISR switches (native GPIO)
-void update_zynswitch(unsigned int i) {
+void update_zynswitch(uint8_t i) {
 #endif
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	if (zynswitch->enabled==0) return;
 
 #ifndef MCP23017_ENCODERS
-	unsigned int status=digitalRead(zynswitch->pin);
+	uint8_t status=digitalRead(zynswitch->pin);
 #endif
 	if (status==zynswitch->status) return;
 	zynswitch->status=status;
@@ -641,7 +750,7 @@ void update_expanded_zynswitches() {
 	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
 	int i;
-	unsigned int status;
+	uint8_t status;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		struct zynswitch_st *zynswitch = zynswitches + i;
 		if (!zynswitch->enabled || zynswitch->pin<100) continue;
@@ -682,7 +791,7 @@ pthread_t init_poll_zynswitches() {
 
 //-----------------------------------------------------------------------------
 
-struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
+struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
 		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return NULL;
@@ -699,7 +808,7 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 		pinMode(pin, INPUT);
 		pullUpDnControl(pin, PUD_UP);
 #ifndef MCP23017_ENCODERS
-		if (pin<100) {
+		if (pin<MCP23008_BASE_PIN) {
 			wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
 			update_zynswitch(i);
 		}
@@ -713,14 +822,14 @@ struct zynswitch_st *setup_zynswitch(unsigned int i, unsigned int pin) {
 	return zynswitch;
 }
 
-unsigned int get_zynswitch_dtus(unsigned int i) {
+unsigned int get_zynswitch_dtus(uint8_t i) {
 	if (i >= MAX_NUM_ZYNSWITCHES) return 0;
 	unsigned int dtus=zynswitches[i].dtus;
 	zynswitches[i].dtus=0;
 	return dtus;
 }
 
-unsigned int get_zynswitch(unsigned int i) {
+unsigned int get_zynswitch(uint8_t i) {
 	return get_zynswitch_dtus(i);
 }
 
@@ -728,7 +837,7 @@ unsigned int get_zynswitch(unsigned int i) {
 // Generic Rotary Encoders
 //-----------------------------------------------------------------------------
 
-void send_zyncoder(unsigned int i) {
+void send_zyncoder(uint8_t i) {
 	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
@@ -752,22 +861,22 @@ void send_zyncoder(unsigned int i) {
 }
 
 #ifdef MCP23017_ENCODERS
-void update_zyncoder(unsigned int i, unsigned int MSB, unsigned int LSB) {
+void update_zyncoder(uint8_t i, uint8_t MSB, uint8_t LSB) {
 #else
-void update_zyncoder(unsigned int i) {
+void update_zyncoder(uint8_t i) {
 #endif
 	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 
 #ifndef MCP23017_ENCODERS
-	unsigned int MSB = digitalRead(zyncoder->pin_a);
-	unsigned int LSB = digitalRead(zyncoder->pin_b);
+	uint8_t MSB = digitalRead(zyncoder->pin_a);
+	uint8_t LSB = digitalRead(zyncoder->pin_b);
 #endif
-	unsigned int encoded = (MSB << 1) | LSB;
-	unsigned int sum = (zyncoder->last_encoded << 2) | encoded;
-	unsigned int up=(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011);
-	unsigned int down=0;
+	uint8_t encoded = (MSB << 1) | LSB;
+	uint8_t sum = (zyncoder->last_encoded << 2) | encoded;
+	uint8_t up=(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011);
+	uint8_t down=0;
 	if (!up) down=(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000);
 #ifdef DEBUG
 	printf("zyncoder %2d - %08d\t%08d\t%d\t%d\n", i, int_to_int(encoded), int_to_int(sum), up, down);
@@ -852,7 +961,7 @@ void (*update_zyncoder_funcs[8])={
 
 //-----------------------------------------------------------------------------
 
-struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned int pin_b, unsigned int midi_chan, unsigned int midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
+struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
 		printf("Zyncoder: Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
 		return NULL;
@@ -904,12 +1013,12 @@ struct zyncoder_st *setup_zyncoder(unsigned int i, unsigned int pin_a, unsigned 
 	return zyncoder;
 }
 
-unsigned int get_value_zyncoder(unsigned int i) {
+unsigned int get_value_zyncoder(uint8_t i) {
 	if (i >= MAX_NUM_ZYNCODERS) return 0;
 	return zyncoders[i].value;
 }
 
-void set_value_zyncoder(unsigned int i, unsigned int v) {
+void set_value_zyncoder(uint8_t i, unsigned int v) {
 	if (i >= MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
@@ -938,9 +1047,9 @@ void mcp23017_bank_ISR(uint8_t bank) {
 	// the interrupt has gone off for a pin change on the mcp23017
 	// read the appropriate bank and compare pin states to last
 	// on a change, call the update function as appropriate
-	unsigned int i;
+	int i;
 	uint8_t reg;
-	unsigned int pin_min, pin_max;
+	uint8_t pin_min, pin_max;
 
 	if (bank == 0) {
 		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
@@ -954,7 +1063,7 @@ void mcp23017_bank_ISR(uint8_t bank) {
 	// search all encoders and switches for a pin in the bank's range
 	// if the last state != current state then this pin has changed
 	// call the update function
-	for (i = 0; i < MAX_NUM_ZYNCODERS; ++i) {
+	for (i=0; i<MAX_NUM_ZYNCODERS; i++) {
 		struct zyncoder_st *zyncoder = zyncoders + i;
 		if (zyncoder->enabled==0) continue;
 
@@ -991,6 +1100,5 @@ void mcp23017_bank_ISR(uint8_t bank) {
 		}
 	}
 }
-
 
 #endif
