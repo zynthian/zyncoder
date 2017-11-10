@@ -64,6 +64,7 @@ struct midi_filter_st {
 
 	int master_chan;
 	uint8_t last_ctrl_val[16][128];
+	uint16_t last_pb_val[16];
 };
 struct midi_filter_st midi_filter;
 
