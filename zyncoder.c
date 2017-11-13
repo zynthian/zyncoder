@@ -221,7 +221,7 @@ void init_midi_filter() {
 		}
 	}
 	for (i=0;i<16;i++) {
-		midi_filter.last_pb_val[i]=0;
+		midi_filter.last_pb_val[i]=8192;
 	}
 	
 }
@@ -251,7 +251,7 @@ int get_midi_filter_tuning_pitchbend() {
 int get_tuned_pitchbend(int pb) {
 	int tpb=midi_filter.tuning_pitchbend+pb-8192;
 	if (tpb<0) tpb=0;
-	else if (tpb>16384) tpb=16384;
+	else if (tpb>16383) tpb=16383;
 	return tpb;
 }
 
@@ -558,16 +558,20 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		// Fine-Tuning, using pitch-bending messages ...
 		if (midi_filter.tuning_pitchbend>=0) {
 			if (event_type==NOTE_ON) {
-				int pb=midi_filter.last_pb_val[event_chan]+midi_filter.tuning_pitchbend-8192;
+				int pb=midi_filter.last_pb_val[event_chan];
+				//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
 				pb=get_tuned_pitchbend(pb);
+				//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
 				zynmidi_send_pitchbend_change(event_chan,pb);
 			} else if (event_type==PITCH_BENDING) {
 				//Get received PB
-				int pb=(ev.buffer[2] << 7) & ev.buffer[1];
+				int pb=(ev.buffer[2] << 7) | ev.buffer[1];
 				//Save last received PB value ...
 				midi_filter.last_pb_val[event_chan]=pb;
 				//Calculate tuned PB
+				//printf("PITCHBEND=%d\n",pb);
 				pb=get_tuned_pitchbend(pb);
+				//printf("TUNED PITCHBEND=%d\n",pb);
 				ev.buffer[1]=pb & 0x7F;
 				ev.buffer[2]=(pb >> 7) & 0x7F;
 			}
