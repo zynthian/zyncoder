@@ -501,6 +501,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			event_num=0;
 			event_val=ev.buffer[1];
 		}
+		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
 
 		//Event Mapping
 		struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
@@ -528,7 +529,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				ev.buffer[2]=event_val;
 				ev.size=3;
 			}
-			//fprintf (stdout, "%d, %d\n",ev.buffer[0],ev.buffer[1]);
+			//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
 		}
 
 		//MIDI CC messages
@@ -617,6 +618,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		if (event_type==PROG_CHANGE || event_type==CHAN_PRESS) event_size=2;
 		else event_size=3;
 
+		/*
 		//Master Channel Control
 		if (event_type==CTRL_CHANGE) {
 			event_chan=jack_midi_data[pos] & 0xF;
@@ -642,6 +644,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 			}
 		}
+		*/
 
 		//Write to Jackd buffer
 		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
