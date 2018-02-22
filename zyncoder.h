@@ -174,5 +174,5 @@ struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 
 struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
 unsigned int get_value_zyncoder(uint8_t i);
-void set_value_zyncoder(uint8_t i, unsigned int v);
+void set_value_zyncoder(uint8_t i, unsigned int v, int send);
 

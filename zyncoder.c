@@ -1045,7 +1045,7 @@ unsigned int get_value_zyncoder(uint8_t i) {
 	return zyncoders[i].value;
 }
 
-void set_value_zyncoder(uint8_t i, unsigned int v) {
+void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 	if (i >= MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
@@ -1060,8 +1060,7 @@ void set_value_zyncoder(uint8_t i, unsigned int v) {
 		if (v>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
 		else zyncoder->value=v;
 	}
-	//if (last_value!=zyncoder->value) 
-	send_zyncoder(i);
+	if (send) send_zyncoder(i);
 }
 
 #ifdef MCP23017_ENCODERS
