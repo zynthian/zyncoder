@@ -212,6 +212,8 @@ void init_midi_filter() {
 		for (j=0;j<16;j++) {
 			for (k=0;k<128;k++) {
 				midi_filter.event_map[i][j][k].type=THRU_EVENT;
+				midi_filter.event_map[i][j][k].chan=j;
+				midi_filter.event_map[i][j][k].num=k;
 			}
 		}
 	}
@@ -234,6 +236,8 @@ void set_midi_master_chan(int chan) {
 	midi_filter.master_chan=chan;
 }
 
+//MIDI pitch-bending fine-tuning
+
 void set_midi_filter_tuning_freq(int freq) {
 	double pb=6*log((double)freq/440.0)/log(2.0);
 	if (pb<1.0 && pb>-1.0) {
@@ -255,6 +259,8 @@ int get_tuned_pitchbend(int pb) {
 	return tpb;
 }
 
+//MIDI transposing
+
 void set_midi_filter_transpose(uint8_t chan, int offset) {
 	if (chan>15) {
 		fprintf (stderr, "Zyncoder: MIDI Transpose channel (%d) is out of range!\n",chan);
@@ -275,6 +281,7 @@ int get_midi_filter_transpose(uint8_t chan) {
 	return midi_filter.transpose[chan];
 }
 
+//Core MIDI filter functions
 
 int validate_midi_event(struct midi_event_st *ev) {
 	if (ev->type>0xE) {
@@ -335,6 +342,8 @@ struct midi_event_st *get_midi_filter_event_map(enum midi_event_type_enum type_f
 void del_midi_filter_event_map_st(struct midi_event_st *ev_from) {
 	if (validate_midi_event(ev_from)) {
 		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].type=THRU_EVENT;
+		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].chan=ev_from->chan;
+		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].num=ev_from->num;
 	}
 }
 
@@ -349,10 +358,14 @@ void reset_midi_filter_event_map() {
 		for (j=0;j<16;j++) {
 			for (k=0;k<128;k++) {
 				midi_filter.event_map[i][j][k].type=THRU_EVENT;
+				midi_filter.event_map[i][j][k].chan=j;
+				midi_filter.event_map[i][j][k].num=k;
 			}
 		}
 	}
 }
+
+//Simple CC mapping
 
 void set_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from, uint8_t chan_to, uint8_t cc_to) {
 	set_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from,CTRL_CHANGE,chan_to,cc_to);
@@ -379,6 +392,167 @@ void reset_midi_filter_cc_map() {
 			del_midi_filter_event_map(CTRL_CHANGE,i,j);
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Swap CC mapping => GRAPH THEORY
+//-----------------------------------------------------------------------------
+//	Definitions:
+//-----------------------------------------------------------------------------
+//	+ Node(c,n): 16 * 128 nodes
+//	+ struct midi_event_st event_map[8][16][128] 
+//		+ It's a weighted graph => Arrows have type: THRU_EVENT(T), SWAP_EVENT(S), CTRL_CHANGE(M)
+//		+ Arrows of type T begins and ends in the same node.
+//		+ Applied only to CC events => event_map[CTRL_CHANGE][c][n], arrows Aij FROM Ni(c,n) TO Nj(.chan,.num), of type .type
+//	+ Graph States: ST(t) => State "t" of Graph
+//		+ Initial State ST(0) => One Arrow Aii of type T on every node Ni
+//-----------------------------------------------------------------------------
+//	Rules & Algorithms
+//-----------------------------------------------------------------------------
+//  + Rule A: Every node recives one arrow and emits one arrow
+//		+ ALGORITHM: State Change 
+//			=> ST(t) => ST(t+1) => Add/Remove an arrow Aij of type CTRL_CHANGE
+//			=> Remove/Add needed extra arrows for enforcing Rule A.
+//			=> Only extra arrows of type T & S can be removed/added to enforce Rule A
+//			=> Added CTRL_CHANGE arrow can't begins/ends in a node that currently is the beggining/end of another CTRL_CHANGE arrow
+//			=> In such a case, the previously existing CTRL_CHANGE arrow must be explicitly removed before
+//	+ Rule B: All paths are closed 
+//		+ ALGORITHM: Find the node Nh pointing to Ni
+//			=> from Ni, follow the path to find Nh that points to Ni
+//-----------------------------------------------------------------------------
+
+
+int get_mf_arrow_from(enum midi_event_type_enum type, uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
+	struct midi_event_st *to=get_midi_filter_event_map(type,chan,num);
+	if (!to) return 0;
+	arrow->chan_from=chan;
+	arrow->num_from=num;
+	arrow->chan_to=to->chan;
+	arrow->num_to=to->num;
+	arrow->type=to->type;
+#ifdef DEBUG
+	//fprintf (stderr, "Zyncoder: MIDI filter get_mf_arrow_from %d, %d => %d, %d (%d)\n", arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
+#endif
+	return 1;
+}
+
+int get_mf_arrow_to(enum midi_event_type_enum type, uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
+	int limit=0;
+	arrow->chan_to=chan;
+	arrow->num_to=num;
+	//Follow the rabbit ... ;-)
+	do {
+		if (++limit>128) {
+			fprintf (stderr, "Zyncoder: MIDI filter get_mf_arrow_to => Not Closed Path or it's too long!\n");
+			return 0;
+		}
+		if (!get_mf_arrow_from(type,arrow->chan_to,arrow->num_to,arrow)) {
+			fprintf (stderr, "Zyncoder: MIDI filter get_mf_arrow_to => Bad Path!\n");
+			return 0;
+		}
+#ifdef DEBUG
+		fprintf (stderr, "Zyncoder: MIDI filter get_mf_arrow_to %d, %d, %d => %d, %d (%d)\n", limit, arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
+#endif
+		if (arrow->type>0) type=arrow->type;
+	} while (arrow->chan_to!=chan || arrow->num_to!=num);
+	//Return 1 => last arrow pointing to origin!
+	return 1;
+}
+
+
+int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to, uint8_t num_to) {
+	//---------------------------------------------------------------------------
+	//Get current arrows "from origin" and "to destiny"
+	//---------------------------------------------------------------------------
+	struct mf_arrow_st arrow_from;
+	struct mf_arrow_st arrow_to;
+	if (!get_mf_arrow_from(CTRL_CHANGE,chan_from,num_from,&arrow_from)) return 0;
+	if (!get_mf_arrow_to(CTRL_CHANGE,chan_to,num_to,&arrow_to)) return 0;
+
+	//---------------------------------------------------------------------------
+	//Check validity of new CC Arrow
+	//---------------------------------------------------------------------------
+	//No CTRL_CHANGE arrow from same origin
+	if (arrow_from.type==CTRL_CHANGE) {
+		fprintf (stderr, "Zyncoder: MIDI filter CC set swap-map => Origin already has a CTRL_CHANGE map!\n");
+		return 0;
+	}
+	//No CTRL_CHANGE arrow to same destiny
+	if (arrow_to.type==CTRL_CHANGE) {
+		fprintf (stderr, "Zyncoder: MIDI filter CC set swap-map => Destiny already has a CTRL_CHANGE map!\n");
+		return 0;
+	}
+
+	//Create CC Map from => to
+	set_midi_filter_event_map(CTRL_CHANGE,chan_from,num_from,CTRL_CHANGE,chan_to,num_to);
+#ifdef DEBUG
+	fprintf (stderr, "Zyncoder: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", chan_from, num_from, chan_to, num_to, CTRL_CHANGE);
+#endif
+	
+	//Create extra mapping overwriting current extra mappings, to enforce Rule A
+	enum midi_event_type_enum type=SWAP_EVENT;
+	if (arrow_from.chan_to==arrow_to.chan_from && arrow_from.num_to==arrow_to.num_from) type=THRU_EVENT;
+	set_midi_filter_event_map(CTRL_CHANGE,arrow_to.chan_from,arrow_to.num_from,type,arrow_from.chan_to,arrow_from.num_to);
+	//set_midi_filter_event_map(CTRL_CHANGE,arrow_from.chan_to,arrow_from.num_to,type,arrow_to.chan_from,arrow_to.num_from);
+#ifdef DEBUG
+	fprintf (stderr, "Zyncoder: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", arrow_to.chan_from, arrow_to.num_from, arrow_from.chan_to, arrow_from.num_to, type);
+#endif
+
+	return 1;
+}
+
+
+int del_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
+	//---------------------------------------------------------------------------
+	//Get current arrow Axy (from origin to destiny)
+	//---------------------------------------------------------------------------
+	struct mf_arrow_st arrow;
+	if (!get_mf_arrow_from(CTRL_CHANGE,chan,num,&arrow)) return 0;
+
+	//---------------------------------------------------------------------------
+	//Get current arrow pointing to origin (Ajx)
+	//---------------------------------------------------------------------------
+	struct mf_arrow_st arrow_to;
+	if (!get_mf_arrow_to(CTRL_CHANGE,chan,num,&arrow_to)) return 0;
+
+	//---------------------------------------------------------------------------
+	//Get current arrow from destiny (Ayk)
+	//---------------------------------------------------------------------------
+	struct mf_arrow_st arrow_from;
+	if (!get_mf_arrow_from(CTRL_CHANGE,arrow.chan_to,arrow.num_to,&arrow_from)) return 0;
+
+	//---------------------------------------------------------------------------
+	//Create/Delete extra arrows for enforcing Rule A
+	//---------------------------------------------------------------------------
+
+	if (arrow_to.type!=SWAP_EVENT && arrow_from.type!=SWAP_EVENT) {
+		//Create Axy of type SWAP_EVENT => Replace CTRL_CHANGE by SWAP_EVENT
+		set_midi_filter_event_map(CTRL_CHANGE,arrow.chan_from,arrow.num_from,SWAP_EVENT,arrow.chan_to,arrow.num_to);
+	} else {
+		if (arrow_to.type==SWAP_EVENT) {
+			//Create Axx of type THRU_EVENT
+			del_midi_filter_cc_map(arrow.chan_from,arrow.num_from);
+		} else {
+			//Create Axk of type SWAP_EVENT
+			set_midi_filter_event_map(CTRL_CHANGE,arrow.chan_from,arrow.num_from,SWAP_EVENT,arrow_from.chan_to,arrow_from.num_to);
+		}
+		if (arrow_from.type==SWAP_EVENT) {
+			//Create Ayy of type THRU_EVENT
+			del_midi_filter_cc_map(arrow.chan_to,arrow.num_to);
+		} else {
+			//Create Ajy of type SWAP_EVENT
+			set_midi_filter_event_map(CTRL_CHANGE,arrow_to.chan_from,arrow_to.num_from,SWAP_EVENT,arrow.chan_to,arrow.num_to);
+		}
+	}
+
+	return 1;
+}
+
+
+uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
+	struct mf_arrow_st arrow;
+	if (!get_mf_arrow_to(CTRL_CHANGE,chan,num,&arrow)) return 0;
+	else return arrow.num_from;
 }
 
 //-----------------------------------------------------------------------------
@@ -503,15 +677,20 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
 
+		//Capture events for GUI: before filtering => [Control-Change]
+		if (event_type==CTRL_CHANGE) {
+			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+		}
+
 		//Event Mapping
 		struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
 		//Ignore event...
 		if (event_map->type==IGNORE_EVENT)
 			continue;
 		//Map event ...
-		if (event_map->type>=0) {
+		if (event_map->type>=0 || event_map->type==SWAP_EVENT) {
 			//fprintf (stdout, "Zyncoder: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
-			event_type=event_map->type;
+			if (event_map->type!=SWAP_EVENT) event_type=event_map->type;
 			event_chan=event_map->chan;
 			ev.buffer[0]=(event_type << 4) | event_chan;
 			if (event_map->type==PROG_CHANGE || event_map->type==CHAN_PRESS) {
@@ -578,11 +757,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 		}
 
-		//Capture events for GUI => [Note-Off, Note-On, Control-Change, Program-Change]
-		if (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type==PROG_CHANGE) {
+		//Capture events for GUI: after filtering => [Note-Off, Note-On, Program-Change]
+		if (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE) {
 			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
 		}
-		
+
 		//Forward message
 		jack_write_midi_event(ev.buffer,ev.size);
 
