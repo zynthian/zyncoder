@@ -658,6 +658,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	//Process MIDI messages
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i)==0) {
+		//Ignore SysEx messages
+		if (ev.buffer[0]==SYSTEM_EXCLUSIVE) continue;
+
 		event_type=ev.buffer[0] >> 4;
 		event_chan=ev.buffer[0] & 0xF;
 		ev.buffer[1]&=0x7F;
@@ -675,6 +678,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			event_num=0;
 			event_val=ev.buffer[1];
 		}
+
 		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
 
 		//Capture events for GUI: before filtering => [Control-Change]
@@ -794,7 +798,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	i=0;
 	while (pos < nb) {
 		event_type= jack_midi_data[pos] >> 4;
-		if (event_type==PROG_CHANGE || event_type==CHAN_PRESS) event_size=2;
+
+		if (jack_midi_data[pos]>=0xF4) event_size=1;
+		else if (event_type==PROG_CHANGE || event_type==CHAN_PRESS || event_type==TIME_CODE_QF || event_type==SONG_SELECT) event_size=2;
 		else event_size=3;
 
 		/*
@@ -828,7 +834,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		//Write to Jackd buffer
 		buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
 		memcpy(buffer, jack_midi_data+pos, event_size);
-		pos+=3;
+		pos+=event_size;
 
 		if (i>nframes) {
 			fprintf (stderr, "Zyncoder: Error processing jack midi output events: TOO MANY EVENTS\n");

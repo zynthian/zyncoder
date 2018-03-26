@@ -40,16 +40,26 @@ int end_zyncoder();
 //-----------------------------------------------------------------------------
 
 enum midi_event_type_enum {
+	//Router-internal pseudo-message codes
 	SWAP_EVENT=-3,
 	IGNORE_EVENT=-2,
 	THRU_EVENT=-1,
+	//Channel 3-bytes-messages
 	NOTE_OFF=0x8,
 	NOTE_ON=0x9,
 	KEY_PRESS=0xA,
 	CTRL_CHANGE=0xB,
+	PITCH_BENDING=0xE,
+	//Channel 2-bytes-messages
 	PROG_CHANGE=0xC,
 	CHAN_PRESS=0xD,
-	PITCH_BENDING=0xE
+	//System 2-bytes-messages
+	TIME_CODE_QF=0xF1,
+	SONG_SELECT=0xF3,
+	//System 1-byte messages
+	ACTIVE_SENSE=0xFE,
+	//System Multi-byte (SysEx)
+	SYSTEM_EXCLUSIVE=0xF0
 };
 
 struct midi_event_st {
