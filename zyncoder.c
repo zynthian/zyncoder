@@ -852,7 +852,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel) {
 	uint8_t buffer[3];
-	buffer[0] = 0x80 + chan;
+	buffer[0] = 0x80 + (chan & 0x0F);
 	buffer[1] = note;
 	buffer[2] = vel;
 	return jack_write_midi_event(buffer,3);
@@ -860,7 +860,7 @@ int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel) {
 
 int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel) {
 	uint8_t buffer[3];
-	buffer[0] = 0x90 + chan;
+	buffer[0] = 0x90 + (chan & 0x0F);
 	buffer[1] = note;
 	buffer[2] = vel;
 	return jack_write_midi_event(buffer,3);
@@ -868,7 +868,7 @@ int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel) {
 
 int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
 	uint8_t buffer[3];
-	buffer[0] = 0xB0 + chan;
+	buffer[0] = 0xB0 + (chan & 0x0F);
 	buffer[1] = ctrl;
 	buffer[2] = val;
 	return jack_write_midi_event(buffer,3);
@@ -876,7 +876,7 @@ int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
 
 int zynmidi_send_program_change(uint8_t chan, uint8_t prgm) {
 	uint8_t buffer[3];
-	buffer[0] = 0xC0 + chan;
+	buffer[0] = 0xC0 + (chan & 0x0F);
 	buffer[1] = prgm;
 	buffer[2] = 0;
 	return jack_write_midi_event(buffer,3);
@@ -884,7 +884,7 @@ int zynmidi_send_program_change(uint8_t chan, uint8_t prgm) {
 
 int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb) {
 	uint8_t buffer[3];
-	buffer[0] = 0xE0 + chan;
+	buffer[0] = 0xE0 + (chan & 0x0F);
 	buffer[1] = pb & 0x7F;
 	buffer[2] = (pb >> 7) & 0x7F;
 	return jack_write_midi_event(buffer,3);
