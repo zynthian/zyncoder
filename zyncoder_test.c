@@ -59,7 +59,7 @@ int main() {
 
 	printf("SETTING UP ZYNCODERS!\n");
 	for (i=0;i<4;i++) {
-		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,1,NULL,64,127,1);
+		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,70+i,NULL,64,127,1);
 	}
 
 	printf("TESTING ...\n");
