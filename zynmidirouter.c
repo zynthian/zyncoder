@@ -51,20 +51,22 @@ int init_zynmidirouter() {
 	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
 	zynmidi_buffer_read=zynmidi_buffer_write=0;
 
-	init_midi_router();
-	return init_jack_midi("Zyncoder"); //ZynMidiRouter
+	if (!init_midi_router()) return 0;
+	if (!init_jack_midi("Zyncoder")) return 0; //ZynMidiRouter
+	return 1;
 }
 
 int end_zynmidirouter() {
-	end_midi_router();
-	return end_jack_midi();
+	if (!end_midi_router()) return 0;
+	if (!end_jack_midi()) return 0;
+	return 1;
 }
 
 //-----------------------------------------------------------------------------
 // MIDI filter management
 //-----------------------------------------------------------------------------
 
-void init_midi_router() {
+int init_midi_router() {
 	int i,j,k;
 	midi_filter.master_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
@@ -88,10 +90,11 @@ void init_midi_router() {
 	for (i=0;i<16;i++) {
 		midi_filter.last_pb_val[i]=8192;
 	}
-	
+	return 1;
 }
 
-void end_midi_router() {
+int end_midi_router() {
+	return 1;
 }
 
 void set_midi_master_chan(int chan) {
@@ -457,30 +460,30 @@ int jack_write_midi_event(uint8_t *event, int event_size);
 int init_jack_midi(char *name) {
 	if ((jack_client = jack_client_open(name, JackNullOption , 0 , 0 )) == NULL) {
 		fprintf (stderr, "ZynMidiRouter: Error connecting with jack server.\n");
-		return -1;
+		return 0;
 	}
 	jack_midi_output_port = jack_port_register(jack_client, "output", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
 	if (jack_midi_output_port == NULL) {
 		fprintf (stderr, "ZynMidiRouter: Error creating jack midi output port.\n");
-		return -2;
+		return 0;
 	}
 	jack_midi_input_port = jack_port_register(jack_client, "input", JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
 	if (jack_midi_input_port == NULL) {
 		fprintf (stderr, "ZynMidiRouter: Error creating jack midi input port.\n");
-		return -2;
+		return 0;
 	}
 	jack_ring_output_buffer = jack_ringbuffer_create(3*1024);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_output_buffer)) {
 		fprintf (stderr, "ZynMidiRouter: Error locking memory for jack ring output buffer.\n");
-		return -3;
+		return 0;
 	}
 	jack_set_process_callback(jack_client, jack_process, 0);
 	if (jack_activate(jack_client)) {
 		fprintf (stderr, "ZynMidiRouter: Error activating jack client.\n");
-		return -4;
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 int end_jack_midi() {
@@ -491,14 +494,14 @@ int jack_write_midi_event(uint8_t *event_buffer, int event_size) {
 	if (jack_ringbuffer_write_space(jack_ring_output_buffer)>=event_size) {
 		if (jack_ringbuffer_write(jack_ring_output_buffer, event_buffer, event_size)!=event_size) {
 			fprintf (stderr, "ZynMidiRouter: Error writing jack ring output buffer: INCOMPLETE\n");
-			return -1;
+			return 0;
 		}
 	}
 	else {
 		fprintf (stderr, "ZynMidiRouter: Error writing jack ring output buffer: FULL\n");
-		return -1;
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 int jack_process(jack_nframes_t nframes, void *arg) {

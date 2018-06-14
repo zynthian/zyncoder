@@ -25,18 +25,17 @@
  * ******************************************************************
  */
 
-//#undef MCP23017_ENCODERS
-//#define MCP23017_ENCODERS
+#include <lo/lo.h>
 
 //-----------------------------------------------------------------------------
 // Library Initialization
 //-----------------------------------------------------------------------------
 
-int init_zyncoder(int osc_port);
-int end_zyncoder();
+int init_zynlib();
+int end_zynlib();
 
-int init_zyncoder_osc(int osc_port);
-int end_zyncoder_osc();
+int init_zyncoder();
+int end_zyncoder();
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
@@ -64,6 +63,9 @@ unsigned int get_zynswitch_dtus(uint8_t i);
 // Rotary Encoders
 //-----------------------------------------------------------------------------
 
+//#undef MCP23017_ENCODERS
+//#define MCP23017_ENCODERS
+
 // Number of ticks per retent in rotary encoders
 #define ZYNCODER_TICKS_PER_RETENT 4
 
@@ -80,6 +82,8 @@ struct zyncoder_st {
 #endif
 	uint8_t midi_chan;
 	uint8_t midi_ctrl;
+	unsigned int osc_port;
+	lo_address osc_lo_addr;
 	char osc_path[512];
 	unsigned int max_value;
 	unsigned int step;

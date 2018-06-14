@@ -32,7 +32,17 @@
 
 #include "zyncoder.h"
 
-#ifndef MCP23017_ENCODERS
+#ifndef HAVE_WIRINGPI_LIB
+unsigned int zyncoder_pin_a[4]={4,5,6,7};
+unsigned int zyncoder_pin_b[4]={8,9,10,11};
+unsigned int zynswitch_pin[4]={0,1,2,3};
+#else
+
+#ifdef MCP23017_ENCODERS
+unsigned int zyncoder_pin_a[4] = { 102, 105, 110, 113 };
+unsigned int zyncoder_pin_b[4] = { 101, 104, 109, 112 };
+unsigned int zynswitch_pin[4]  = { 100, 103, 108, 111 };
+#else
 //PROTOTYPE-3
 //unsigned int zyncoder_pin_a[4]={27,21,3,7};
 //unsigned int zyncoder_pin_b[4]={25,26,4,0};
@@ -40,17 +50,15 @@
 unsigned int zyncoder_pin_a[4]={26,25,0,4};
 unsigned int zyncoder_pin_b[4]={21,27,7,3};
 unsigned int zynswitch_pin[4]={107,23,106,2};
-#else
-unsigned int zyncoder_pin_a[4] = { 102, 105, 110, 113 };
-unsigned int zyncoder_pin_b[4] = { 101, 104, 109, 112 };
-unsigned int zynswitch_pin[4]  = { 100, 103, 108, 111 };
+#endif
+
 #endif
 
 int main() {
 	int i;
 
 	printf("INITIALIZING ZYNCODER LIBRARY!\n");
-	init_zyncoder(6699);
+	init_zynlib();
 
 	printf("SETTING UP ZYNSWITCHES!\n");
 	for (i=0;i<4;i++) {

@@ -87,8 +87,8 @@ struct midi_filter_st midi_filter;
 //-----------------------------------------------------------------------------
 
 //MIDI filter initialization
-void init_midi_router();
-void end_midi_router();
+int init_midi_router();
+int end_midi_router();
 
 void set_midi_master_chan(int chan);
 

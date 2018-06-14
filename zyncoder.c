@@ -32,7 +32,6 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
-#include <lo/lo.h>
 #include <pthread.h>
 
 #include "zyncoder.h"
@@ -64,6 +63,22 @@
 // Library Initialization
 //-----------------------------------------------------------------------------
 
+int init_zynlib() {
+	if (!init_zyncoder()) return 0;
+	if (!init_zynmidirouter()) return 0;
+	return 1;
+}
+
+int end_zynlib() {
+	if (!end_zynmidirouter()) return 0;
+	if (!end_zyncoder()) return 0;
+	return 1;
+}
+
+//-----------------------------------------------------------------------------
+// Zyncoder Library Initialization
+//-----------------------------------------------------------------------------
+
 //Switch Polling interval
 int poll_zynswitches_us=10000;
 
@@ -88,7 +103,7 @@ unsigned int int_to_int(unsigned int k) {
 }
 #endif
 
-int init_zyncoder(int osc_port) {
+int init_zyncoder() {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
@@ -159,32 +174,11 @@ int init_zyncoder(int osc_port) {
 	mcp23008Setup (100, 0x20);
 	init_poll_zynswitches();
 #endif
-	return init_zyncoder_osc(osc_port);
+	return 1;
 }
 
 int end_zyncoder() {
-	return end_zyncoder_osc();
-}
-
-//-----------------------------------------------------------------------------
-// OSC Message processing
-//-----------------------------------------------------------------------------
-
-lo_address osc_lo_addr;
-char osc_port_str[8];
-
-int init_zyncoder_osc(int osc_port) {
-	if (osc_port) {
-		sprintf(osc_port_str,"%d",osc_port);
-		//printf("OSC PORT: %s\n",osc_port_str);
-		osc_lo_addr=lo_address_new(NULL,osc_port_str);
-		return 0;
-	}
-	return -1;
-}
-
-int end_zyncoder_osc() {
-	return 0;
+	return 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -346,17 +340,17 @@ void send_zyncoder(uint8_t i) {
 	if (zyncoder->midi_ctrl>0) {
 		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
-	} else if (osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
+	} else if (zyncoder->osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {
 			if (zyncoder->value>=64) {
-				lo_send(osc_lo_addr,zyncoder->osc_path, "T");
+				lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "T");
 				//printf("SEND OSC %s => T\n",zyncoder->osc_path);
 			} else {
-				lo_send(osc_lo_addr,zyncoder->osc_path, "F");
+				lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "F");
 				//printf("SEND OSC %s => F\n",zyncoder->osc_path);
 			}
 		} else {
-			lo_send(osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
+			lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
 			//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
 		}
 	}
@@ -475,9 +469,18 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 	if (value>max_value) value=max_value;
 	zyncoder->midi_chan = midi_chan;
 	zyncoder->midi_ctrl = midi_ctrl;
+
 	//printf("OSC PATH: %s\n",osc_path);
-	if (osc_path) strcpy(zyncoder->osc_path,osc_path);
-	else zyncoder->osc_path[0]=0;
+	if (osc_path) {
+		char *osc_port_str=strtok(osc_path,":");
+		zyncoder->osc_port=atoi(osc_port_str);
+		if (zyncoder->osc_port>0) {
+			zyncoder->osc_lo_addr=lo_address_new(NULL,osc_port_str);
+			strcpy(zyncoder->osc_path,strtok(NULL,":"));
+		}
+		else zyncoder->osc_path[0]=0;
+	} else zyncoder->osc_path[0]=0;
+
 	zyncoder->step = step;
 	if (step>0) {
 		zyncoder->value = value;
