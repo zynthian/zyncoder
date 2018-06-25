@@ -1,10 +1,10 @@
 /*
  * ******************************************************************
- * ZYNTHIAN PROJECT: Zynmidirouter Library
+ * ZYNTHIAN PROJECT: ZynMidiRouter Library
  * 
  * MIDI router library: Implements the MIDI router & filter 
-  * 
- * Copyright (C) 2015-2016 Fernando Moyano <jofemodo@zynthian.org>
+ * 
+ * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 

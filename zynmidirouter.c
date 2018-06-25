@@ -2,11 +2,9 @@
  * ******************************************************************
  * ZYNTHIAN PROJECT: ZynMidiRouter Library
  * 
- * Library for interfacing Rotary Encoders & Switches connected 
- * to RBPi native GPIOs or expanded with MCP23008. Includes an 
- * emulator mode to ease developping.
+ * MIDI router library: Implements the MIDI router & filter 
  * 
- * Copyright (C) 2015-2016 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
@@ -544,8 +542,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				event_val=ev.buffer[2];
 			}
 		} else {
-			event_num=0;
-			event_val=ev.buffer[1];
+			event_num=ev.buffer[1];
+			event_val=0;
 		}
 
 		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
@@ -556,32 +554,37 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 
 		//Event Mapping
-		struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
-		//Ignore event...
-		if (event_map->type==IGNORE_EVENT)
-			continue;
-		//Map event ...
-		if (event_map->type>=0 || event_map->type==SWAP_EVENT) {
-			//fprintf (stdout, "ZynMidiRouter: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
-			if (event_map->type!=SWAP_EVENT) event_type=event_map->type;
-			event_chan=event_map->chan;
-			ev.buffer[0]=(event_type << 4) | event_chan;
-			if (event_map->type==PROG_CHANGE || event_map->type==CHAN_PRESS) {
-				event_num=0;
-				ev.buffer[1]=event_val;
-				ev.size=2;
-			} else if (event_map->type==PITCH_BENDING) {
-				event_num=0;
-				ev.buffer[1]=0;
-				ev.buffer[2]=event_val;
-				ev.size=3;
-			} else {
-				event_num=event_map->num;
-				ev.buffer[1]=event_num;
-				ev.buffer[2]=event_val;
-				ev.size=3;
+		if (event_type>=NOTE_OFF && event_type<=PITCH_BENDING) {
+			struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
+			//Ignore event...
+			if (event_map->type==IGNORE_EVENT) {
+				//fprintf (stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
+				i++;
+				continue;
 			}
-			//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
+			//Map event ...
+			if (event_map->type>=0 || event_map->type==SWAP_EVENT) {
+				//fprintf (stdout, "ZynMidiRouter: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
+				if (event_map->type!=SWAP_EVENT) event_type=event_map->type;
+				event_chan=event_map->chan;
+				ev.buffer[0]=(event_type << 4) | event_chan;
+				if (event_map->type==PROG_CHANGE || event_map->type==CHAN_PRESS) {
+					ev.buffer[1]=event_num;
+					event_val=0;
+					ev.size=2;
+				} else if (event_map->type==PITCH_BENDING) {
+					event_num=0;
+					ev.buffer[1]=0;
+					ev.buffer[2]=event_val;
+					ev.size=3;
+				} else {
+					event_num=event_map->num;
+					ev.buffer[1]=event_num;
+					ev.buffer[2]=event_val;
+					ev.size=3;
+				}
+				//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
+			}
 		}
 
 		//MIDI CC messages

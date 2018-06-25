@@ -6,7 +6,7 @@
  * to RBPi native GPIOs or expanded with MCP23008. Includes an 
  * emulator mode to ease developping.
  * 
- * Copyright (C) 2015-2016 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
