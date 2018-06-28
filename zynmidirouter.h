@@ -195,23 +195,25 @@ int zmops_clear_data();
 
 struct zmip_st {
 	jack_port_t *jport;
-	struct zmop_st *zmops[MAX_NUM_ZMOPS];
-	int n_zmops;
+	int fwd_zmops[MAX_NUM_ZMOPS];
 	uint32_t flags;
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
 
 int zmip_init(int iz, char *name, uint32_t flags);
+int zmip_set_forward(int izmip, int izmop, int fwd);
+int zmip_set_flags(int iz, uint32_t flags);
+int zmip_has_flag(int iz, uint32_t flag);
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
 //-----------------------------------------------------------------------------
 
 jack_client_t *jack_client;
-jack_ringbuffer_t *jack_ring_output_buffer;
 
 int init_jack_midi(char *name);
 int end_jack_midi();
+int jack_process(jack_nframes_t nframes, void *arg);
 
 //-----------------------------------------------------------------------------
 // MIDI Input Events Buffer Management
@@ -219,6 +221,11 @@ int end_jack_midi();
 
 #define ZYNMIDI_BUFFER_SIZE 256
 
+//MIDI events => UI
+jack_ringbuffer_t *jack_ring_output_buffer;
+int write_midi_event(uint8_t *event, int event_size);
+
+//UI => MIDI events
 int init_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
