@@ -185,6 +185,7 @@ struct zmop_st {
 	uint8_t data[JACK_MIDI_BUFFER_SIZE];
 	int n_data;
 	int midi_channel;
+	int n_connections;
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 

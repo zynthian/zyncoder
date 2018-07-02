@@ -474,6 +474,7 @@ int zmop_init(int iz, char *name, int ch) {
 	//Set init values
 	zmops[iz].n_data=0;
 	zmops[iz].midi_channel=-1;
+	zmops[iz].n_connections=0;
 	return 1;
 }
 
@@ -804,7 +805,9 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//Forward message to the configured output ports
 		for (j=0;j<MAX_NUM_ZMOPS;j++) {
-			if (zmip->fwd_zmops[j]) zmop_push_event(j, ev, event_chan);
+			if (zmip->fwd_zmops[j] && zmops[j].n_connections>0) {
+				zmop_push_event(j, ev, event_chan);
+			}
 		}
 
 	}
@@ -912,6 +915,13 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	zmops_clear_data();
 
 	//---------------------------------
+	// Get number of connection of Output Ports
+	//---------------------------------
+	for (i=0;i<MAX_NUM_ZMOPS;i++) {
+		zmops[i].n_connections=jack_port_connected(zmops[i].jport);
+	}
+
+	//---------------------------------
 	//MIDI Input
 	//---------------------------------
 	for (i=0;i<MAX_NUM_ZMIPS;i++) {
@@ -928,7 +938,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	//MIDI Output
 	//---------------------------------
 	for (i=0;i<MAX_NUM_ZMOPS;i++) {
-		if (jack_process_zmop(i, nframes)<0) return -1;
+		if (zmops[i].n_connections>0) {
+			if (jack_process_zmop(i, nframes)<0) return -1;
+		}
 	}
 
 	return 0;
@@ -973,7 +985,7 @@ int forward_internal_midi_data() {
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
-uint8_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
+uint32_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
 int zynmidi_buffer_read;
 int zynmidi_buffer_write;
 
