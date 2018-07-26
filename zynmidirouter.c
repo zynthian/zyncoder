@@ -64,6 +64,7 @@ int end_zynmidirouter() {
 int init_midi_router() {
 	int i,j,k;
 	midi_filter.master_chan=-1;
+	midi_filter.active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
@@ -97,12 +98,30 @@ int end_midi_router() {
 	return 1;
 }
 
+//MIDI special featured channels
+
 void set_midi_master_chan(int chan) {
 	if (chan>15 || chan<0) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Master channel (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.master_chan=chan;
+}
+
+int get_midi_master_chan() {
+	return midi_filter.master_chan;
+}
+
+void set_midi_active_chan(int chan) {
+	if (chan>15 || chan<0) {
+		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.active_chan=chan;
+}
+
+int get_midi_active_chan() {
+	return midi_filter.active_chan;
 }
 
 //MIDI filter pitch-bending fine-tuning
@@ -674,6 +693,10 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				event_chan=0;
 			}
 			else {
+				//Active Channel => When set, move all channel events to active_chan
+				if (midi_filter.active_chan>=0) {
+					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
+				}
 				event_type=ev.buffer[0] >> 4;
 				event_chan=ev.buffer[0] & 0xF;
 			}

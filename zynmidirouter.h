@@ -82,6 +82,7 @@ struct midi_filter_st {
 	struct midi_event_st event_map[8][16][128];
 
 	int master_chan;
+	int active_chan;
 	uint8_t last_ctrl_val[16][128];
 	uint16_t last_pb_val[16];
 };
@@ -95,7 +96,11 @@ struct midi_filter_st midi_filter;
 int init_midi_router();
 int end_midi_router();
 
+//MIDI special featured channels
 void set_midi_master_chan(int chan);
+int get_midi_master_chan();
+void set_midi_active_chan(int chan);
+int get_midi_active_chan();
 
 //MIDI filter fine tuning => Pitch-Bending based
 void set_midi_filter_tuning_freq(int freq);
