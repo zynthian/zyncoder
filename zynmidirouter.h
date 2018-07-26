@@ -1,10 +1,8 @@
 /*
  * ******************************************************************
- * ZYNTHIAN PROJECT: Zyncoder Library
+ * ZYNTHIAN PROJECT: ZynMidiRouter Library
  * 
- * Library for interfacing Rotary Encoders & Switches connected 
- * to RBPi native GPIOs or expanded with MCP23008. Includes an 
- * emulator mode to ease developping.
+ * MIDI router library: Implements the MIDI router & filter 
  * 
  * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
@@ -25,18 +23,19 @@
  * ******************************************************************
  */
 
-#include <lo/lo.h>
+#include <jack/jack.h>
+#include <jack/midiport.h>
+#include <jack/ringbuffer.h>
 
 //-----------------------------------------------------------------------------
 // Library Initialization
 //-----------------------------------------------------------------------------
 
-int init_zynlib();
-int end_zynlib();
+int init_zynmidirouter();
+int end_zynmidirouter();
 
-<<<<<<< HEAD
 //-----------------------------------------------------------------------------
-// MIDI filter
+// Data Structures
 //-----------------------------------------------------------------------------
 
 enum midi_event_type_enum {
@@ -79,17 +78,29 @@ struct mf_arrow_st {
 struct midi_filter_st {
 	int tuning_pitchbend;
 	int transpose[16];
+	int clone[16][16];
 	struct midi_event_st event_map[8][16][128];
 
 	int master_chan;
+	int active_chan;
 	uint8_t last_ctrl_val[16][128];
 	uint16_t last_pb_val[16];
 };
 struct midi_filter_st midi_filter;
 
+//-----------------------------------------------------------------------------
+// MIDI Filter Functions
+//-----------------------------------------------------------------------------
+
 //MIDI filter initialization
-void init_midi_filter();
+int init_midi_router();
+int end_midi_router();
+
+//MIDI special featured channels
 void set_midi_master_chan(int chan);
+int get_midi_master_chan();
+void set_midi_active_chan(int chan);
+int get_midi_active_chan();
 
 //MIDI filter fine tuning => Pitch-Bending based
 void set_midi_filter_tuning_freq(int freq);
@@ -98,6 +109,11 @@ int get_midi_filter_tuning_pitchbend();
 //MIDI filter transpose
 void set_midi_filter_transpose(uint8_t chan, int offset);
 int get_midi_filter_transpose(uint8_t chan);
+
+//MIDI filter clone
+void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v);
+int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to);
+void reset_midi_filter_clone(uint8_t chan_from);
 
 //MIDI Filter Core functions
 void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to);
@@ -126,14 +142,97 @@ int del_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 
 //-----------------------------------------------------------------------------
+// Zynmidi Ports
+//-----------------------------------------------------------------------------
+
+#define JACK_MIDI_BUFFER_SIZE 4096
+
+#define FLAG_ZMIP_UI 1
+#define FLAG_ZMIP_ZYNCODER 2
+#define FLAG_ZMIP_CLONE 4
+#define FLAG_ZMIP_FILTER 8
+#define FLAG_ZMIP_SWAP 16
+#define FLAG_ZMIP_TRANSPOSE 32
+#define FLAG_ZMIP_TUNING 64
+
+#define ZMOP_MAIN 0
+#define ZMOP_NET 1
+#define ZMOP_CH0 2
+#define ZMOP_CH1 3
+#define ZMOP_CH2 4
+#define ZMOP_CH3 5
+#define ZMOP_CH4 6
+#define ZMOP_CH5 7
+#define ZMOP_CH6 8
+#define ZMOP_CH7 9
+#define ZMOP_CH8 10
+#define ZMOP_CH9 11
+#define ZMOP_CH10 12
+#define ZMOP_CH11 13
+#define ZMOP_CH12 14
+#define ZMOP_CH13 15
+#define ZMOP_CH14 16
+#define ZMOP_CH15 17
+#define MAX_NUM_ZMOPS 18
+
+#define ZMIP_MAIN 0
+#define ZMIP_NET 1
+#define ZMIP_SEQ 2
+#define ZMIP_CTRL 3
+#define MAX_NUM_ZMIPS 4
+
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING)
+#define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
+#define ZMIP_CTRL_FLAGS 0
+
+struct zmop_st {
+	jack_port_t *jport;
+	uint8_t data[JACK_MIDI_BUFFER_SIZE];
+	int n_data;
+	int midi_channel;
+	int n_connections;
+};
+struct zmop_st zmops[MAX_NUM_ZMOPS];
+
+int zmop_init(int iz, char *name, int ch);
+int zmop_push_data(int iz, jack_midi_event_t ev, int ch);
+int zmop_clear_data(int iz);
+int zmops_clear_data();
+
+struct zmip_st {
+	jack_port_t *jport;
+	int fwd_zmops[MAX_NUM_ZMOPS];
+	uint32_t flags;
+};
+struct zmip_st zmips[MAX_NUM_ZMIPS];
+
+int zmip_init(int iz, char *name, uint32_t flags);
+int zmip_set_forward(int izmip, int izmop, int fwd);
+int zmip_set_flags(int iz, uint32_t flags);
+int zmip_has_flag(int iz, uint32_t flag);
+
+//-----------------------------------------------------------------------------
+// Jack MIDI Process
+//-----------------------------------------------------------------------------
+
+jack_client_t *jack_client;
+
+int init_jack_midi(char *name);
+int end_jack_midi();
+int jack_process(jack_nframes_t nframes, void *arg);
+
+//-----------------------------------------------------------------------------
 // MIDI Input Events Buffer Management
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 32
-uint32_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
-int zynmidi_buffer_read;
-int zynmidi_buffer_write;
+#define ZYNMIDI_BUFFER_SIZE 256
 
+//MIDI events => UI
+jack_ringbuffer_t *jack_ring_output_buffer;
+int write_midi_event(uint8_t *event, int event_size);
+
+//UI => MIDI events
+int init_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
@@ -148,70 +247,5 @@ int zynmidi_send_program_change(uint8_t chan, uint8_t prgm);
 int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
-=======
-int init_zyncoder();
-int end_zyncoder();
->>>>>>> zmr_multiport
 
 //-----------------------------------------------------------------------------
-// GPIO Switches
-//-----------------------------------------------------------------------------
-
-// The real limit in RPi2 is 17
-#define MAX_NUM_ZYNSWITCHES 8
-
-struct zynswitch_st {
-	uint8_t enabled;
-	uint8_t pin;
-	volatile unsigned long tsus;
-	volatile unsigned int dtus;
-	// note that this status is like the pin_[ab]_last_state for the 
-	// zyncoders
-	volatile uint8_t status;
-};
-struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
-
-struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin); 
-unsigned int get_zynswitch(uint8_t i);
-unsigned int get_zynswitch_dtus(uint8_t i);
-
-//-----------------------------------------------------------------------------
-// MIDI Rotary Encoders
-//-----------------------------------------------------------------------------
-
-//#undef MCP23017_ENCODERS
-//#define MCP23017_ENCODERS
-
-// Number of ticks per retent in rotary encoders
-#define ZYNCODER_TICKS_PER_RETENT 4
-
-// 17 pins / 2 pins per encoder = 8 maximum encoders
-#define MAX_NUM_ZYNCODERS 8
-
-struct zyncoder_st {
-	uint8_t enabled;
-	uint8_t pin_a;
-	uint8_t pin_b;
-#ifdef MCP23017_ENCODERS
-	volatile uint8_t pin_a_last_state;
-	volatile uint8_t pin_b_last_state;
-#endif
-	uint8_t midi_chan;
-	uint8_t midi_ctrl;
-	unsigned int osc_port;
-	lo_address osc_lo_addr;
-	char osc_path[512];
-	unsigned int max_value;
-	unsigned int step;
-	volatile unsigned int subvalue;
-	volatile unsigned int value;
-	volatile unsigned int last_encoded;
-	volatile unsigned long tsus;
-	unsigned int dtus[ZYNCODER_TICKS_PER_RETENT];
-};
-struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
-
-struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
-unsigned int get_value_zyncoder(uint8_t i);
-void set_value_zyncoder(uint8_t i, unsigned int v, int send);
-

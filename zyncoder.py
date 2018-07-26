@@ -33,11 +33,11 @@ from os.path import dirname, realpath
 global lib_zyncoder
 lib_zyncoder=None
 
-def lib_zyncoder_init(osc_port):
+def lib_zyncoder_init():
 	global lib_zyncoder
 	try:
 		lib_zyncoder=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncoder.so")
-		lib_zyncoder.init_zyncoder(osc_port)
+		lib_zyncoder.init_zynlib()
 	except Exception as e:
 		lib_zyncoder=None
 		print("Can't init zyncoder library: %s" % str(e))
