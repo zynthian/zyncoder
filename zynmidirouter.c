@@ -693,12 +693,18 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				event_chan=0;
 			}
 			else {
+				event_type=ev.buffer[0] >> 4;
+				event_chan=ev.buffer[0] & 0xF;
+				//Capture events for UI: MASTER CHANNEL
+				if (event_chan==midi_filter.master_chan) {
+					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+					continue;
+				}
 				//Active Channel => When set, move all channel events to active_chan
 				if (midi_filter.active_chan>=0) {
 					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
+					event_chan=midi_filter.active_chan;
 				}
-				event_type=ev.buffer[0] >> 4;
-				event_chan=ev.buffer[0] & 0xF;
 			}
 
 			//Get event details depending of event size & type
