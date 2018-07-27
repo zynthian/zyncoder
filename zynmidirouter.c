@@ -653,6 +653,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	uint8_t event_chan;
 	uint8_t event_num;
 	uint8_t event_val;
+	uint32_t ui_event;
 
 	//Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(zmip->jport, nframes);
@@ -666,7 +667,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	int clone_from_chan=-1;
 	int clone_to_chan=-1;
 	while (1) {
-
 		//Test if reached max num of events
 		if (i>nframes) {
 			fprintf (stderr, "ZynMidiRouter: Error processing jack midi input events: TOO MANY EVENTS\n");
@@ -745,8 +745,9 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
 
 		//Capture events for UI: before filtering => [Control-Change]
+		ui_event=0;
 		if ((zmip->flags & FLAG_ZMIP_UI) && event_type==CTRL_CHANGE) {
-			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
 		//Event Mapping
@@ -826,9 +827,12 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		//Capture events for UI: after filtering => [Note-Off, Note-On, Program-Change]
-		if ((zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE)) {
-			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE)) {
+			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
+
+		//Forward event to UI
+		if (ui_event) write_zynmidi(ui_event);
 
 		//Forward message to the configured output ports
 		for (j=0;j<MAX_NUM_ZMOPS;j++) {
