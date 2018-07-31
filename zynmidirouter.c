@@ -760,7 +760,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 			//Map event ...
 			if (event_map->type>=0 || event_map->type==SWAP_EVENT) {
-				//fprintf (stdout, "ZynMidiRouter: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
+				//fprintf (stdout, "ZynMidiRouter: Event Map %x, %x => ",ev.buffer[0],ev.buffer[1]);
 				if (event_map->type!=SWAP_EVENT) event_type=event_map->type;
 				event_chan=event_map->chan;
 				ev.buffer[0]=(event_type << 4) | event_chan;
@@ -779,7 +779,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					ev.buffer[2]=event_val;
 					ev.size=3;
 				}
-				//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
+				//fprintf (stdout, "%x, %x\n",ev.buffer[0],ev.buffer[1]);
 			}
 		}
 
@@ -790,6 +790,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
 					zyncoders[j].value=event_val;
 					zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
+					//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",ev.buffer[0],ev.buffer[1]);
 				}
 			}
 		}
