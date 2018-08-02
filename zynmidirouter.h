@@ -117,8 +117,7 @@ void reset_midi_filter_clone(uint8_t chan_from);
 
 //MIDI Filter Core functions
 void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to);
-void set_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from,
-															 enum midi_event_type_enum type_to, uint8_t chan_to, uint8_t num_to);
+void set_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from, enum midi_event_type_enum type_to, uint8_t chan_to, uint8_t num_to);
 void set_midi_filter_event_ignore_st(struct midi_event_st *ev_from);
 void set_midi_filter_event_ignore(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from);
 struct midi_event_st *get_midi_filter_event_map_st(struct midi_event_st *ev_from);
@@ -133,6 +132,11 @@ void set_midi_filter_cc_ignore(uint8_t chan, uint8_t cc_from);
 uint8_t get_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void del_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void reset_midi_filter_cc_map();
+
+
+//MIDI Learning Mode
+int midi_learning_mode;
+void set_midi_learning_mode(int mlm);
 
 //MIDI Filter Swap Mapping
 int get_mf_arrow_from(enum midi_event_type_enum type, uint8_t chan, uint8_t num, struct mf_arrow_st *arrow);

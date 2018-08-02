@@ -91,6 +91,7 @@ int init_midi_router() {
 	for (i=0;i<16;i++) {
 		midi_filter.last_pb_val[i]=8192;
 	}
+	midi_learning_mode=0;
 	return 1;
 }
 
@@ -313,6 +314,12 @@ void reset_midi_filter_cc_map() {
 			del_midi_filter_event_map(CTRL_CHANGE,i,j);
 		}
 	}
+}
+
+//MIDI Learning Mode
+
+void set_midi_learning_mode(int mlm) {
+	midi_learning_mode=mlm;
 }
 
 //-----------------------------------------------------------------------------
@@ -746,7 +753,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//Capture events for UI: before filtering => [Control-Change]
 		ui_event=0;
-		if ((zmip->flags & FLAG_ZMIP_UI) && event_type==CTRL_CHANGE) {
+		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && event_type==CTRL_CHANGE) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
@@ -828,7 +835,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		//Capture events for UI: after filtering => [Note-Off, Note-On, Program-Change]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE)) {
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE || event_type==CTRL_CHANGE)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
