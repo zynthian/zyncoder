@@ -64,6 +64,7 @@ int end_zynmidirouter() {
 int init_midi_router() {
 	int i,j,k;
 	midi_filter.master_chan=-1;
+	midi_filter.active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
@@ -90,6 +91,7 @@ int init_midi_router() {
 	for (i=0;i<16;i++) {
 		midi_filter.last_pb_val[i]=8192;
 	}
+	midi_learning_mode=0;
 	return 1;
 }
 
@@ -97,12 +99,28 @@ int end_midi_router() {
 	return 1;
 }
 
+//MIDI special featured channels
+
 void set_midi_master_chan(int chan) {
 	if (chan>15 || chan<0) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Master channel (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.master_chan=chan;
+}
+
+int get_midi_master_chan() {
+	return midi_filter.master_chan;
+}
+void set_midi_active_chan(int chan) {
+	if (chan>15 || chan<0) {
+		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.active_chan=chan;
+}
+int get_midi_active_chan() {
+	return midi_filter.active_chan;
 }
 
 //MIDI filter pitch-bending fine-tuning
@@ -295,6 +313,12 @@ void reset_midi_filter_cc_map() {
 		}
 	}
 }
+
+//MIDI Learning Mode
+void set_midi_learning_mode(int mlm) {
+	midi_learning_mode=mlm;
+}
+
 
 //-----------------------------------------------------------------------------
 // Swap CC mapping => GRAPH THEORY
@@ -634,6 +658,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	uint8_t event_chan;
 	uint8_t event_num;
 	uint8_t event_val;
+	uint32_t ui_event;
 
 	//Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(zmip->jport, nframes);
@@ -676,6 +701,16 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			else {
 				event_type=ev.buffer[0] >> 4;
 				event_chan=ev.buffer[0] & 0xF;
+				//Capture events for UI: MASTER CHANNEL
+				if (event_chan==midi_filter.master_chan) {
+					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+					continue;
+				}
+				//Active Channel => When set, move all channel events to active_chan
+				if (midi_filter.active_chan>=0) {
+					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
+					event_chan=midi_filter.active_chan;
+				}
 			}
 
 			//Get event details depending of event size & type
@@ -713,11 +748,12 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//fprintf (stdout, "NEXT CLONE %x => %d, %d\n",event_type, clone_from_chan, clone_to_chan);
 		}
 
-		//fprintf(stdout, "MIDI MSG => %x, %x\n", ev.buffer[0], ev.buffer[1]);
+		//fprintf(stdout, "%x, %x\n", ev.buffer[0], ev.buffer[1]);
 
 		//Capture events for UI: before filtering => [Control-Change]
-		if ((zmip->flags & FLAG_ZMIP_UI) && event_type==CTRL_CHANGE) {
-			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+		ui_event=0;
+		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && event_type==CTRL_CHANGE) {
+			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
 		//Event Mapping
@@ -730,7 +766,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 			//Map event ...
 			if (event_map->type>=0 || event_map->type==SWAP_EVENT) {
-				//fprintf (stdout, "ZynMidiRouter: Event Map %d, %d => ",ev.buffer[0],ev.buffer[1]);
+				//fprintf (stdout, "ZynMidiRouter: Event Map %x, %x => ",ev.buffer[0],ev.buffer[1]);
 				if (event_map->type!=SWAP_EVENT) event_type=event_map->type;
 				event_chan=event_map->chan;
 				ev.buffer[0]=(event_type << 4) | event_chan;
@@ -760,6 +796,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
 					zyncoders[j].value=event_val;
 					zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
+					//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",ev.buffer[0],ev.buffer[1]);
 				}
 			}
 		}
@@ -797,9 +834,12 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		//Capture events for UI: after filtering => [Note-Off, Note-On, Program-Change]
-		if ((zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE)) {
-			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE || event_type==CTRL_CHANGE)) {
+			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
+
+		//Forward event to UI
+		if (ui_event) write_zynmidi(ui_event);
 
 		//Forward message to the configured output ports
 		for (j=0;j<MAX_NUM_ZMOPS;j++) {
