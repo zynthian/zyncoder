@@ -38,19 +38,26 @@
 #include "zynmidirouter.h"
 
 #if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
-	// pins 100-115 are located on our mcp23017
+	// pins 100-115 are located on the MCP23017
 	#define MCP23017_BASE_PIN 100
-	// interrupt pins for the mcp
-	#define MCP23017_INTA_PIN 27
-	#define MCP23017_INTB_PIN 25
+	// define default interrupt pins for the MCP23017
+	#if !defined(MCP23017_INTA_PIN)
+		#define MCP23017_INTA_PIN 27
+	#endif
+	#if !defined(MCP23017_INTB_PIN)
+		#define MCP23017_INTB_PIN 25
+	#endif
+
 	#include <wiringPi.h>
 	#include <mcp23017.h>
 	#include <mcp23x0817.h>
+
 	#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 	#define bitSet(value, bit) ((value) |= (1UL << (bit)))
 	#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
 	#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
 #elif HAVE_WIRINGPI_LIB
+	// pins 100-107 are located on the MCP23008
 	#define MCP23008_BASE_PIN 100
 	#include <wiringPi.h>
 	#include <mcp23008.h>
