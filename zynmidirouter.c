@@ -102,7 +102,7 @@ int end_midi_router() {
 //MIDI special featured channels
 
 void set_midi_master_chan(int chan) {
-	if (chan>15 || chan<0) {
+	if (chan>15 || chan<-1) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Master channel (%d) is out of range!\n",chan);
 		return;
 	}
@@ -113,7 +113,7 @@ int get_midi_master_chan() {
 	return midi_filter.master_chan;
 }
 void set_midi_active_chan(int chan) {
-	if (chan>15 || chan<0) {
+	if (chan>15 || chan<-1) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
 		return;
 	}
