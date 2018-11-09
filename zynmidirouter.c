@@ -702,7 +702,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				event_type=ev.buffer[0] >> 4;
 				event_chan=ev.buffer[0] & 0xF;
 				//Capture events for UI: MASTER CHANNEL
-				if (event_chan==midi_filter.master_chan) {
+				if ((zmip->flags & FLAG_ZMIP_UI) && event_chan==midi_filter.master_chan) {
 					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
 					continue;
 				}
@@ -710,6 +710,11 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				if (midi_filter.active_chan>=0) {
 					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
 					event_chan=midi_filter.active_chan;
+				}
+				//Capture events for UI: Program Change
+				if ((zmip->flags & FLAG_ZMIP_UI) && event_type==PROG_CHANGE) {
+					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+					continue;
 				}
 			}
 
@@ -750,7 +755,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//fprintf(stdout, "%x, %x\n", ev.buffer[0], ev.buffer[1]);
 
-		//Capture events for UI: before filtering => [Control-Change]
+		//Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event=0;
 		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && event_type==CTRL_CHANGE) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
@@ -833,8 +838,8 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 		}
 
-		//Capture events for UI: after filtering => [Note-Off, Note-On, Program-Change]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PROG_CHANGE || event_type==CTRL_CHANGE)) {
+		//Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change]
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
