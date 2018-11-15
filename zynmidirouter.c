@@ -701,6 +701,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			else {
 				event_type=ev.buffer[0] >> 4;
 				event_chan=ev.buffer[0] & 0xF;
+
 				//Capture events for UI: MASTER CHANNEL
 				if ((zmip->flags & FLAG_ZMIP_UI) && event_chan==midi_filter.master_chan) {
 					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
@@ -795,15 +796,22 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		//MIDI CC messages
-		if ((zmip->flags & FLAG_ZMIP_ZYNCODER) && event_type==CTRL_CHANGE) {
-			//Update zyncoder value => TODO Optimize this fragment!!!
-			for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
-				if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
-					zyncoders[j].value=event_val;
-					zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
-					//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",ev.buffer[0],ev.buffer[1]);
+		if (event_type==CTRL_CHANGE) {
+			//Set zyncoder values
+			if (zmip->flags & FLAG_ZMIP_ZYNCODER) {
+				//Update zyncoder value => TODO Optimize this fragment!!!
+				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
+					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
+						zyncoders[j].value=event_val;
+						zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
+						//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",ev.buffer[0],ev.buffer[1]);
+					}
 				}
 			}
+			//Ignore Bank Change events when FLAG_ZMIP_UI
+			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
+			//	continue;
+			//}
 		}
 
 		//Transpose Note-on/off messages
