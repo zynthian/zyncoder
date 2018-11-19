@@ -187,7 +187,7 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
-#define ZMIP_CTRL_FLAGS 0
+#define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
 struct zmop_st {
 	jack_port_t *jport;

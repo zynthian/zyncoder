@@ -619,8 +619,8 @@ int init_jack_midi(char *name) {
 			if (!zmip_set_forward(ZMIP_NET, i, 1)) return 0;
 		}
 		if (!zmip_set_forward(ZMIP_SEQ, i, 1)) return 0;
-		//TODO => Define ZMIP_CTRL behaviour
 	}
+	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI
 
 	jack_ring_output_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
