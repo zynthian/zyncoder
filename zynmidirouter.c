@@ -957,6 +957,8 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 // Jack Process
 //-----------------------------------------------------
 
+int forward_internal_midi_data();
+
 int jack_process(jack_nframes_t nframes, void *arg) {
 	int i;
 
