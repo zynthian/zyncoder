@@ -134,7 +134,9 @@ int init_zyncoder() {
 	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRB, reg);
 
 	// enable pullups on the unused pins (high two bits on each bank)
-	reg = 0x60;
+	reg = 0xff;
+	//reg = 0xc0;
+	//reg = 0x60;
 	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUA, reg);
 	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUB, reg);
 
@@ -561,6 +563,8 @@ void mcp23017_bank_ISR(uint8_t bank) {
 	int i;
 	uint8_t reg;
 	uint8_t pin_min, pin_max;
+
+	//printf("Zyncoder MCP23017 ISR => %d\n",bank);
 
 	if (bank == 0) {
 		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
