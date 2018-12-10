@@ -112,7 +112,10 @@ unsigned int int_to_int(unsigned int k) {
 
 int init_zyncoder() {
 	int i,j;
-	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) zynswitches[i].enabled=0;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
+		zynswitches[i].enabled=0;
+		zynswitches[i].midi_cc=0;
+	}
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled=0;
 		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++) zyncoders[i].dtus[j]=0;
@@ -210,6 +213,15 @@ void update_zynswitch(uint8_t i) {
 #endif
 	if (status==zynswitch->status) return;
 	zynswitch->status=status;
+
+	if (zynswitch->midi_cc>0) {
+		uint8_t val=0;
+		if (status==0) val=127;
+		//Send MIDI event to engines and ouput (ZMOPS)
+		zynmidi_send_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		//Send MIDI event to UI
+		write_zynmidi_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+	}
 
 	struct timespec ts;
 	unsigned long int tsus;
@@ -325,6 +337,19 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	}
 
 	return zynswitch;
+}
+
+int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
+	if (i >= MAX_NUM_ZYNSWITCHES) {
+		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
+		return 0;
+	}
+
+	struct zynswitch_st *zynswitch = zynswitches + i;
+	zynswitch->midi_chan = midi_chan;
+	zynswitch->midi_cc = midi_cc;
+
+	return 1;
 }
 
 unsigned int get_zynswitch_dtus(uint8_t i) {

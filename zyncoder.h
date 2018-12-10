@@ -52,6 +52,9 @@ struct zynswitch_st {
 	// note that this status is like the pin_[ab]_last_state for the 
 	// zyncoders
 	volatile uint8_t status;
+
+	uint8_t midi_chan;
+	uint8_t midi_cc;
 };
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 

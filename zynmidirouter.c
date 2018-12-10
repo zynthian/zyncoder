@@ -1035,38 +1035,7 @@ int forward_internal_midi_data() {
 }
 
 //-----------------------------------------------------------------------------
-// MIDI Internal Ouput Events Buffer => UI
-//-----------------------------------------------------------------------------
-
-uint32_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
-int zynmidi_buffer_read;
-int zynmidi_buffer_write;
-
-int init_zynmidi_buffer() {
-	int i;
-	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
-	zynmidi_buffer_read=zynmidi_buffer_write=0;
-	return 1;
-}
-
-int write_zynmidi(uint32_t ev) {
-	int nptr=zynmidi_buffer_write+1;
-	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
-	if (nptr==zynmidi_buffer_read) return 0;
-	zynmidi_buffer[zynmidi_buffer_write]=ev;
-	zynmidi_buffer_write=nptr;
-	return 1;
-}
-
-uint32_t read_zynmidi() {
-	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
-	uint32_t ev=zynmidi_buffer[zynmidi_buffer_read++];
-	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
-	return ev;
-}
-
-//-----------------------------------------------------------------------------
-// MIDI Send Functions
+// MIDI Internal Input: Send Functions <= UI and internal
 //-----------------------------------------------------------------------------
 
 int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel) {
@@ -1113,6 +1082,46 @@ int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val) {
 	if (midi_filter.master_chan>=0) {
 		return zynmidi_send_ccontrol_change(midi_filter.master_chan, ctrl, val);
 	}
+}
+
+//-----------------------------------------------------------------------------
+// MIDI Internal Ouput Events Buffer => UI
+//-----------------------------------------------------------------------------
+
+uint32_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
+int zynmidi_buffer_read;
+int zynmidi_buffer_write;
+
+int init_zynmidi_buffer() {
+	int i;
+	for (i=0;i<ZYNMIDI_BUFFER_SIZE;i++) zynmidi_buffer[i]=0;
+	zynmidi_buffer_read=zynmidi_buffer_write=0;
+	return 1;
+}
+
+int write_zynmidi(uint32_t ev) {
+	int nptr=zynmidi_buffer_write+1;
+	if (nptr>=ZYNMIDI_BUFFER_SIZE) nptr=0;
+	if (nptr==zynmidi_buffer_read) return 0;
+	zynmidi_buffer[zynmidi_buffer_write]=ev;
+	zynmidi_buffer_write=nptr;
+	return 1;
+}
+
+uint32_t read_zynmidi() {
+	if (zynmidi_buffer_read==zynmidi_buffer_write) return 0;
+	uint32_t ev=zynmidi_buffer[zynmidi_buffer_read++];
+	if (zynmidi_buffer_read>=ZYNMIDI_BUFFER_SIZE) zynmidi_buffer_read=0;
+	return ev;
+}
+
+//-----------------------------------------------------------------------------
+// MIDI Internal Output: Send Functions => UI
+//-----------------------------------------------------------------------------
+
+int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
+	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (ctrl << 8) | val;
+	return write_zynmidi(ev);
 }
 
 //-----------------------------------------------------------------------------
