@@ -219,6 +219,8 @@ void update_zynswitch(uint8_t i) {
 		if (status==0) val=127;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		zynmidi_send_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		//Update zyncoders
+		midi_event_zyncoders(zynswitch->midi_chan, zynswitch->midi_cc, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
 	}
@@ -366,6 +368,17 @@ unsigned int get_zynswitch(uint8_t i) {
 //-----------------------------------------------------------------------------
 // Generic Rotary Encoders
 //-----------------------------------------------------------------------------
+
+void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val) {
+	//Update zyncoder value => TODO Optimize this fragment!!!
+	for (int j=0;j<MAX_NUM_ZYNCODERS;j++) {
+		if (zyncoders[j].enabled && zyncoders[j].midi_chan==midi_chan && zyncoders[j].midi_ctrl==midi_ctrl) {
+			zyncoders[j].value=val;
+			zyncoders[j].subvalue=val*ZYNCODER_TICKS_PER_RETENT;
+			//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_ctrl);
+		}
+	}
+}
 
 void send_zyncoder(uint8_t i) {
 	if (i>=MAX_NUM_ZYNCODERS) return;

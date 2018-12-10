@@ -799,14 +799,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		if (event_type==CTRL_CHANGE) {
 			//Set zyncoder values
 			if (zmip->flags & FLAG_ZMIP_ZYNCODER) {
-				//Update zyncoder value => TODO Optimize this fragment!!!
-				for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
-					if (zyncoders[j].enabled && zyncoders[j].midi_chan==event_chan && zyncoders[j].midi_ctrl==event_num) {
-						zyncoders[j].value=event_val;
-						zyncoders[j].subvalue=event_val*ZYNCODER_TICKS_PER_RETENT;
-						//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",ev.buffer[0],ev.buffer[1]);
-					}
-				}
+				midi_event_zyncoders(event_chan, event_num, event_val);
 			}
 			//Ignore Bank Change events when FLAG_ZMIP_UI
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
