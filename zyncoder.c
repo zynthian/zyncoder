@@ -371,7 +371,8 @@ unsigned int get_zynswitch(uint8_t i) {
 
 void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val) {
 	//Update zyncoder value => TODO Optimize this fragment!!!
-	for (int j=0;j<MAX_NUM_ZYNCODERS;j++) {
+	int j;
+	for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
 		if (zyncoders[j].enabled && zyncoders[j].midi_chan==midi_chan && zyncoders[j].midi_ctrl==midi_ctrl) {
 			zyncoders[j].value=val;
 			zyncoders[j].subvalue=val*ZYNCODER_TICKS_PER_RETENT;
