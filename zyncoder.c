@@ -388,7 +388,10 @@ void send_zyncoder(uint8_t i) {
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 	if (zyncoder->midi_ctrl>0) {
+		//Send to MIDI output
 		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
+		ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (zyncoder->osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {

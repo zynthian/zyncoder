@@ -177,7 +177,8 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define ZMOP_CH13 15
 #define ZMOP_CH14 16
 #define ZMOP_CH15 17
-#define MAX_NUM_ZMOPS 18
+#define ZMOP_CTRL 18
+#define MAX_NUM_ZMOPS 19
 
 #define ZMIP_MAIN 0
 #define ZMIP_NET 1
@@ -226,21 +227,17 @@ int end_jack_midi();
 int jack_process(jack_nframes_t nframes, void *arg);
 
 //-----------------------------------------------------------------------------
-// MIDI Input Events Buffer Management
+// MIDI Input Events Buffer Management and Send functions
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 256
+#define ZYNMIDI_BUFFER_SIZE 1024
 
 //-----------------------------------------------------
-// MIDI Internal Input Event Buffer <= UI and internal
+// MIDI Internal Input <= UI and internal
 //-----------------------------------------------------
 
 jack_ringbuffer_t *jack_ring_output_buffer;
 int write_internal_midi_event(uint8_t *event, int event_size);
-
-//-----------------------------------------------------------------------------
-// MIDI Internal Input: Send Functions <= UI and internal
-//-----------------------------------------------------------------------------
 
 int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
@@ -250,6 +247,19 @@ int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
 
+//-----------------------------------------------------
+// MIDI Controller Feedback <= UI and internal
+//-----------------------------------------------------
+
+jack_ringbuffer_t *jack_ring_ctrlfb_buffer;
+int write_ctrlfb_midi_event(uint8_t *event, int event_size);
+
+int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
+int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
+int ctrlfb_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm);
+int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
+
 //-----------------------------------------------------------------------------
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
@@ -257,10 +267,6 @@ int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
 int init_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
-
-//-----------------------------------------------------------------------------
-// MIDI Internal Output: Send Functions => UI
-//-----------------------------------------------------------------------------
 
 int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 
