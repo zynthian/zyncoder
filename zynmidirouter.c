@@ -646,6 +646,8 @@ int end_jack_midi() {
 // forwarding the output to several zmops
 //-----------------------------------------------------
 
+int current_midi_filter_active_chan;
+
 int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
 		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
@@ -708,9 +710,9 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					continue;
 				}
 				//Active Channel => When set, move all channel events to active_chan
-				if (midi_filter.active_chan>=0) {
-					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
-					event_chan=midi_filter.active_chan;
+				if (current_midi_filter_active_chan>=0) {
+					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (current_midi_filter_active_chan & 0x0F);
+					event_chan=current_midi_filter_active_chan;
 				}
 				//Capture events for UI: Program Change
 				if ((zmip->flags & FLAG_ZMIP_UI) && event_type==PROG_CHANGE) {
@@ -955,6 +957,9 @@ int forward_internal_midi_data();
 int jack_process(jack_nframes_t nframes, void *arg) {
 	int i;
 
+	// Get current Active Chan
+	current_midi_filter_active_chan=midi_filter.active_chan;
+	
 	//---------------------------------
 	// Clear Output Port Data Buffers
 	//---------------------------------
