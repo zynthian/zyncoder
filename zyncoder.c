@@ -66,6 +66,8 @@
 	#include "wiringPiEmu.h"
 #endif
 
+//#define DEBUG
+
 //-----------------------------------------------------------------------------
 // Library Initialization
 //-----------------------------------------------------------------------------
@@ -180,7 +182,7 @@ int init_zyncoder() {
 	wiringPiISR(MCP23017_INTB_PIN, INT_EDGE_RISING, mcp23017_bank_ISRs[1]);
 
 #ifdef DEBUG
-	printf("mcp23017 initialized\n");
+	printf("MCP23017 initialized: INTA %d, INTB %d\n",MCP23017_INTA_PIN,MCP23017_INTB_PIN);
 #endif
 #else
 	mcp23008Setup (100, 0x20);
@@ -603,7 +605,9 @@ void mcp23017_bank_ISR(uint8_t bank) {
 	uint8_t reg;
 	uint8_t pin_min, pin_max;
 
-	//printf("Zyncoder MCP23017 ISR => %d\n",bank);
+#ifdef DEBUG
+	printf("MCP23017 ISR => %d\n",bank);
+#endif
 
 	if (bank == 0) {
 		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
@@ -647,6 +651,9 @@ void mcp23017_bank_ISR(uint8_t bank) {
 		if (zynswitch->pin >= pin_min && zynswitch->pin <= pin_max) {
 			uint8_t bit = zynswitch->pin - pin_min;
 			uint8_t state = bitRead(reg, bit);
+#ifdef DEBUG
+			printf("MCP23017 Zynswitch %d => %d\n",i,state);
+#endif
 			if (state != zynswitch->status) {
 				update_zynswitch(i, state);
 				// note that the update function updates status with state
