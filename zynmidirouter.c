@@ -767,7 +767,8 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//fprintf (stdout, "NEXT CLONE %x => %d, %d\n",event_type, clone_from_chan, clone_to_chan);
 		}
 
-		//fprintf(stdout, "%x, %x\n", ev.buffer[0], ev.buffer[1]);
+		//if (ev.buffer[0]!=0xfe)
+		//	fprintf(stdout, "%x, %x, %x\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 
 		//Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event=0;
