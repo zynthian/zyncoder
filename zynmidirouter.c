@@ -732,15 +732,18 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				}
 			}
 
-			//Get event details depending of event size & type
-			if (ev.size==3) {
-				if (event_type==PITCH_BENDING) {
-					event_num=0;
-					event_val=ev.buffer[2] & 0x7F;
-				} else {
-					event_num=ev.buffer[1] & 0x7F;
-					event_val=ev.buffer[2] & 0x7F;
-				}
+			//Get event details depending of event type & size
+			if (event_type==PITCH_BENDING) {
+				event_num=0;
+				event_val=ev.buffer[2] & 0x7F;
+			}
+			else if (event_type==CHAN_PRESS) {
+				event_num=0;
+				event_val=ev.buffer[1] & 0x7F;
+			}
+			else if (ev.size==3) {
+				event_num=ev.buffer[1] & 0x7F;
+				event_val=ev.buffer[2] & 0x7F;
 			}
 			else if (ev.size==2) {
 				event_num=ev.buffer[1] & 0x7F;
