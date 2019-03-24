@@ -1,15 +1,15 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: Zyncoder Library
- * 
- * Library for interfacing Rotary Encoders & Switches connected 
- * to RBPi native GPIOs or expanded with MCP23008. Includes an 
+ *
+ * Library for interfacing Rotary Encoders & Switches connected
+ * to RBPi native GPIOs or expanded with MCP23008. Includes an
  * emulator mode to ease developping.
- * 
+ *
  * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -21,7 +21,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -37,7 +37,9 @@
 #include "zyncoder.h"
 #include "zynmidirouter.h"
 
-#if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
+#ifdef RIBAN_HWC
+	#include <wiringPi.h>
+#elif defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
 	// pins 100-115 are located on the MCP23017
 	#define MCP23017_BASE_PIN 100
 	// define default interrupt pins for the MCP23017
@@ -184,6 +186,8 @@ int init_zyncoder() {
 #ifdef DEBUG
 	printf("MCP23017 initialized: INTA %d, INTB %d\n",MCP23017_INTA_PIN,MCP23017_INTB_PIN);
 #endif
+#elifdef RIBAN_HWC
+    hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
 #else
 	mcp23008Setup (100, 0x20);
 	init_poll_zynswitches();
@@ -199,7 +203,7 @@ int end_zyncoder() {
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
-#ifdef MCP23017_ENCODERS
+#if defined(MCP23017_ENCODERS) || defined(RIBAN_HWC)
 // Update the mcp23017 based switches from ISR routine
 void update_zynswitch(uint8_t i, uint8_t status) {
 #else
@@ -211,7 +215,9 @@ void update_zynswitch(uint8_t i) {
 	if (zynswitch->enabled==0) return;
 
 #ifndef MCP23017_ENCODERS
+#ifndef RIBAN_HWC
 	uint8_t status=digitalRead(zynswitch->pin);
+#endif
 #endif
 	if (status==zynswitch->status) return;
 	zynswitch->status=status;
@@ -243,6 +249,7 @@ void update_zynswitch(uint8_t i) {
 }
 
 #ifndef MCP23017_ENCODERS
+#ifndef RIBAN_HWC
 void update_zynswitch_0() { update_zynswitch(0); }
 void update_zynswitch_1() { update_zynswitch(1); }
 void update_zynswitch_2() { update_zynswitch(2); }
@@ -261,6 +268,7 @@ void (*update_zynswitch_funcs[8])={
 	update_zynswitch_6,
 	update_zynswitch_7
 };
+#endif
 #endif
 
 //Update NON-ISR switches (expanded GPIO)
@@ -317,14 +325,16 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return NULL;
 	}
-	
+
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	zynswitch->enabled = 1;
 	zynswitch->pin = pin;
 	zynswitch->tsus = 0;
 	zynswitch->dtus = 0;
 	zynswitch->status = 0;
-
+#ifdef RIBAN_HWC
+    return zynswitch;
+#else
 	if (pin>0) {
 		pinMode(pin, INPUT);
 		pullUpDnControl(pin, PUD_UP);
@@ -341,6 +351,7 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	}
 
 	return zynswitch;
+#endif // RIBAN_HWC
 }
 
 int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
@@ -409,7 +420,8 @@ void send_zyncoder(uint8_t i) {
 	}
 }
 
-#ifdef MCP23017_ENCODERS
+#ifndef RIBAN_ENC
+#if defined(MCP23017_ENCODERS)
 void update_zyncoder(uint8_t i, uint8_t MSB, uint8_t LSB) {
 #else
 void update_zyncoder(uint8_t i) {
@@ -476,7 +488,7 @@ void update_zyncoder(uint8_t i) {
 			zyncoder->value=value;
 			send_zyncoder(i);
 		}
-	} 
+	}
 	else {
 		unsigned int last_value=zyncoder->value;
 		if (zyncoder->value>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
@@ -486,8 +498,10 @@ void update_zyncoder(uint8_t i) {
 	}
 
 }
+#endif // RIBAN_ENC
 
 #ifndef MCP23017_ENCODERS
+#ifndef RIBAN_HWC
 void update_zyncoder_0() { update_zyncoder(0); }
 void update_zyncoder_1() { update_zyncoder(1); }
 void update_zyncoder_2() { update_zyncoder(2); }
@@ -506,6 +520,7 @@ void (*update_zyncoder_funcs[8])={
 	update_zyncoder_6,
 	update_zyncoder_7
 };
+#endif
 #endif
 
 //-----------------------------------------------------------------------------
@@ -552,20 +567,24 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 		zyncoder->last_encoded = 0;
 		zyncoder->tsus = 0;
 
+#ifdef RIBAN_HWC
+            wiringPiISR(pin_a, INT_EDGE_FALLING, handleRibanHwc);
+#else
 		if (zyncoder->pin_a!=zyncoder->pin_b) {
 			pinMode(pin_a, INPUT);
 			pinMode(pin_b, INPUT);
 			pullUpDnControl(pin_a, PUD_UP);
 			pullUpDnControl(pin_b, PUD_UP);
-#ifndef MCP23017_ENCODERS
-			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
-			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
-#else
+#ifdef MCP23017_ENCODERS
 			// this is a bit brute force, but update all the banks
 			mcp23017_bank_ISR(0);
 			mcp23017_bank_ISR(1);
+#else
+			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 #endif
 		}
+#endif // RIBAN_HWC
 	}
 
 	return zyncoder;
@@ -664,5 +683,45 @@ void mcp23017_bank_ISR(uint8_t bank) {
 		}
 	}
 }
+#endif
 
+#ifdef RIBAN_HWC
+#include <wiringPiI2C.h>
+/** Called when an interrupt signal detected from riban HWC.
+    Interupt indicates a change has occured on HWC hence there is data to read.
+    Must read one byte from HWC register 0 to detect the control that has changed then read that control's value.
+    (Controller index starts at 1. '0' means there are no changes since last read.)
+    Control value may be absolute (e.g. potentiometer or switch) or relative from last read (e.g. rotary encoder).
+    Interupt remains asserted until all changed values are read.
+    We use zyncoder_st::pin_a to hold HWC enoder index.
+    We use zynswitch_st::pin to hold HWC switch index.
+*/
+void handleRibanHwc() {
+    //loop until all HWC changes are read
+    int i;
+    uint8_t reg;
+    while(reg = wiringPiI2CRead(hwci2c_fd)) {
+        int16_t nValue = wiringPiI2CReadReg16(hwci2c_fd, reg);
+        for(i=0; i<MAX_NUM_ZYNCODERS; i++) {
+            struct zyncoder_st *zyncoder = zyncoders + i;
+            if(zyncoder->enabled==0 || zyncoder->pin_a != reg)
+                continue;
+            nValue += zyncoder->value;
+            if(nValue < 0)
+                nValue = 0;
+            if(nValue > zyncoder->max_value)
+                nValue = zyncoder->max_value;
+            zyncoder->value = nValue;
+            send_zyncoder(i);
+            return;
+        }
+        for(i=0; i<MAX_NUM_ZYNSWITCHES; i++) {
+            struct zynswitch_st *zynswitch = zynswitches + i;
+            if(zynswitch->enabled ==0 || zynswitch->pin != reg)
+                continue;
+            update_zynswitch(i, nValue?1:0);
+            return;
+        }
+    }
+}
 #endif
