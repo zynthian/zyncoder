@@ -151,6 +151,8 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 
 #define JACK_MIDI_BUFFER_SIZE 4096
 
+#define FLAG_ZMOP_TUNING 64
+
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_ZYNCODER 2
 #define FLAG_ZMIP_CLONE 4
@@ -160,31 +162,34 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define FLAG_ZMIP_TUNING 64
 
 #define ZMOP_MAIN 0
-#define ZMOP_NET 1
-#define ZMOP_CH0 2
-#define ZMOP_CH1 3
-#define ZMOP_CH2 4
-#define ZMOP_CH3 5
-#define ZMOP_CH4 6
-#define ZMOP_CH5 7
-#define ZMOP_CH6 8
-#define ZMOP_CH7 9
-#define ZMOP_CH8 10
-#define ZMOP_CH9 11
-#define ZMOP_CH10 12
-#define ZMOP_CH11 13
-#define ZMOP_CH12 14
-#define ZMOP_CH13 15
-#define ZMOP_CH14 16
-#define ZMOP_CH15 17
-#define ZMOP_CTRL 18
-#define MAX_NUM_ZMOPS 19
+#define ZMOP_MIDI 1
+#define ZMOP_NET 2
+#define ZMOP_CTRL 3
+#define ZMOP_CH0 4
+#define ZMOP_CH1 5
+#define ZMOP_CH2 6
+#define ZMOP_CH3 7
+#define ZMOP_CH4 8
+#define ZMOP_CH5 9
+#define ZMOP_CH6 10
+#define ZMOP_CH7 11
+#define ZMOP_CH8 12
+#define ZMOP_CH9 13
+#define ZMOP_CH10 14
+#define ZMOP_CH11 15
+#define ZMOP_CH12 16
+#define ZMOP_CH13 17
+#define ZMOP_CH14 18
+#define ZMOP_CH15 19
+#define MAX_NUM_ZMOPS 20
 
 #define ZMIP_MAIN 0
 #define ZMIP_NET 1
 #define ZMIP_SEQ 2
 #define ZMIP_CTRL 3
 #define MAX_NUM_ZMIPS 4
+
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
@@ -196,13 +201,16 @@ struct zmop_st {
 	int n_data;
 	int midi_channel;
 	int n_connections;
+	uint32_t flags;
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
-int zmop_init(int iz, char *name, int ch);
+int zmop_init(int iz, char *name, int ch, uint32_t flags);
 int zmop_push_data(int iz, jack_midi_event_t ev, int ch);
 int zmop_clear_data(int iz);
 int zmops_clear_data();
+int zmop_set_flags(int iz, uint32_t flags);
+int zoip_has_flag(int iz, uint32_t flag);
 
 struct zmip_st {
 	jack_port_t *jport;

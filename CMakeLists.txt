@@ -43,7 +43,7 @@ else()
 	add_library(zyncoder SHARED zyncoder.h zyncoder.c wiringPiEmu.c zynmidirouter.h zynmidirouter.c)
 	#add_library(wiringPiEmu SHARED wiringPiEmu.h wiringPiEmu.c)
 	#add_library(zynmidirouter SHARED zynmidirouter.h zynmidirouter.c)
-	target_link_libraries(zyncoder asound jack lo)
+	target_link_libraries(zyncoder jack lo)
 	#install(TARGETS wiringPiEmu LIBRARY DESTINATION lib)
 endif()
 
