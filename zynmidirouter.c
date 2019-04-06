@@ -63,11 +63,16 @@ int end_zynmidirouter() {
 
 int init_midi_router() {
 	int i,j,k;
+
 	midi_filter.master_chan=-1;
 	midi_filter.active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
+	midi_learning_mode=0;
+	midi_ctrl_automode=1;
+	
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
+		midi_filter.last_pb_val[i]=8192;
 	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<16;j++) {
@@ -85,13 +90,12 @@ int init_midi_router() {
 	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<128;j++) {
-			midi_filter.last_ctrl_val[i][j]=0;
+			midi_filter.ctrl_mode[i][j]=0;
+			midi_filter.ctrl_relmode_count[i][j]=0;
+			midi_filter.last_ctrl_val[i][j]=64;
 		}
 	}
-	for (i=0;i<16;i++) {
-		midi_filter.last_pb_val[i]=8192;
-	}
-	midi_learning_mode=0;
+
 	return 1;
 }
 
@@ -317,6 +321,11 @@ void reset_midi_filter_cc_map() {
 //MIDI Learning Mode
 void set_midi_learning_mode(int mlm) {
 	midi_learning_mode=mlm;
+}
+
+//MIDI Controller Automode
+void set_midi_ctrl_automode(int mcam) {
+	midi_ctrl_automode=mcam;
 }
 
 
@@ -838,10 +847,51 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//MIDI CC messages
 		if (event_type==CTRL_CHANGE) {
+
+			//Auto Relative-Mode
+			if (midi_filter.ctrl_mode[event_chan][event_num]==1) {
+				// Change to absolut mode
+				if (midi_filter.ctrl_relmode_count[event_chan][event_num]>1) {
+					midi_filter.ctrl_mode[event_chan][event_num]=0;
+					//printf("Changing Back to Absolut Mode ...\n");
+				}
+				// Every 2 messages, rel-mode mark
+				else if (event_val==64) {
+					midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
+					continue;
+				}
+				else {
+					int16_t last_val=midi_filter.last_ctrl_val[event_chan][event_num];
+					int16_t new_val=last_val + (int16_t)event_val - 64;
+					if (new_val>127) new_val=127;
+					if (new_val<0) new_val=0;
+					ev.buffer[2]=event_val=(uint8_t)new_val;
+					midi_filter.ctrl_relmode_count[event_chan][event_num]++;
+					//printf("Relative Mode! => val=%d\n",new_val);
+				}
+			}
+
+			//Absolut Mode
+			if (midi_filter.ctrl_mode[event_chan][event_num]==0 && midi_ctrl_automode==1) {
+				if (event_val==64) {
+					//printf("Tenting Relative Mode ...\n");
+					midi_filter.ctrl_mode[event_chan][event_num]=1;
+					midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
+					// Here we lost a tick when an absolut knob moves fast and touch val=64,
+					// but if we want auto-detect rel-mode and change softly to it, it's the only way.
+					int16_t last_val=midi_filter.last_ctrl_val[event_chan][event_num];
+					if (abs(last_val-event_val)>4) continue;
+				}
+			}
+
+			//Save last controller value ...
+			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
+
 			//Set zyncoder values
 			if (zmip->flags & FLAG_ZMIP_ZYNCODER) {
 				midi_event_zyncoders(event_chan, event_num, event_val);
 			}
+
 			//Ignore Bank Change events when FLAG_ZMIP_UI
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	continue;
@@ -963,9 +1013,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			event_chan=zmop->data[pos] & 0xF;
 			event_num=zmop->data[pos+1] & 0x7F;
 			event_val=zmop->data[pos+2] & 0x7F;
-
-			//Save last controller values for Master Channel calculation ...
-			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
 
 			//Captured Controllers => volume
 			if (event_num==0x7) {
@@ -1269,5 +1316,6 @@ int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
 	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (ctrl << 8) | val;
 	return write_zynmidi(ev);
 }
+
 
 //-----------------------------------------------------------------------------

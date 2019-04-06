@@ -77,12 +77,17 @@ struct mf_arrow_st {
 
 struct midi_filter_st {
 	int tuning_pitchbend;
+	int master_chan;
+	int active_chan;
+	int auto_relmode;
+
 	int transpose[16];
 	int clone[16][16];
 	struct midi_event_st event_map[8][16][128];
 
-	int master_chan;
-	int active_chan;
+	uint8_t ctrl_mode[16][128];
+	uint8_t ctrl_relmode_count[16][128];
+
 	uint8_t last_ctrl_val[16][128];
 	uint16_t last_pb_val[16];
 };
@@ -277,5 +282,13 @@ int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
 int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+
+//-----------------------------------------------------------------------------
+// MIDI Controller Auto-Mode (Absolut <=> Relative)
+//-----------------------------------------------------------------------------
+
+int midi_ctrl_automode;
+void set_midi_ctrl_automode(int mcam);
+
 
 //-----------------------------------------------------------------------------
