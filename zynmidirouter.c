@@ -1125,6 +1125,13 @@ int write_internal_midi_event(uint8_t *event_buffer, int event_size) {
 		fprintf (stderr, "ZynMidiRouter: Error writing internal output ring-buffer: FULL\n");
 		return 0;
 	}
+	//Set last CC value
+	if (event_buffer[0] & 0xB0) {
+		uint8_t chan=event_buffer[0] & 0x0F;
+		uint8_t num=event_buffer[1];
+		uint8_t val=event_buffer[2];
+		midi_filter.last_ctrl_val[chan][num]=val;
+	}
 	return 1;
 }
 
