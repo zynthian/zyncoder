@@ -63,11 +63,16 @@ int end_zynmidirouter() {
 
 int init_midi_router() {
 	int i,j,k;
+
 	midi_filter.master_chan=-1;
 	midi_filter.active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
+	midi_learning_mode=0;
+	midi_ctrl_automode=1;
+	
 	for (i=0;i<16;i++) {
 		midi_filter.transpose[i]=0;
+		midi_filter.last_pb_val[i]=8192;
 	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<16;j++) {
@@ -85,13 +90,12 @@ int init_midi_router() {
 	}
 	for (i=0;i<16;i++) {
 		for (j=0;j<128;j++) {
-			midi_filter.last_ctrl_val[i][j]=0;
+			midi_filter.ctrl_mode[i][j]=0;
+			midi_filter.ctrl_relmode_count[i][j]=0;
+			midi_filter.last_ctrl_val[i][j]=64;
 		}
 	}
-	for (i=0;i<16;i++) {
-		midi_filter.last_pb_val[i]=8192;
-	}
-	midi_learning_mode=0;
+
 	return 1;
 }
 
@@ -319,6 +323,11 @@ void set_midi_learning_mode(int mlm) {
 	midi_learning_mode=mlm;
 }
 
+//MIDI Controller Automode
+void set_midi_ctrl_automode(int mcam) {
+	midi_ctrl_automode=mcam;
+}
+
 
 //-----------------------------------------------------------------------------
 // Swap CC mapping => GRAPH THEORY
@@ -484,7 +493,7 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
 // ZynMidi Input/Ouput Port management
 //-----------------------------------------------------------------------------
 
-int zmop_init(int iz, char *name, int ch) {
+int zmop_init(int iz, char *name, int ch, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
 		fprintf (stderr, "ZynMidiRouter: Bad index (%d) initializing ouput port '%s'.\n", iz, name);
 		return 0;
@@ -499,6 +508,7 @@ int zmop_init(int iz, char *name, int ch) {
 	zmops[iz].n_data=0;
 	zmops[iz].midi_channel=ch;
 	zmops[iz].n_connections=0;
+	zmops[iz].flags=flags;
 	return 1;
 }
 
@@ -531,6 +541,23 @@ int zmops_clear_data() {
 		zmops[i].n_data=0;
 	}
 	return 1;
+}
+
+int zmop_set_flags(int iz, uint32_t flags) {
+	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	zmops[iz].flags=flags;
+	return 1;
+}
+
+int zmop_has_flags(int iz, uint32_t flags) {
+	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	return (zmops[iz].flags & flags)==flags;
 }
 
 int zmip_init(int iz, char *name, uint32_t flags) {
@@ -598,13 +625,14 @@ int init_jack_midi(char *name) {
 	int i;
 
 	//Init Output Ports
-	if (!zmop_init(ZMOP_MAIN,"main_out",-1)) return 0;
-	if (!zmop_init(ZMOP_NET,"net_out",-1)) return 0;
-	if (!zmop_init(ZMOP_CTRL,"ctrl_out",-1)) return 0;
+	if (!zmop_init(ZMOP_MAIN,"main_out",-1,ZMOP_MAIN_FLAGS)) return 0;
+	if (!zmop_init(ZMOP_MIDI,"midi_out",-1,0)) return 0;
+	if (!zmop_init(ZMOP_NET,"net_out",-1,0)) return 0;
+	if (!zmop_init(ZMOP_CTRL,"ctrl_out",-1,0)) return 0;
 	char port_name[12];
 	for (i=0;i<16;i++) {
 		sprintf(port_name,"ch%d_out",i);
-		if (!zmop_init(ZMOP_CH0+i,port_name,i)) return 0;
+		if (!zmop_init(ZMOP_CH0+i,port_name,i,ZMOP_MAIN_FLAGS)) return 0;
 	}
 
 	//Init Input Ports
@@ -681,9 +709,14 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	}
 
 	//Process MIDI messages
+
 	jack_midi_event_t ev;
+	jack_midi_event_t xev;
+	jack_midi_data_t xev_buffer[3];
+	xev.buffer=(jack_midi_data_t *)&xev_buffer;
 	int clone_from_chan=-1;
 	int clone_to_chan=-1;
+
 	while (1) {
 
 		//Test if reached max num of events
@@ -814,10 +847,51 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//MIDI CC messages
 		if (event_type==CTRL_CHANGE) {
+
+			//Auto Relative-Mode
+			if (midi_filter.ctrl_mode[event_chan][event_num]==1) {
+				// Change to absolut mode
+				if (midi_filter.ctrl_relmode_count[event_chan][event_num]>1) {
+					midi_filter.ctrl_mode[event_chan][event_num]=0;
+					//printf("Changing Back to Absolut Mode ...\n");
+				}
+				// Every 2 messages, rel-mode mark
+				else if (event_val==64) {
+					midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
+					continue;
+				}
+				else {
+					int16_t last_val=midi_filter.last_ctrl_val[event_chan][event_num];
+					int16_t new_val=last_val + (int16_t)event_val - 64;
+					if (new_val>127) new_val=127;
+					if (new_val<0) new_val=0;
+					ev.buffer[2]=event_val=(uint8_t)new_val;
+					midi_filter.ctrl_relmode_count[event_chan][event_num]++;
+					//printf("Relative Mode! => val=%d\n",new_val);
+				}
+			}
+
+			//Absolut Mode
+			if (midi_filter.ctrl_mode[event_chan][event_num]==0 && midi_ctrl_automode==1) {
+				if (event_val==64) {
+					//printf("Tenting Relative Mode ...\n");
+					midi_filter.ctrl_mode[event_chan][event_num]=1;
+					midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
+					// Here we lost a tick when an absolut knob moves fast and touch val=64,
+					// but if we want auto-detect rel-mode and change softly to it, it's the only way.
+					int16_t last_val=midi_filter.last_ctrl_val[event_chan][event_num];
+					if (abs(last_val-event_val)>4) continue;
+				}
+			}
+
+			//Save last controller value ...
+			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
+
 			//Set zyncoder values
 			if (zmip->flags & FLAG_ZMIP_ZYNCODER) {
 				midi_event_zyncoders(event_chan, event_num, event_val);
 			}
+
 			//Ignore Bank Change events when FLAG_ZMIP_UI
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	continue;
@@ -835,13 +909,18 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		// Fine-Tuning, using pitch-bending messages ...
+		xev.size=0;
 		if ((zmip->flags & FLAG_ZMIP_TUNING) && midi_filter.tuning_pitchbend>=0) {
 			if (event_type==NOTE_ON) {
 				int pb=midi_filter.last_pb_val[event_chan];
 				//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
 				pb=get_tuned_pitchbend(pb);
 				//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
-				zynmidi_send_pitchbend_change(event_chan,pb);
+				xev.buffer[0]=(PITCH_BENDING << 4) | event_chan;
+				xev.buffer[1]=pb & 0x7F;
+				xev.buffer[2]=(pb >> 7) & 0x7F;
+				xev.size=3;
+				//zynmidi_send_pitchbend_change(event_chan,pb);
 			} else if (event_type==PITCH_BENDING) {
 				//Get received PB
 				int pb=(ev.buffer[2] << 7) | ev.buffer[1];
@@ -851,8 +930,10 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				//printf("PITCHBEND=%d\n",pb);
 				pb=get_tuned_pitchbend(pb);
 				//printf("TUNED PITCHBEND=%d\n",pb);
-				ev.buffer[1]=pb & 0x7F;
-				ev.buffer[2]=(pb >> 7) & 0x7F;
+				xev.buffer[0]=ev.buffer[0];
+				xev.buffer[1]=pb & 0x7F;
+				xev.buffer[2]=(pb >> 7) & 0x7F;
+				xev.size=3;
 			}
 		}
 
@@ -865,9 +946,16 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		if (ui_event) write_zynmidi(ui_event);
 
 		//Forward message to the configured output ports
+		int res=0;
 		for (j=0;j<MAX_NUM_ZMOPS;j++) {
 			if (zmip->fwd_zmops[j] && zmops[j].n_connections>0) {
-				zmop_push_event(j, ev, event_chan);
+				if ((zmops[j].flags & FLAG_ZMOP_TUNING) && xev.size>0) {
+					if (event_type!=PITCH_BENDING) {
+						res=zmop_push_event(j, ev, event_chan);
+					}
+					res=zmop_push_event(j, xev, event_chan);
+				}
+				else zmop_push_event(j, ev, event_chan);
 			}
 		}
 
@@ -926,9 +1014,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			event_num=zmop->data[pos+1] & 0x7F;
 			event_val=zmop->data[pos+2] & 0x7F;
 
-			//Save last controller values for Master Channel calculation ...
-			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
-
 			//Captured Controllers => volume
 			if (event_num==0x7) {
 				if (midi_filter.master_chan>=0) {
@@ -968,6 +1053,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 //-----------------------------------------------------
 
 int forward_internal_midi_data();
+int forward_ctrlfb_midi_data();
 
 int jack_process(jack_nframes_t nframes, void *arg) {
 	int i;
@@ -1038,6 +1124,13 @@ int write_internal_midi_event(uint8_t *event_buffer, int event_size) {
 	else {
 		fprintf (stderr, "ZynMidiRouter: Error writing internal output ring-buffer: FULL\n");
 		return 0;
+	}
+	//Set last CC value
+	if (event_buffer[0] & 0xB0) {
+		uint8_t chan=event_buffer[0] & 0x0F;
+		uint8_t num=event_buffer[1];
+		uint8_t val=event_buffer[2];
+		midi_filter.last_ctrl_val[chan][num]=val;
 	}
 	return 1;
 }
@@ -1230,5 +1323,6 @@ int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
 	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (ctrl << 8) | val;
 	return write_zynmidi(ev);
 }
+
 
 //-----------------------------------------------------------------------------

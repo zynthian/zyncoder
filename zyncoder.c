@@ -49,6 +49,7 @@
 	#endif
 
 	#include <wiringPi.h>
+	#include <wiringPiI2C.h>
 	#include <mcp23017.h>
 	#include <mcp23x0817.h>
 
