@@ -41,8 +41,13 @@
 
 #define DEBUG
 
+#if !defined(MCP23017_INTA_PIN)
+		#define INTERRUPT_PIN 7
+#else
+    #define INTERRUPT_PIN MCP23017_INTA_PIN
+#endif
 //-----------------------------------------------------------------------------
-// Library Initialization
+// Library Initialisation
 //-----------------------------------------------------------------------------
 
 /** Initialise zyncoder library */
@@ -60,7 +65,7 @@ int end_zynlib() {
 }
 
 //-----------------------------------------------------------------------------
-// Zyncoder Library Initialization
+// Zyncoder Library Initialisation
 //-----------------------------------------------------------------------------
 
 /** @brief  Initialises encoders and switches
@@ -77,7 +82,7 @@ int init_zyncoder() {
 	}
 	wiringPiSetup();
     hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
-    wiringPiISR(7, INT_EDGE_FALLING, handleRibanHwc); //!@todo use constant or config variable for interrupt pin
+    wiringPiISR(INTERRUPT_PIN, INT_EDGE_FALLING, handleRibanHwc);
 	return 1;
 }
 
