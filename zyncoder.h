@@ -1,15 +1,15 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: Zyncoder Library
- *
- * Library for interfacing Rotary Encoders & Switches connected
- * to RBPi native GPIOs or expanded with MCP23008. Includes an
+ * 
+ * Library for interfacing Rotary Encoders & Switches connected 
+ * to RBPi native GPIOs or expanded with MCP23008. Includes an 
  * emulator mode to ease developping.
- *
+ * 
  * Copyright (C) 2015-2018 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- *
+ * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -21,7 +21,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- *
+ * 
  * ******************************************************************
  */
 
@@ -43,14 +43,13 @@ int end_zyncoder();
 
 // The real limit in RPi2 is 17
 #define MAX_NUM_ZYNSWITCHES 8
-#define HWC_ADDR 0x08 // I2C address of riban hardware controller
 
 struct zynswitch_st {
 	uint8_t enabled;
 	uint8_t pin;
 	volatile unsigned long tsus;
 	volatile unsigned int dtus;
-	// note that this status is like the pin_[ab]_last_state for the
+	// note that this status is like the pin_[ab]_last_state for the 
 	// zyncoders
 	volatile uint8_t status;
 
@@ -59,10 +58,9 @@ struct zynswitch_st {
 };
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 
-struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin);
+struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin); 
 unsigned int get_zynswitch(uint8_t i);
 unsigned int get_zynswitch_dtus(uint8_t i);
-int hwci2c_fd; // File descriptor for I2C interface to hardware controller
 
 //-----------------------------------------------------------------------------
 // Rotary Encoders
@@ -102,10 +100,7 @@ struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 
 void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val);
 
-struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step);
+struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
 unsigned int get_value_zyncoder(uint8_t i);
 void set_value_zyncoder(uint8_t i, unsigned int v, int send);
 
-#ifdef RIBAN_HWC
-void handleRibanHwc();
-#endif // RIBAN_HWC

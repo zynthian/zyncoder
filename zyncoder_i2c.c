@@ -82,6 +82,8 @@ int init_zyncoder() {
 	}
 	wiringPiSetup();
     hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
+    while(uint8_treg = wiringPiI2CRead(hwci2c_fd))
+        wiringPiI2CReadReg16(hwci2c_fd, reg); // Clear any existing values in HWC
     wiringPiISR(INTERRUPT_PIN, INT_EDGE_FALLING, handleRibanHwc);
 	return 1;
 }
