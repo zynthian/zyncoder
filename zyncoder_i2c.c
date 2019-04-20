@@ -314,7 +314,7 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 	if (zyncoder->enabled==0) return;
 
     if(zyncoder->step)
-        v *= ZYNCODER_TICKS_PER_RETENT * zyncoder->step;
+        v *= zyncoder->step;
     if(v > zyncoder->max_value)
         v = zyncoder->max_value;
     zyncoder->value = v;
