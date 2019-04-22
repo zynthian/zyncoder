@@ -81,8 +81,9 @@ int init_zyncoder() {
 		zyncoders[i].enabled=0;
 	}
 	wiringPiSetup();
-    hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
-    wiringPiISR(INTERRUPT_PIN, INT_EDGE_FALLING, handleRibanHwc);
+	hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
+	wiringPiI2CWriteReg8(hwci2c_fd, 0, 0); // Reset HWC
+	wiringPiISR(INTERRUPT_PIN, INT_EDGE_FALLING, handleRibanHwc);
 	return 1;
 }
 
@@ -313,7 +314,7 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 	if (zyncoder->enabled==0) return;
 
     if(zyncoder->step)
-        v *= ZYNCODER_TICKS_PER_RETENT * zyncoder->step;
+        v *= zyncoder->step;
     if(v > zyncoder->max_value)
         v = zyncoder->max_value;
     zyncoder->value = v;
