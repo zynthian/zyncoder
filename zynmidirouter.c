@@ -989,10 +989,14 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 	}
 	jack_midi_clear_buffer(output_port_buffer);
 
+	//fprintf(stderr, "ZynMidiRouter: Processing ZMOP %d\n",iz);
+
 	//Write MIDI data
 	int pos=0;
 	while (pos < zmop->n_data) {
 		event_type= zmop->data[pos] >> 4;
+
+		//fprintf(stderr, "ZynMidiRouter: Processing Event of type %d\n",event_type);
 
 		if (zmop->data[pos]>=0xF4) event_size=1;
 		else if (event_type==PROG_CHANGE || event_type==CHAN_PRESS || event_type==TIME_CODE_QF || event_type==SONG_SELECT) event_size=2;
@@ -1002,7 +1006,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 		if (zmop->midi_channel>=0) {
 			if (event_type<NOTE_OFF || event_type>PITCH_BENDING || zmop->midi_channel!=(zmop->data[pos]&0xF)) {
 				pos+=event_size;
-				i++;
 				continue;
 			}
 		}
@@ -1032,10 +1035,14 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 		}
 		*/
 
+		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d\n",pos,i);
+
 		//Write to Jackd buffer
 		uint8_t *buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
 		memcpy(buffer, zmop->data+pos, event_size);
 		pos+=event_size;
+
+		//fprintf(stderr, "ZynMidiRouter: Processed Event %d\n",i);
 
 		if (i>nframes) {
 			fprintf (stderr, "ZynMidiRouter: Error processing jack midi output events: TOO MANY EVENTS\n");
@@ -1065,6 +1072,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	// Clear Output Port Data Buffers
 	//---------------------------------
 	zmops_clear_data();
+	//fprintf(stderr, "ZynMidiRouter: ZMOP data cleaned\n");
 
 	//---------------------------------
 	// Get number of connection of Output Ports
@@ -1072,6 +1080,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	for (i=0;i<MAX_NUM_ZMOPS;i++) {
 		zmops[i].n_connections=jack_port_connected(zmops[i].jport);
 	}
+	//fprintf(stderr, "ZynMidiRouter: Num. of connections refreshed\n");
 
 	//---------------------------------
 	//MIDI Input
@@ -1079,18 +1088,21 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	for (i=0;i<MAX_NUM_ZMIPS;i++) {
 		if (jack_process_zmip(i, nframes)<0) return -1;
 	}
+	//fprintf(stderr, "ZynMidiRouter: ZMIP processed\n");
 
 	//---------------------------------
 	//Internal MIDI Thru
 	//---------------------------------
 	//Forward internal MIDI data from ringbuffer to all ZMOPS except ZMOP_CTRL
 	if (forward_internal_midi_data()<0) return -1;
+	//fprintf(stderr, "ZynMidiRouter: Internal MIDI forwarded\n");
 
 	//---------------------------------
 	//MIDI Controller Feedback 
 	//---------------------------------
 	//Forward Controller Feedback MIDI data from ringbuffer to ZMOP_CTRL
 	if (forward_ctrlfb_midi_data()<0) return -1;
+	//fprintf(stderr, "ZynMidiRouter: Controller-FeedBack MIDI forwarded\n");
 
 	//---------------------------------
 	//MIDI Output
@@ -1100,6 +1112,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (jack_process_zmop(i, nframes)<0) return -1;
 		}
 	}
+	//fprintf(stderr, "ZynMidiRouter: ZMOP processed\n");
 
 	return 0;
 }
