@@ -90,6 +90,8 @@ struct midi_filter_st {
 
 	uint8_t last_ctrl_val[16][128];
 	uint16_t last_pb_val[16];
+
+	uint8_t note_state[16][128];
 };
 struct midi_filter_st midi_filter;
 
@@ -257,8 +259,9 @@ int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 int zynmidi_send_program_change(uint8_t chan, uint8_t prgm);
 int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb);
-
 int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
+int zynmidi_send_all_notes_off();
+int zynmidi_send_all_notes_off_chan(uint8_t chan);
 
 //-----------------------------------------------------
 // MIDI Controller Feedback <= UI and internal
