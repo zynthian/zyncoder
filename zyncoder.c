@@ -226,6 +226,7 @@ void update_zynswitch(uint8_t i) {
 		midi_event_zyncoders(zynswitch->midi_chan, zynswitch->midi_cc, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		//printf("Zyncoder: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zynswitch->midi_chan, zynswitch->midi_cc, val);
 	}
 
 	struct timespec ts;
@@ -353,6 +354,7 @@ int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	zynswitch->midi_chan = midi_chan;
 	zynswitch->midi_cc = midi_cc;
+	//printf("Zyncoder: Set Zynswitch %u MIDI CC: %u, %u\n", i, midi_chan, midi_cc);
 
 	return 1;
 }
