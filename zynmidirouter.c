@@ -1095,6 +1095,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	//MIDI Input
 	//---------------------------------
 	for (i=0;i<MAX_NUM_ZMIPS;i++) {
+		if (midi_learning_mode && i==ZMIP_CTRL) continue;
 		if (jack_process_zmip(i, nframes)<0) return -1;
 	}
 	//fprintf(stderr, "ZynMidiRouter: ZMIP processed\n");
