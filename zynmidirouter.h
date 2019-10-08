@@ -52,11 +52,20 @@ enum midi_event_type_enum {
 	//Channel 2-bytes-messages
 	PROG_CHANGE=0xC,
 	CHAN_PRESS=0xD,
+	//System 3-bytes-messages
+	SONG_POSITION=0xF2,
 	//System 2-bytes-messages
 	TIME_CODE_QF=0xF1,
 	SONG_SELECT=0xF3,
 	//System 1-byte messages
+	TUNE_REQUEST=0xF6,
+	TIME_CLOCK=0xF8,
+	MIDI_TICK=0xF9,
+	TRANSPORT_START=0xFA,
+	TRANSPORT_CONTINUE=0xFB,
+	TRANSPORT_STOP=0xFC,
 	ACTIVE_SENSE=0xFE,
+	MIDI_RESET=0xFE,
 	//System Multi-byte (SysEx)
 	SYSTEM_EXCLUSIVE=0xF0
 };

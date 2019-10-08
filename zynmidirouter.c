@@ -740,7 +740,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		else {
 			if (jack_midi_event_get(&ev, input_port_buffer, i++)!=0) break;
 
-			//Ignore SysEx messages
+			//Ignore SysEx messages => TODO Improve this!
 			if (ev.buffer[0]==SYSTEM_EXCLUSIVE) continue;
 
 			//Get event type & chan
@@ -946,7 +946,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		else if (event_type==NOTE_OFF) midi_filter.note_state[event_chan][event_num]=0;
 
 		//Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE)) {
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type>=SYSTEM_EXCLUSIVE)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
