@@ -646,13 +646,14 @@ int init_jack_midi(char *name) {
 	if (!zmip_init(ZMIP_CTRL,"ctrl_in",ZMIP_CTRL_FLAGS)) return 0;
 	
 	//Route Input to Output Ports
-	for (i=0;i<MAX_NUM_ZMOPS;i++) {
+	for (i=0;i<ZMOP_CTRL;i++) {
 		if (!zmip_set_forward(ZMIP_MAIN, i, 1)) return 0;
 		if (i!=ZMOP_NET) {
 			if (!zmip_set_forward(ZMIP_NET, i, 1)) return 0;
 		}
 		if (!zmip_set_forward(ZMIP_SEQ, i, 1)) return 0;
 	}
+	// ZMOP_CTRL is not forwarded from any input port, only receive feedback from Zynthian UI
 	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI
 
 	//Init Ring-Buffers
