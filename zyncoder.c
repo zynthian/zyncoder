@@ -100,12 +100,12 @@ pthread_t init_poll_zynswitches();
 struct wiringPiNodeStruct *mcp23017_node;
 
 // two ISR routines for the two banks
-void mcp23017_bank_ISR(uint8_t bank);
-void mcp23017_bankA_ISR() { mcp23017_bank_ISR(0); }
-void mcp23017_bankB_ISR() { mcp23017_bank_ISR(1); }
-void (*mcp23017_bank_ISRs[2])={
-	mcp23017_bankA_ISR,
-	mcp23017_bankB_ISR
+void zyncoder_mcp23017_bank_ISR(uint8_t bank);
+void zyncoder_mcp23017_bankA_ISR() { zyncoder_mcp23017_bank_ISR(0); }
+void zyncoder_mcp23017_bankB_ISR() { zyncoder_mcp23017_bank_ISR(1); }
+void (*zyncoder_mcp23017_bank_ISRs[2])={
+	zyncoder_mcp23017_bankA_ISR,
+	zyncoder_mcp23017_bankB_ISR
 };
 
 unsigned int int_to_int(unsigned int k) {
@@ -126,12 +126,26 @@ int init_zyncoder() {
 	wiringPiSetup();
 
 #ifdef MCP23017_ENCODERS
+	init_mcp23017(MCP23017_BASE_PIN, 0x20, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
+#else
+	mcp23008Setup (100, 0x20);
+	init_poll_zynswitches();
+#endif
+	return 1;
+}
+
+int end_zyncoder() {
+	return 1;
+}
+
+#ifdef MCP23017_ENCODERS
+void init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
 	uint8_t reg;
 
-	mcp23017Setup(MCP23017_BASE_PIN, 0x20);
+	mcp23017Setup(base_pin, i2c_address);
 
 	// get the node cooresponding to our mcp23017 so we can do direct writes
-	mcp23017_node = wiringPiFindNode(MCP23017_BASE_PIN);
+	mcp23017_node = wiringPiFindNode(base_pin);
 
 	// setup all the pins on the banks as inputs and disable pullups on
 	// the zyncoder input
@@ -178,23 +192,15 @@ int init_zyncoder() {
 
 	// pi ISRs for the 23017
 	// bank A
-	wiringPiISR(MCP23017_INTA_PIN, INT_EDGE_RISING, mcp23017_bank_ISRs[0]);
+	wiringPiISR(inta_pin, INT_EDGE_RISING, isrs[0]);
 	// bank B
-	wiringPiISR(MCP23017_INTB_PIN, INT_EDGE_RISING, mcp23017_bank_ISRs[1]);
+	wiringPiISR(intb_pin, INT_EDGE_RISING, isrs[1]);
 
-#ifdef DEBUG
-	printf("MCP23017 initialized: INTA %d, INTB %d\n",MCP23017_INTA_PIN,MCP23017_INTB_PIN);
-#endif
-#else
-	mcp23008Setup (100, 0x20);
-	init_poll_zynswitches();
-#endif
-	return 1;
+	#ifdef DEBUG
+	printf("MCP23017 at %h initialized in %d: INTA %d, INTB %d\n",i2c_address,base_pin,inta_pin,intb_pin);
+	#endif
 }
-
-int end_zyncoder() {
-	return 1;
-}
+#endif
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
@@ -337,8 +343,8 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 		}
 #else
 		// this is a bit brute force, but update all the banks
-		mcp23017_bank_ISR(0);
-		mcp23017_bank_ISR(1);
+		zyncoder_mcp23017_bank_ISR(0);
+		zyncoder_mcp23017_bank_ISR(1);
 #endif
 	}
 
@@ -394,7 +400,7 @@ void send_zyncoder(uint8_t i) {
 		//Send to MIDI output
 		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
-		ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		//ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (zyncoder->osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {
@@ -565,8 +571,8 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 #else
 			// this is a bit brute force, but update all the banks
-			mcp23017_bank_ISR(0);
-			mcp23017_bank_ISR(1);
+			zyncoder_mcp23017_bank_ISR(0);
+			zyncoder_mcp23017_bank_ISR(1);
 #endif
 		}
 	}
@@ -603,7 +609,7 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 //-----------------------------------------------------------------------------
 
 // ISR for handling the mcp23017 interrupts
-void mcp23017_bank_ISR(uint8_t bank) {
+void zyncoder_mcp23017_bank_ISR(uint8_t bank) {
 	// the interrupt has gone off for a pin change on the mcp23017
 	// read the appropriate bank and compare pin states to last
 	// on a change, call the update function as appropriate
