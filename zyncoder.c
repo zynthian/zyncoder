@@ -128,7 +128,7 @@ int init_zyncoder() {
 #ifdef MCP23017_ENCODERS
 	init_mcp23017(MCP23017_BASE_PIN, 0x20, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
 #else
-	mcp23008Setup (100, 0x20);
+	mcp23008Setup (MCP23008_BASE_PIN, 0x20);
 	init_poll_zynswitches();
 #endif
 	return 1;
