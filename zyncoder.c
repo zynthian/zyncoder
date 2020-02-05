@@ -401,7 +401,7 @@ void send_zyncoder(uint8_t i) {
 		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
 		//ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
-		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		//printf("Zyncoder: SEND MIDI CH#%d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (zyncoder->osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {
 			if (zyncoder->value>=64) {
@@ -526,9 +526,10 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 	}
 
 	struct zyncoder_st *zyncoder = zyncoders + i;
+
+	//Setup MIDI/OSC bindings
 	if (midi_chan>15) midi_chan=0;
 	if (midi_ctrl>127) midi_ctrl=1;
-	if (value>max_value) value=max_value;
 	zyncoder->midi_chan = midi_chan;
 	zyncoder->midi_ctrl = midi_ctrl;
 
@@ -539,10 +540,14 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 		if (zyncoder->osc_port>0) {
 			zyncoder->osc_lo_addr=lo_address_new(NULL,osc_port_str);
 			strcpy(zyncoder->osc_path,strtok(NULL,":"));
+		} else {
+			zyncoder->osc_path[0] = 0;
 		}
-		else zyncoder->osc_path[0]=0;
-	} else zyncoder->osc_path[0]=0;
+	} else {
+		zyncoder->osc_path[0] = 0;
+	}
 
+	if (value>max_value) value=max_value;
 	zyncoder->step = step;
 	if (step>0) {
 		zyncoder->value = value;
