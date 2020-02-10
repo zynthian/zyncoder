@@ -84,6 +84,13 @@ struct mf_arrow_st {
 	enum midi_event_type_enum type;
 };
 
+struct mf_clone_st {
+	int enabled;
+	uint8_t cc[128];
+};
+
+static uint8_t default_cc_to_clone[]={ 1, 2, 64, 65, 66, 67, 68 };
+
 struct midi_filter_st {
 	int tuning_pitchbend;
 	int master_chan;
@@ -91,7 +98,7 @@ struct midi_filter_st {
 	int auto_relmode;
 
 	int transpose[16];
-	int clone[16][16];
+	struct mf_clone_st clone[16][16];
 	struct midi_event_st event_map[8][16][128];
 
 	uint8_t ctrl_mode[16][128];
@@ -130,6 +137,8 @@ int get_midi_filter_transpose(uint8_t chan);
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v);
 int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to);
 void reset_midi_filter_clone(uint8_t chan_from);
+void set_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to, uint8_t cc[128]);
+uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
 
 //MIDI Filter Core functions
 void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to);
