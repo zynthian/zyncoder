@@ -77,9 +77,7 @@ int init_midi_router() {
 	for (i=0;i<16;i++) {
 		for (j=0;j<16;j++) {
 			midi_filter.clone[i][j].enabled=0;
-			for (k=0;k<128;k++) {
-				midi_filter.clone[i][j].cc[k]=0;
-			}
+			memset(midi_filter.clone[i][j].cc, 0, 128);
 			for (k=0;k<sizeof(default_cc_to_clone);k++) {
 				midi_filter.clone[i][j].cc[default_cc_to_clone[k] & 0x7F]=1;
 			}
@@ -94,14 +92,10 @@ int init_midi_router() {
 			}
 		}
 	}
-	for (i=0;i<16;i++) {
-		for (j=0;j<128;j++) {
-			midi_filter.ctrl_mode[i][j]=0;
-			midi_filter.ctrl_relmode_count[i][j]=0;
-			midi_filter.last_ctrl_val[i][j]=0;
-			midi_filter.note_state[i][j]=0;
-		}
-	}
+	memset(midi_filter.ctrl_mode, 0, 16*128);
+	memset(midi_filter.ctrl_relmode_count, 0, 16*128);
+	memset(midi_filter.last_ctrl_val, 0, 16*128);
+	memset(midi_filter.note_state, 0, 16*128);
 
 	return 1;
 }
@@ -212,9 +206,7 @@ void reset_midi_filter_clone(uint8_t chan_from) {
 	int j, k;
 	for (j=0;j<16;j++) {
 		midi_filter.clone[chan_from][j].enabled=0;
-		for (k=0;k<128;k++) {
-			midi_filter.clone[chan_from][j].cc[k]=0;
-		}
+		memset(midi_filter.clone[chan_from][j].cc, 0, 128);
 		for (k=0;k<sizeof(default_cc_to_clone);k++) {
 			midi_filter.clone[chan_from][j].cc[default_cc_to_clone[k] & 0x7F]=1;
 		}
@@ -246,6 +238,24 @@ uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 		return NULL;
 	}
 	return midi_filter.clone[chan_from][chan_to].cc;
+}
+
+
+void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
+	if (chan_from>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		return;
+	}
+	if (chan_to>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		return;
+	}
+
+	int i;
+	memset(midi_filter.clone[chan_from][chan_to].cc, 0, 128);
+	for (i=0;i<sizeof(default_cc_to_clone);i++) {
+		midi_filter.clone[chan_from][chan_to].cc[default_cc_to_clone[i] & 0x7F]=1;
+	}
 }
 
 

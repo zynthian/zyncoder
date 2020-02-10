@@ -139,6 +139,7 @@ int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to);
 void reset_midi_filter_clone(uint8_t chan_from);
 void set_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to, uint8_t cc[128]);
 uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
+void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
 
 //MIDI Filter Core functions
 void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to);
