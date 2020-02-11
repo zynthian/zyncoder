@@ -839,13 +839,17 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				if (current_midi_filter_active_chan>=0) {
 					int destiny_chan=current_midi_filter_active_chan;
 					if (midi_filter.last_active_chan>=0) {
-						//Manage sustained notes across active channel change
+						//Manage sustained notes across active channel change (only last change!)
 						if ((event_type==NOTE_OFF || (event_type==NOTE_ON && event_val==0)) && midi_filter.note_state[midi_filter.last_active_chan][event_num]>0) {
 							destiny_chan=midi_filter.last_active_chan;
 						}
-						//Manage sustain pedal across active_channel change
-						else if (event_type==CTRL_CHANGE && event_num==64 &&  midi_filter.last_ctrl_val[midi_filter.last_active_chan][event_num]>0) {
-							destiny_chan=midi_filter.last_active_chan;
+						//Manage sustain pedal across active_channel changes (all changes!)
+						else if (event_type==CTRL_CHANGE && event_num==64) {
+							for (j=0; j<16; j++) {
+								if (j!=destiny_chan && midi_filter.last_ctrl_val[j][64]>0) {
+									zynmidi_send_ccontrol_change(j, 64, event_val);
+								}
+							}
 						}
 						else if (event_type==NOTE_ON && event_val>0 &&  midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]>midi_filter.last_ctrl_val[destiny_chan][64]) {
 							zynmidi_send_ccontrol_change(destiny_chan, 64, midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]);
