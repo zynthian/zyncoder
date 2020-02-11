@@ -118,14 +118,18 @@ void set_midi_master_chan(int chan) {
 int get_midi_master_chan() {
 	return midi_filter.master_chan;
 }
+
 void set_midi_active_chan(int chan) {
 	if (chan>15 || chan<-1) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
 		return;
 	}
-	midi_filter.last_active_chan=midi_filter.active_chan;
-	midi_filter.active_chan=chan;
+	if (chan!=midi_filter.active_chan) {
+		midi_filter.last_active_chan=midi_filter.active_chan;
+		midi_filter.active_chan=chan;
+	}
 }
+
 int get_midi_active_chan() {
 	return midi_filter.active_chan;
 }
@@ -838,10 +842,13 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				//Active Channel => When set, move all channel events to active_chan
 				if (current_midi_filter_active_chan>=0) {
 					int destiny_chan=current_midi_filter_active_chan;
-					if (midi_filter.last_active_chan>=0) {
+
+					// TODO: Exclude if it's a cloned channel ...
+					if (midi_filter.last_active_chan>=0 && !midi_filter.clone[destiny_chan][midi_filter.last_active_chan].enabled) { 
 						//Manage sustained notes across active channel change (only last change!)
 						if ((event_type==NOTE_OFF || (event_type==NOTE_ON && event_val==0)) && midi_filter.note_state[midi_filter.last_active_chan][event_num]>0) {
 							destiny_chan=midi_filter.last_active_chan;
+							//zynmidi_send_note_off(midi_filter.last_active_chan, event_num, event_val);
 						}
 						//Manage sustain pedal across active_channel changes (all changes!)
 						else if (event_type==CTRL_CHANGE && event_num==64) {
