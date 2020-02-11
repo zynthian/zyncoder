@@ -66,6 +66,7 @@ int init_midi_router() {
 
 	midi_filter.master_chan=-1;
 	midi_filter.active_chan=-1;
+	midi_filter.last_active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
 	midi_learning_mode=0;
 	midi_ctrl_automode=1;
@@ -122,6 +123,7 @@ void set_midi_active_chan(int chan) {
 		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
 		return;
 	}
+	midi_filter.last_active_chan=midi_filter.active_chan;
 	midi_filter.active_chan=chan;
 }
 int get_midi_active_chan() {
@@ -783,6 +785,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		//Clone from last event ...
 		if (clone_from_chan>=0 && clone_to_chan>=0 && clone_to_chan<16) {
 			event_chan=clone_to_chan;
+			event_type=ev.buffer[0] >> 4;
 			ev.buffer[0]=(event_type << 4) | event_chan;
 			//fprintf (stdout, "CLONE %x => %d, %d\n",event_type, clone_from_chan, clone_to_chan);
 			clone_to_chan++;
@@ -808,16 +811,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
 					continue;
 				}
-				//Active Channel => When set, move all channel events to active_chan
-				if (current_midi_filter_active_chan>=0) {
-					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (current_midi_filter_active_chan & 0x0F);
-					event_chan=current_midi_filter_active_chan;
-				}
-				//Capture events for UI: Program Change
-				if ((zmip->flags & FLAG_ZMIP_UI) && event_type==PROG_CHANGE) {
-					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
-					continue;
-				}
 			}
 
 			//Get event details depending of event type & size
@@ -839,6 +832,34 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 			else {
 				event_num=event_val=0;
+			}
+
+			if (ev.buffer[0]<SYSTEM_EXCLUSIVE) {
+				//Active Channel => When set, move all channel events to active_chan
+				if (current_midi_filter_active_chan>=0) {
+					int destiny_chan=current_midi_filter_active_chan;
+					if (midi_filter.last_active_chan>=0) {
+						//Manage sustained notes across active channel change
+						if ((event_type==NOTE_OFF || (event_type==NOTE_ON && event_val==0)) && midi_filter.note_state[midi_filter.last_active_chan][event_num]>0) {
+							destiny_chan=midi_filter.last_active_chan;
+						}
+						//Manage sustain pedal across active_channel change
+						else if (event_type==CTRL_CHANGE && event_num==64 &&  midi_filter.last_ctrl_val[midi_filter.last_active_chan][event_num]>0) {
+							destiny_chan=midi_filter.last_active_chan;
+						}
+						else if (event_type==NOTE_ON && event_val>0 &&  midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]>midi_filter.last_ctrl_val[destiny_chan][64]) {
+							zynmidi_send_ccontrol_change(destiny_chan, 64, midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]);
+						}
+
+					}
+					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (destiny_chan & 0x0F);
+					event_chan=destiny_chan;
+				}
+				//Capture events for UI: Program Change
+				if ((zmip->flags & FLAG_ZMIP_UI) && event_type==PROG_CHANGE) {
+					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+					continue;
+				}
 			}
 
 			//Is it a clonable event?

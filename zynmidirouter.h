@@ -95,6 +95,7 @@ struct midi_filter_st {
 	int tuning_pitchbend;
 	int master_chan;
 	int active_chan;
+	int last_active_chan;
 	int auto_relmode;
 
 	int transpose[16];
