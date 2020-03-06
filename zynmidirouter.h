@@ -43,6 +43,7 @@ enum midi_event_type_enum {
 	SWAP_EVENT=-3,
 	IGNORE_EVENT=-2,
 	THRU_EVENT=-1,
+	NONE_EVENT=0,
 	//Channel 3-bytes-messages
 	NOTE_OFF=0x8,
 	NOTE_ON=0x9,
@@ -304,7 +305,10 @@ int init_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
-int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
+int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
+int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
+int write_zynmidi_program_change(uint8_t chan, uint8_t num);
 
 //-----------------------------------------------------------------------------
 // MIDI Controller Auto-Mode (Absolut <=> Relative)

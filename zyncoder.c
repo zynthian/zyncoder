@@ -35,7 +35,6 @@
 #include <pthread.h>
 
 #include "zyncoder.h"
-#include "zynmidirouter.h"
 
 #if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
 	// pins 100-115 are located on the MCP23017
@@ -117,7 +116,7 @@ int init_zyncoder() {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		zynswitches[i].enabled=0;
-		zynswitches[i].midi_cc=0;
+		zynswitches[i].midi_event.type=NONE_EVENT;
 	}
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled=0;
@@ -223,16 +222,41 @@ void update_zynswitch(uint8_t i) {
 	if (status==zynswitch->status) return;
 	zynswitch->status=status;
 
-	if (zynswitch->midi_cc>0) {
+	if (zynswitch->midi_event.type==CTRL_CHANGE) {
 		uint8_t val=0;
 		if (status==0) val=127;
 		//Send MIDI event to engines and ouput (ZMOPS)
-		zynmidi_send_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		zynmidi_send_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Update zyncoders
-		midi_event_zyncoders(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		midi_event_zyncoders(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Send MIDI event to UI
-		write_zynmidi_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
-		//printf("Zyncoder: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zynswitch->midi_chan, zynswitch->midi_cc, val);
+		write_zynmidi_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
+		//printf("Zyncoder: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
+	}
+	else if (zynswitch->midi_event.type==NOTE_ON) {
+		if (status==0) {
+			//Send MIDI event to engines and ouput (ZMOPS)
+			zynmidi_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+			//Send MIDI event to UI
+			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+		}
+		else {
+			//Send MIDI event to engines and ouput (ZMOPS)
+			zynmidi_send_note_off(zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
+			//Send MIDI event to UI
+			write_zynmidi_note_off(zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
+			//printf("Zyncoder: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
+		}
+	}
+	else if (zynswitch->midi_event.type==PROG_CHANGE) {
+		if (status==0) {
+			//Send MIDI event to engines and ouput (ZMOPS)
+			zynmidi_send_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
+			//Send MIDI event to UI
+			write_zynmidi_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
+			//printf("Zyncoder: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zynswitch->midi_event.chan, zynswitch->midi_event.num);
+		}
 	}
 
 	struct timespec ts;
@@ -351,16 +375,17 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	return zynswitch;
 }
 
-int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
+int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
 		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return 0;
 	}
 
 	struct zynswitch_st *zynswitch = zynswitches + i;
-	zynswitch->midi_chan = midi_chan;
-	zynswitch->midi_cc = midi_cc;
-	//printf("Zyncoder: Set Zynswitch %u MIDI CC: %u, %u\n", i, midi_chan, midi_cc);
+	zynswitch->midi_event.type = midi_evt;
+	zynswitch->midi_event.chan = midi_chan;
+	zynswitch->midi_event.num = midi_num;
+	//printf("Zyncoder: Set Zynswitch %u MIDI %x: %u, %u\n", i, midi_evt, midi_chan, midi_num);
 
 	return 1;
 }

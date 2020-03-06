@@ -35,7 +35,6 @@
 #include <jack/ringbuffer.h>
 #include <lo/lo.h>
 
-#include "zynmidirouter.h"
 #include "zyncoder.h"
 
 //-----------------------------------------------------------------------------
@@ -1468,10 +1467,24 @@ uint32_t read_zynmidi() {
 // MIDI Internal Output: Send Functions => UI
 //-----------------------------------------------------------------------------
 
-int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val) {
-	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (ctrl << 8) | val;
+int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val) {
+	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
+int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val) {
+	uint32_t ev = ((0x90 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	return write_zynmidi(ev);
+}
+
+int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val) {
+	uint32_t ev = ((0x80 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	return write_zynmidi(ev);
+}
+
+int write_zynmidi_program_change(uint8_t chan, uint8_t num) {
+	uint32_t ev = ((0xC0 | (chan & 0x0F)) << 16) | (num << 8);
+	return write_zynmidi(ev);
+}
 
 //-----------------------------------------------------------------------------
