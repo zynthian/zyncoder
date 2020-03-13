@@ -205,23 +205,7 @@ void init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t 
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
-#ifdef MCP23017_ENCODERS
-// Update the mcp23017 based switches from ISR routine
-void update_zynswitch(uint8_t i, uint8_t status) {
-#else
-//Update ISR switches (native GPIO)
-void update_zynswitch(uint8_t i) {
-#endif
-	if (i>=MAX_NUM_ZYNSWITCHES) return;
-	struct zynswitch_st *zynswitch = zynswitches + i;
-	if (zynswitch->enabled==0) return;
-
-#ifndef MCP23017_ENCODERS
-	uint8_t status=digitalRead(zynswitch->pin);
-#endif
-	if (status==zynswitch->status) return;
-	zynswitch->status=status;
-
+void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	if (zynswitch->midi_event.type==CTRL_CHANGE) {
 		uint8_t val=0;
 		if (status==0) val=127;
@@ -258,6 +242,27 @@ void update_zynswitch(uint8_t i) {
 			//printf("Zyncoder: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zynswitch->midi_event.chan, zynswitch->midi_event.num);
 		}
 	}
+}
+
+
+#ifdef MCP23017_ENCODERS
+// Update the mcp23017 based switches from ISR routine
+void update_zynswitch(uint8_t i, uint8_t status) {
+#else
+//Update ISR switches (native GPIO)
+void update_zynswitch(uint8_t i) {
+#endif
+	if (i>=MAX_NUM_ZYNSWITCHES) return;
+	struct zynswitch_st *zynswitch = zynswitches + i;
+	if (zynswitch->enabled==0) return;
+
+#ifndef MCP23017_ENCODERS
+	uint8_t status=digitalRead(zynswitch->pin);
+#endif
+	if (status==zynswitch->status) return;
+	zynswitch->status=status;
+
+	send_zynswitch_midi(zynswitch, status);
 
 	struct timespec ts;
 	unsigned long int tsus;
@@ -311,6 +316,7 @@ void update_expanded_zynswitches() {
 		//printf("POLLING SWITCH %d (%d) => %d\n",i,zynswitch->pin,status);
 		if (status==zynswitch->status) continue;
 		zynswitch->status=status;
+		send_zynswitch_midi(zynswitch, status);
 		//printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 		if (zynswitch->status==1) {
 			int dtus=tsus-zynswitch->tsus;
