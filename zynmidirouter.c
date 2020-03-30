@@ -808,12 +808,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			else {
 				event_type=ev.buffer[0] >> 4;
 				event_chan=ev.buffer[0] & 0xF;
-
-				//Capture events for UI: MASTER CHANNEL
-				if ((zmip->flags & FLAG_ZMIP_UI) && event_chan==midi_filter.master_chan) {
-					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
-					continue;
-				}
 			}
 
 			//Get event details depending of event type & size
@@ -837,7 +831,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				event_num=event_val=0;
 			}
 
-			if (ev.buffer[0]<SYSTEM_EXCLUSIVE) {
+			if (ev.buffer[0]<SYSTEM_EXCLUSIVE && event_chan!=midi_filter.master_chan) {
 				//Active Channel => When set, move all channel events to active_chan
 				if (current_midi_filter_active_chan>=0) {
 					int destiny_chan=current_midi_filter_active_chan;
@@ -860,15 +854,9 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 						else if (event_type==NOTE_ON && event_val>0 &&  midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]>midi_filter.last_ctrl_val[destiny_chan][64]) {
 							zynmidi_send_ccontrol_change(destiny_chan, 64, midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]);
 						}
-
 					}
 					ev.buffer[0]=(ev.buffer[0] & 0xF0) | (destiny_chan & 0x0F);
 					event_chan=destiny_chan;
-				}
-				//Capture events for UI: Program Change
-				if ((zmip->flags & FLAG_ZMIP_UI) && event_type==PROG_CHANGE) {
-					write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
-					continue;
 				}
 			}
 
@@ -933,7 +921,13 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 		}
 
-		//MIDI CC messages
+		//Capture events for UI: MASTER CHANNEL + Program Change
+		if ((zmip->flags & FLAG_ZMIP_UI) && (event_chan==midi_filter.master_chan || event_type==PROG_CHANGE)) {
+			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+			continue;
+		}
+
+		//MIDI CC messages => TODO: Clone behaviour?!!
 		if (event_type==CTRL_CHANGE) {
 
 			//Auto Relative-Mode
@@ -986,7 +980,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//}
 		}
 
-		//Transpose Note-on/off messages
+		//Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
 		else if ((zmip->flags & FLAG_ZMIP_TRANSPOSE) && midi_filter.transpose[event_chan]!=0) {
 			if (event_type==NOTE_OFF || event_type==NOTE_ON) {
 				int note=ev.buffer[1]+midi_filter.transpose[event_chan];
@@ -1029,7 +1023,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		if (event_type==NOTE_ON) midi_filter.note_state[event_chan][event_num]=event_val;
 		else if (event_type==NOTE_OFF) midi_filter.note_state[event_chan][event_num]=0;
 
-		//Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change]
+		//Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, SysEx]
 		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type>=SYSTEM_EXCLUSIVE)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
