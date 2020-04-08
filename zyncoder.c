@@ -265,17 +265,19 @@ void update_zynswitch(uint8_t i) {
 	send_zynswitch_midi(zynswitch, status);
 
 	struct timespec ts;
-	unsigned long int tsus;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
 	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 	if (zynswitch->status==1) {
-		int dtus=tsus-zynswitch->tsus;
-		//Ignore spurious ticks
-		if (dtus<1000) return;
-		//printf("Debounced Switch %d\n",i);
-		if (zynswitch->tsus>0) zynswitch->dtus=dtus;
+		if (zynswitch->tsus>0) {
+			unsigned int dtus=tsus-zynswitch->tsus;
+			zynswitch->tsus=0;
+			//Ignore spurious ticks
+			if (dtus<1000) return;
+			//printf("Debounced Switch %d\n",i);
+			zynswitch->dtus=dtus;
+		}
 	} else zynswitch->tsus=tsus;
 }
 
@@ -319,11 +321,14 @@ void update_expanded_zynswitches() {
 		send_zynswitch_midi(zynswitch, status);
 		//printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zynswitch->status,tsus);
 		if (zynswitch->status==1) {
-			int dtus=tsus-zynswitch->tsus;
-			//Ignore spurious ticks
-			if (dtus<1000) return;
-			//printf("Debounced Switch %d\n",i);
-			if (zynswitch->tsus>0) zynswitch->dtus=dtus;
+			if (zynswitch->tsus>0) {
+				unsigned int dtus=tsus-zynswitch->tsus;
+				zynswitch->tsus=0;
+				//Ignore spurious ticks
+				if (dtus<1000) return;
+				//printf("Debounced Switch %d\n",i);
+				zynswitch->dtus=dtus;
+			}
 		} else zynswitch->tsus=tsus;
 	}
 }
@@ -398,9 +403,22 @@ int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t
 
 unsigned int get_zynswitch_dtus(uint8_t i) {
 	if (i >= MAX_NUM_ZYNSWITCHES) return 0;
+
 	unsigned int dtus=zynswitches[i].dtus;
-	zynswitches[i].dtus=0;
-	return dtus;
+	if (dtus>0) {
+		zynswitches[i].dtus=0;
+		return dtus;
+	}
+	else if (zynswitches[i].tsus>0) {
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		dtus=ts.tv_sec*1000000 + ts.tv_nsec/1000 - zynswitches[i].tsus;
+		if (dtus>2000000) {
+			zynswitches[i].tsus=0;
+			return dtus;
+		}
+	}
+	return 0;
 }
 
 unsigned int get_zynswitch(uint8_t i) {
