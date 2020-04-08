@@ -73,7 +73,7 @@ int main() {
 	printf("TESTING ...\n");
 	while(1) {
 		for (i=0;i<4;i++) {
-			printf("SW%d = %d\n", i, get_zynswitch(i));
+			printf("SW%d = %d\n", i, get_zynswitch(i,2000000));
 			printf("ZC%d = %d\n", i, get_value_zyncoder(i));
 		}
 		printf("-----------------------\n");

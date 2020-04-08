@@ -63,8 +63,8 @@ struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 
 struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin); 
 int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_cc);
-unsigned int get_zynswitch(uint8_t i);
-unsigned int get_zynswitch_dtus(uint8_t i);
+unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
+unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
 
 //-----------------------------------------------------------------------------
 // Rotary Encoders
