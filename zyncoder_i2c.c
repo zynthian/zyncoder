@@ -122,15 +122,18 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	}
 
 	struct timespec ts;
-	unsigned long int tsus;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
     // Switch active 0 - detect switch press and set press time (tsus) or detect release and set press duration (dtus)
 	if (zynswitch->status==1) {
         // Switch released
-		int dtus=tsus-zynswitch->tsus;
-		if (zynswitch->tsus>0) zynswitch->dtus=dtus;
+		if (zynswitch->tsus>0) {
+			unsigned int dtus=tsus-zynswitch->tsus;
+			zynswitch->tsus=0;
+			if (dtus<1000) return;
+			zynswitch->dtus=dtus;
+		}
 	} else zynswitch->tsus=tsus;
 }
 
@@ -176,14 +179,27 @@ int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
 
 /** @brief  Get the duration of last switch press and release
 *   @param  i Virtual switch index
+*   @param  long_dtus Timeout for long press (us)
 *   @retval unsigned int Duration of last switch press in us or zero if switch not pressed and released
 *   @note   Resets duration
 */
-unsigned int get_zynswitch_dtus(uint8_t i) {
+unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
 	if (i >= MAX_NUM_ZYNSWITCHES) return 0;
 	unsigned int dtus=zynswitches[i].dtus;
-	zynswitches[i].dtus=0;
-	return dtus;
+	if(dtus>0) {
+		zynswitches[i].dtus=0;
+		return dtus;
+	}
+	else if (zynswitches[i].tsus>0) {
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		dtus=ts.tv_sec*1000000 + ts.tv_nsec/1000 - zynswitches[i].tsus;
+		if (dtus>long_dtus) {
+			zynswitches[i].tsus=0;
+			return dtus;
+		}
+	}
+	return 0;
 }
 
 /** @brief  Get the duration of last switch press and release
