@@ -58,7 +58,7 @@ struct zynswitch_st {
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 
 struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin);
-unsigned int get_zynswitch(uint8_t i);
+unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
 int hwci2c_fd; // File descriptor for I2C interface to hardware controller
 
