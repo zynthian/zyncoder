@@ -207,8 +207,8 @@ unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
 *   @retval unsigned int Duration of last switch press in us or zero if switch not pressed and released
 *   @note   Resets duration
 */
-unsigned int get_zynswitch(uint8_t i) {
-	return get_zynswitch_dtus(i);
+unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus) {
+	return get_zynswitch_dtus(i, long_dtus);
 }
 
 //-----------------------------------------------------------------------------
