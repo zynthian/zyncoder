@@ -60,15 +60,16 @@ enum midi_event_type_enum {
 	SONG_SELECT=0xF3,
 	//System 1-byte messages
 	TUNE_REQUEST=0xF6,
+	//System Real-Time
 	TIME_CLOCK=0xF8,
-	MIDI_TICK=0xF9,
 	TRANSPORT_START=0xFA,
 	TRANSPORT_CONTINUE=0xFB,
 	TRANSPORT_STOP=0xFC,
 	ACTIVE_SENSE=0xFE,
-	MIDI_RESET=0xFE,
+	MIDI_RESET=0xFF,
 	//System Multi-byte (SysEx)
-	SYSTEM_EXCLUSIVE=0xF0
+	SYSTEM_EXCLUSIVE=0xF0,
+	END_SYSTEM_EXCLUSIVE=0xF7,
 };
 
 struct midi_event_st {
@@ -208,14 +209,16 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define ZMOP_CH13 16
 #define ZMOP_CH14 17
 #define ZMOP_CH15 18
-#define ZMOP_CTRL 19
-#define MAX_NUM_ZMOPS 20
+#define ZMOP_STEP 19
+#define ZMOP_CTRL 20
+#define MAX_NUM_ZMOPS 21
 
 #define ZMIP_MAIN 0
 #define ZMIP_NET 1
 #define ZMIP_SEQ 2
 #define ZMIP_CTRL 3
-#define MAX_NUM_ZMIPS 4
+#define ZMIP_STEP 4
+#define MAX_NUM_ZMIPS 5
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
