@@ -523,8 +523,8 @@ void update_zyncoder(uint8_t i) {
 			value=zyncoder->subvalue/ZYNCODER_TICKS_PER_RETENT;
 		}
 		else if (down) {
-			if (zyncoder->subvalue>=dsval) zyncoder->subvalue=(zyncoder->subvalue-dsval);
-			else zyncoder->subvalue=0;
+			if (zyncoder->min_value-zyncoder->subvalue<=dsval) zyncoder->subvalue=(zyncoder->subvalue+dsval);
+			else zyncoder->subvalue=zyncoder->min_value;
 			value=(zyncoder->subvalue+ZYNCODER_TICKS_PER_RETENT-1)/ZYNCODER_TICKS_PER_RETENT;
 		}
 
@@ -539,7 +539,7 @@ void update_zyncoder(uint8_t i) {
 		unsigned int last_value=zyncoder->value;
 		if (zyncoder->value>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
 		if (zyncoder->max_value-zyncoder->value>=zyncoder->step && up) zyncoder->value+=zyncoder->step;
-		else if (zyncoder->value>=zyncoder->step && down) zyncoder->value-=zyncoder->step;
+		else if ((zyncoder->value>=zyncoder->step + zyncoder->min_value) && down) zyncoder->value-=zyncoder->step;
 		if (last_value!=zyncoder->value) send_zyncoder(i);
 	}
 
@@ -569,6 +569,10 @@ void (*update_zyncoder_funcs[8])={
 //-----------------------------------------------------------------------------
 
 struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
+	return setup_zyncoder_with_min(i, pin_a, pin_b, midi_chan, midi_ctrl, osc_path, value, 0, max_value, step);
+}
+
+struct zyncoder_st *setup_zyncoder_with_min(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int min_value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
 		printf("Zyncoder: Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
 		return NULL;
@@ -596,6 +600,8 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 		zyncoder->osc_path[0] = 0;
 	}
 
+	if (min_value > max_value) max_value = min_value;
+	if (value<min_value) value=min_value;
 	if (value>max_value) value=max_value;
 	zyncoder->step = step;
 	if (step>0) {
@@ -607,6 +613,7 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 		zyncoder->subvalue = ZYNCODER_TICKS_PER_RETENT*value;
 		zyncoder->max_value = ZYNCODER_TICKS_PER_RETENT*max_value;
 	}
+	zyncoder->min_value = min_value;
 
 	if (zyncoder->enabled==0 || zyncoder->pin_a!=pin_a || zyncoder->pin_b!=pin_b) {
 		zyncoder->enabled = 1;
@@ -654,6 +661,9 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 		if (v>zyncoder->max_value) zyncoder->value=zyncoder->max_value;
 		else zyncoder->value=v;
 	}
+	if(v < zyncoder->min_value)
+	v = zyncoder->min_value;
+
 	if (send) send_zyncoder(i);
 }
 

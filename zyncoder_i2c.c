@@ -39,7 +39,7 @@
 
 #include <wiringPi.h>
 
-#define DEBUG
+//#define DEBUG
 
 #if !defined(MCP23017_INTA_PIN)
 		#define INTERRUPT_PIN 7
@@ -262,7 +262,7 @@ void send_zyncoder(uint8_t i) {
 
 //-----------------------------------------------------------------------------
 
-/** @brief  Configure rotary encoder
+/** @brief  Configure rotary encoder with min_value=0
 *   @param  i Index of encoder
 *   @param  pin_a GPIO of encoder clock or physical (I2C) encoder index
 *   @param  pin_b GPIO of encoder data (not used by I2C)
@@ -275,18 +275,37 @@ void send_zyncoder(uint8_t i) {
 *   @retval zyncoder_st* Pointer to encoder structure
 */
 struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
+	return setup_zyncoder_with_min(i, pin_a, pin_b, midi_chan, midi_ctrl, osc_path, value, 0, max_value, step);
+}
+
+/** @brief  Configure rotary encoder
+*   @param  i Index of encoder
+*   @param  pin_a GPIO of encoder clock or physical (I2C) encoder index
+*   @param  pin_b GPIO of encoder data (not used by I2C)
+*   @param  midi_chan MIDI channelf of control change
+*   @param  midi_ctrl MIDI control change
+*   @param  osc_path OSC path
+*   @param  value Inital value of encoder
+*   @param  min_value Minimum permissible value
+*   @param  max_value Maximum permissible value
+*   @param  step Value increment size per encoder click
+*   @retval zyncoder_st* Pointer to encoder structure
+*/
+struct zyncoder_st *setup_zyncoder_with_min(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int min_value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
 		printf("Zyncoder: Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
 		return NULL;
 	}
 #ifdef DEBUG
-	printf("Set up encoder i=%d, pin_a=%d, pin_b=%d, midich=%d, midictl=%d, oscpath=%s, value=%d, maxval=%d, step=%d\n",
-          i, pin_a, pin_b, midi_chan, midi_ctrl, osc_path, value, max_value, step);
+	printf("Set up encoder i=%d, pin_a=%d, pin_b=%d, midich=%d, midictl=%d, oscpath=%s, value=%d, minval=%d, maxval=%d, step=%d\n",
+          i, pin_a, pin_b, midi_chan, midi_ctrl, osc_path, value, min_value, max_value, step);
 #endif // DEBUG
 
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (midi_chan>15) midi_chan=0;
 	if (midi_ctrl>127) midi_ctrl=1;
+	if (min_value > max_value) max_value = min_value;
+	if (value<min_value) value=min_value;
 	if (value>max_value) value=max_value;
 	zyncoder->midi_chan = midi_chan;
 	zyncoder->midi_ctrl = midi_ctrl;
@@ -304,7 +323,9 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 	} else zyncoder->osc_path[0]=0;
 
     zyncoder->value = (value < max_value)?value:max_value;
+    zyncoder->value = (value > min_value)?value:min_value;
     zyncoder->max_value = max_value;
+    zyncoder->min_value = min_value;
     zyncoder->enabled = 1;
 
 	return zyncoder;
@@ -333,6 +354,8 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
         v *= zyncoder->step;
     if(v > zyncoder->max_value)
         v = zyncoder->max_value;
+    if(v < zyncoder->min_value)
+        v = zyncoder->min_value;
     zyncoder->value = v;
 
 	if (send) send_zyncoder(i);
@@ -368,6 +391,8 @@ void handleRibanHwc() {
                 nValue = 0;
             if(nValue > zyncoder->max_value)
                 nValue = zyncoder->max_value;
+            if(nValue < zyncoder->min_value)
+                nValue = zyncoder->min_value;
             zyncoder->value = nValue;
             send_zyncoder(i);
             break;

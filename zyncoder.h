@@ -92,6 +92,7 @@ struct zyncoder_st {
 	unsigned int osc_port;
 	lo_address osc_lo_addr;
 	char osc_path[512];
+	unsigned int min_value;
 	unsigned int max_value;
 	unsigned int step;
 	volatile unsigned int subvalue;
@@ -104,7 +105,8 @@ struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 
 void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val);
 
-struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step); 
+struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step);
+struct zyncoder_st *setup_zyncoder_with_min(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int min_value, unsigned int max_value, unsigned int step);
 unsigned int get_value_zyncoder(uint8_t i);
 void set_value_zyncoder(uint8_t i, unsigned int v, int send);
 
