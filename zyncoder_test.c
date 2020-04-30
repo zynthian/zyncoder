@@ -36,7 +36,7 @@
 #define NUM_SWITCHES 4
 unsigned int zyncoder_pin_a[4]={4,5,6,7};
 unsigned int zyncoder_pin_b[4]={8,9,10,11};
-unsigned int zynswitch_pin[NUM_SWITCHES]={0,1,2,3,4};
+unsigned int zynswitch_pin[NUM_SWITCHES]={0,1,2,3};
 #else
 
 #ifdef MCP23017_ENCODERS
