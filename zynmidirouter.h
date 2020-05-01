@@ -101,6 +101,8 @@ struct midi_filter_st {
 	int auto_relmode;
 
 	int transpose[16];
+	int cc_toggle[16][128];
+	int note_toggle[16][128];
 	struct mf_clone_st clone[16][16];
 	struct midi_event_st event_map[8][16][128];
 
@@ -136,6 +138,14 @@ int get_midi_filter_tuning_pitchbend();
 void set_midi_filter_transpose(uint8_t chan, int offset);
 int get_midi_filter_transpose(uint8_t chan);
 
+//MIDI filter toggle
+void set_midi_filter_cc_toggle(uint8_t chan, uint8_t num, int val);
+int get_midi_filter_cc_toggle(uint8_t chan, uint8_t num);
+void reset_midi_filter_cc_toggle();
+void set_midi_filter_note_toggle(uint8_t chan, uint8_t num, int val);
+int get_midi_filter_note_toggle(uint8_t chan, uint8_t num);
+void reset_midi_filter_note_toggle();
+
 //MIDI filter clone
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v);
 int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to);
@@ -161,7 +171,6 @@ void set_midi_filter_cc_ignore(uint8_t chan, uint8_t cc_from);
 uint8_t get_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void del_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void reset_midi_filter_cc_map();
-
 
 //MIDI Learning Mode
 int midi_learning_mode;
@@ -189,6 +198,7 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define FLAG_ZMIP_SWAP 16
 #define FLAG_ZMIP_TRANSPOSE 32
 #define FLAG_ZMIP_TUNING 64
+#define FLAG_ZMIP_TOGGLE 128
 
 #define ZMOP_MAIN 0
 #define ZMOP_MIDI 1
@@ -222,7 +232,7 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING)
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING|FLAG_ZMIP_TOGGLE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
