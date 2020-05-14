@@ -607,41 +607,14 @@ int zmop_init(int iz, char *name, int ch, uint32_t flags) {
 		return 0;
 	}
 	//Set init values
-	zmops[iz].n_data=0;
 	zmops[iz].midi_channel=ch;
 	zmops[iz].n_connections=0;
 	zmops[iz].flags=flags;
-	return 1;
-}
 
-int zmop_push_event(int iz, jack_midi_event_t ev, int ch) {
-	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
-		return -1;
-	}
-	struct zmop_st *zmop=zmops+iz;
-	if (zmop->midi_channel<0 || zmop->midi_channel==ch) {
-		memcpy(zmop->data+zmop->n_data, ev.buffer, ev.size);
-		zmop->n_data+=ev.size;
-		return ev.size;
-	}
-	return 0;
-}
-
-int zmop_clear_data(int iz) {
-	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
-		return 0;
-	}
-	zmops[iz].n_data=0;
-	return 1;
-}
-
-int zmops_clear_data() {
 	int i;
-	for (i=0;i<MAX_NUM_ZMOPS;i++) {
-		zmops[i].n_data=0;
-	}
+	for (i=0;i<MAX_NUM_ZMIPS;i++)
+		zmops[iz].route_from_zmips[i]=0;
+
 	return 1;
 }
 
@@ -662,38 +635,83 @@ int zmop_has_flags(int iz, uint32_t flags) {
 	return (zmops[iz].flags & flags)==flags;
 }
 
+int zmop_set_route_from(int izmop, int izmip, int route) {
+	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
+		return 0;
+	}
+	if (izmip<0 || izmip>=MAX_NUM_ZMIPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmip);
+		return 0;
+	}
+	zmops[izmop].route_from_zmips[izmip]=route;
+	return 1;
+}
+
+int zmop_reset_event_counters(int iz) {
+	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	int i;
+	for (i=0;i<MAX_NUM_ZMIPS;i++)
+		zmops[iz].event_counter[i]=0;
+}
+
+jack_midi_event_t *zmop_pop_event(int iz) {
+	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+
+	jack_nframes_t t=0xffffffff;
+	int izmip=-1;
+	int i;
+
+	//Search next event from poll of routed zmips
+	for (i=0;i<MAX_NUM_ZMIPS;i++) {
+		if (zmops[i].route_from_zmips[i]) {
+			int ci=zmops[iz].event_counter[i];
+			if (ci<zmips[i].n_events) {
+				if (zmips[i].events[ci].time<t) {
+					t=zmips[i].events[ci].time;
+					izmip=i;
+				}
+			}
+		}
+	}
+
+	jack_midi_event_t *ev=NULL;
+	if (izmip>=0) {
+		//Get event and increment counter
+		ev=zmips[izmip].events+(zmops[iz].event_counter[izmip]++);
+	}
+
+	return ev;
+}
+
+
 int zmip_init(int iz, char *name, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
 		fprintf (stderr, "ZynMidiRouter: Bad index (%d) initializing input port '%s'.\n", iz, name);
 		return 0;
 	}
-	//Create Jack Output Port
-	zmips[iz].jport = jack_port_register(jack_client, name, JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
-	if (zmips[iz].jport == NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error creating jack midi input port '%s'.\n", name);
-		return 0;
-	}
-	//Clear zmop forwarding flags
-	int i;
-	for (i=0;i<MAX_NUM_ZMOPS;i++)
-		zmips[iz].fwd_zmops[i]=0;
 
-	//Set flag init value
+	if (name!=NULL) {
+		//Create Jack Output Port
+		zmips[iz].jport = jack_port_register(jack_client, name, JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
+		if (zmips[iz].jport == NULL) {
+			fprintf (stderr, "ZynMidiRouter: Error creating jack midi input port '%s'.\n", name);
+			return 0;
+		}
+	} else {
+		zmips[iz].jport = NULL;
+	}
+	
+	//Set init values
 	zmips[iz].flags=flags;
+	zmips[iz].n_events=0;
 
-	return 1;
-}
-
-int zmip_set_forward(int izmip, int izmop, int fwd) {
-	if (izmip<0 || izmip>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", izmip);
-		return 0;
-	}
-	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
-		return 0;
-	}
-	zmips[izmip].fwd_zmops[izmop]=fwd;
 	return 1;
 }
 
@@ -712,6 +730,56 @@ int zmip_has_flags(int iz, uint32_t flags) {
 		return 0;
 	}
 	return (zmips[iz].flags & flags)==flags;
+}
+
+int zmip_push_event(int iz, jack_midi_event_t *ev) {
+	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+
+	zmips[iz].events[zmips[iz].n_events++]=*ev;
+	return 1;
+}
+
+int zmip_push_event_data(int iz, uint8_t *data) {
+	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+
+	jack_midi_event_t *ev=zmips[iz].events+(zmips[iz].n_events++);
+	ev->buffer=data;
+
+	uint8_t event_type=data[0] >> 4;
+	if (data[0]>=0xF4) ev->size=1;
+	else if (event_type==PROG_CHANGE || event_type==CHAN_PRESS || event_type==TIME_CODE_QF || event_type==SONG_SELECT) ev->size=2;
+	else ev->size=3;
+
+	if (zmips[iz].n_events>1) {
+		ev->time=zmips[iz].events[zmips[iz].n_events-2].time+1;
+	} else {
+		ev->time=0;
+	}
+	
+	return 1;
+}
+
+int zmip_clear_events(int iz) {
+	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	zmips[iz].n_events=0;
+	return 1;
+}
+
+int zmips_clear_events() {
+	int i;
+	for (i=0;i<MAX_NUM_ZMIPS;i++) {
+		zmips[i].n_events=0;
+	}
+	return 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -742,21 +810,26 @@ int init_jack_midi(char *name) {
 	if (!zmip_init(ZMIP_MAIN,"main_in",ZMIP_MAIN_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_NET,"net_in",ZMIP_MAIN_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_SEQ,"seq_in",ZMIP_SEQ_FLAGS)) return 0;
-	if (!zmip_init(ZMIP_CTRL,"ctrl_in",ZMIP_CTRL_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_STEP,"step_in",ZMIP_MAIN_FLAGS)) return 0;
+	if (!zmip_init(ZMIP_CTRL,"ctrl_in",ZMIP_CTRL_FLAGS)) return 0;
+	if (!zmip_init(ZMIP_FAKE_INT,NULL,0)) return 0;
+	if (!zmip_init(ZMIP_FAKE_CTRL_FB,NULL,0)) return 0;
 
 	//Route Input to Output Ports
 	for (i=0;i<ZMOP_CTRL;i++) {
-		if (!zmip_set_forward(ZMIP_MAIN, i, 1)) return 0;
-		if (!zmip_set_forward(ZMIP_SEQ, i, 1)) return 0;
+		if (!zmop_set_route_from(i, ZMIP_MAIN, 1)) return 0;
+		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
 		if (i!=ZMOP_NET) {
-			if (!zmip_set_forward(ZMIP_NET, i, 1)) return 0;
+			if (!zmop_set_route_from(i, ZMIP_NET, 1)) return 0;
 		}
 		if (i!=ZMOP_STEP) {
-			if (!zmip_set_forward(ZMIP_STEP, i, 1)) return 0;
+			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
 		}
+		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
 	}
-	// ZMOP_CTRL is not forwarded from any input port, only receive feedback from Zynthian UI
+	// ZMOP_CTRL only receive feedback from Zynthian UI
+	if (!zmop_set_route_from(ZMOP_CTRL, ZMIP_FAKE_CTRL_FB, 1)) return 0;
+
 	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI
 
 	//Init Ring-Buffers
@@ -801,6 +874,8 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	}
 	struct zmip_st *zmip=zmips+iz;
 
+	if (zmips[iz].jport==NULL) return 0;
+
 	int i=0;
 	int j;
 	uint8_t event_type;
@@ -812,26 +887,25 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	//Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(zmip->jport, nframes);
 	if (input_port_buffer==NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error allocating jack input port buffer: %d frames\n", nframes);
+		fprintf (stderr, "ZynMidiRouter: Error getting jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
 
 	//Process MIDI messages
 
 	jack_midi_event_t ev;
-	jack_midi_event_t xev;
-	jack_midi_data_t xev_buffer[3];
-	xev.buffer=(jack_midi_data_t *)&xev_buffer;
 	int clone_from_chan=-1;
 	int clone_to_chan=-1;
 
 	while (1) {
 
 		//Test if reached max num of events
+		/*
 		if (i>nframes) {
 			fprintf (stderr, "ZynMidiRouter: Error processing jack midi input events: TOO MANY EVENTS\n");
 			return -1;
 		}
+		*/
 
 		//Clone from last event ...
 		if (clone_from_chan>=0 && clone_to_chan>=0 && clone_to_chan<16) {
@@ -879,6 +953,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 				event_num=event_val=0;
 			}
 
+			//TODO: Redesign this feature ...
 			if ((zmip->flags & FLAG_ZMIP_TOGGLE) && event_val>0) {
 				if (event_type==CTRL_CHANGE && midi_filter.cc_toggle[event_chan][event_num]>0) {
 					zynmidi_send_ccontrol_change(event_chan, event_num, 0);
@@ -1047,35 +1122,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 		}
 
-		// Fine-Tuning, using pitch-bending messages ...
-		xev.size=0;
-		if ((zmip->flags & FLAG_ZMIP_TUNING) && midi_filter.tuning_pitchbend>=0) {
-			if (event_type==NOTE_ON) {
-				int pb=midi_filter.last_pb_val[event_chan];
-				//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
-				pb=get_tuned_pitchbend(pb);
-				//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
-				xev.buffer[0]=(PITCH_BENDING << 4) | event_chan;
-				xev.buffer[1]=pb & 0x7F;
-				xev.buffer[2]=(pb >> 7) & 0x7F;
-				xev.size=3;
-				//zynmidi_send_pitchbend_change(event_chan,pb);
-			} else if (event_type==PITCH_BENDING) {
-				//Get received PB
-				int pb=(ev.buffer[2] << 7) | ev.buffer[1];
-				//Save last received PB value ...
-				midi_filter.last_pb_val[event_chan]=pb;
-				//Calculate tuned PB
-				//printf("PITCHBEND=%d\n",pb);
-				pb=get_tuned_pitchbend(pb);
-				//printf("TUNED PITCHBEND=%d\n",pb);
-				xev.buffer[0]=ev.buffer[0];
-				xev.buffer[1]=pb & 0x7F;
-				xev.buffer[2]=(pb >> 7) & 0x7F;
-				xev.size=3;
-			}
-		}
-
 		//Save note state ...
 		if (event_type==NOTE_ON) midi_filter.note_state[event_chan][event_num]=event_val;
 		else if (event_type==NOTE_OFF) midi_filter.note_state[event_chan][event_num]=0;
@@ -1088,19 +1134,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		//Forward event to UI
 		if (ui_event) write_zynmidi(ui_event);
 
-		//Forward message to the configured output ports
-		int res=0;
-		for (j=0;j<MAX_NUM_ZMOPS;j++) {
-			if (zmip->fwd_zmops[j] && zmops[j].n_connections>0) {
-				if ((zmops[j].flags & FLAG_ZMOP_TUNING) && xev.size>0) {
-					if (event_type!=PITCH_BENDING) {
-						res=zmop_push_event(j, ev, event_chan);
-					}
-					res=zmop_push_event(j, xev, event_chan);
-				}
-				else zmop_push_event(j, ev, event_chan);
-			}
-		}
+		zmip_push_event(iz, &ev);
 
 	}
 	return 0;
@@ -1117,17 +1151,19 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 	struct zmop_st *zmop=zmops+iz;
 
 	int i=0;
-	int j;
+	jack_midi_event_t *ev;
 	uint8_t event_type;
 	uint8_t event_chan;
-	uint8_t event_num;
-	uint8_t event_val;
-	uint8_t event_size;
+
+	//Fine-tunning event
+	jack_midi_event_t xev;
+	jack_midi_data_t xev_buffer[3];
+	xev.buffer=(jack_midi_data_t *)&xev_buffer;
 
 	//Get MIDI jack data buffer and clear it
 	void *output_port_buffer = jack_port_get_buffer(zmop->jport, nframes);
 	if (output_port_buffer==NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error allocating jack output port buffer: %d frames\n", nframes);
+		fprintf (stderr, "ZynMidiRouter: Error getting jack output port buffer: %d frames\n", nframes);
 		return -1;
 	}
 	jack_midi_clear_buffer(output_port_buffer);
@@ -1136,63 +1172,76 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 
 	//Write MIDI data
 	//TODO: Avoid frame overflow by checking that num_zmop_events<nframes => implement ring buffer in zmop??
-	int pos=0;
-	while (pos < zmop->n_data) {
-		event_type= zmop->data[pos] >> 4;
 
-		//fprintf(stderr, "ZynMidiRouter: Processing Event of type %d\n",event_type);
+	zmop_reset_event_counters(iz);
 
-		if (zmop->data[pos]>=0xF4) event_size=1;
-		else if (event_type==PROG_CHANGE || event_type==CHAN_PRESS || event_type==TIME_CODE_QF || event_type==SONG_SELECT) event_size=2;
-		else event_size=3;
+	while (ev=zmop_pop_event(iz)) {
+		event_type= ev->buffer[0] >> 4;
+
+		//fprintf(stderr, "\nZynMidiRouter: Processing Event of type %d\n",event_type);
 
 		//Channel filter
 		if (zmop->midi_channel>=0) {
-			if (event_type<NOTE_OFF || event_type>PITCH_BENDING || zmop->midi_channel!=(zmop->data[pos]&0xF)) {
-				pos+=event_size;
+			if (event_type>=NOTE_OFF && event_type<=PITCH_BENDING && zmop->midi_channel!=(ev->buffer[0]&0xF)) {
 				continue;
 			}
 		}
 
-		/*
-		//Master Channel Control
-		if (event_type==CTRL_CHANGE) {
-			event_chan=zmop->data[pos] & 0xF;
-			event_num=zmop->data[pos+1] & 0x7F;
-			event_val=zmop->data[pos+2] & 0x7F;
-
-			//Captured Controllers => volume
-			if (event_num==0x7) {
-				if (midi_filter.master_chan>=0) {
-					//if channel is master, resend ctrl messages to all normal channels ...
-					if (event_chan==midi_filter.master_chan) {
-						for (j=0;j<16;j++) {
-							if (j==midi_filter.master_chan) continue;
-							zynmidi_send_ccontrol_change(j,event_num,midi_filter.last_ctrl_val[j][event_num]);
-						}
-					//if channel is not master, scale value proportionally to Master Channel value ...
-					} else {
-						zmop->data[pos+2]=((int32_t)event_val*(uint32_t)midi_filter.last_ctrl_val[midi_filter.master_chan][event_num])>>7;
-					}
-				}
+		// Fine-Tuning, using pitch-bending messages ...
+		xev.size=0;
+		if ((zmop->flags & FLAG_ZMOP_TUNING) && midi_filter.tuning_pitchbend>=0) {
+			if (event_type==NOTE_ON) {
+				event_chan=ev->buffer[0] & 0xF;
+				int pb=midi_filter.last_pb_val[event_chan];
+				//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
+				pb=get_tuned_pitchbend(pb);
+				//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
+				xev.buffer[0]=(PITCH_BENDING << 4) | event_chan;
+				xev.buffer[1]=pb & 0x7F;
+				xev.buffer[2]=(pb >> 7) & 0x7F;
+				xev.size=3;
+				xev.time=ev->time;
+			} else if (event_type==PITCH_BENDING) {
+				event_chan=ev->buffer[0] & 0xF;
+				//Get received PB
+				int pb=(ev->buffer[2] << 7) | ev->buffer[1];
+				//Save last received PB value ...
+				midi_filter.last_pb_val[event_chan]=pb;
+				//Calculate tuned PB
+				//printf("PITCHBEND=%d\n",pb);
+				pb=get_tuned_pitchbend(pb);
+				//printf("TUNED PITCHBEND=%d\n",pb);
+				ev->buffer[1]=pb & 0x7F;
+				ev->buffer[2]=(pb >> 7) & 0x7F;
 			}
 		}
-		*/
 
-		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d\n",pos,i);
+		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d\n",ev->time,i);
 
 		//Write to Jackd buffer
-		uint8_t *buffer = jack_midi_event_reserve(output_port_buffer, i, event_size);
-		memcpy(buffer, zmop->data+pos, event_size);
-		pos+=event_size;
-
-		//fprintf(stderr, "ZynMidiRouter: Processed Event %d\n",i);
-
+		if (jack_midi_event_write(output_port_buffer, ev->time, ev->buffer, ev->size)!=0) {
+			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
+			continue;
+		}
 		i++;
 		if (i>nframes) {
 			fprintf (stderr, "ZynMidiRouter: Error processing jack midi output events: TOO MANY EVENTS\n");
 			return -1;
 		}
+
+		if (xev.size>0) {
+			if (jack_midi_event_write(output_port_buffer, xev.time, xev.buffer, xev.size)!=0) {
+				fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
+				continue;
+			}
+			i++;
+			if (i>nframes) {
+				fprintf (stderr, "ZynMidiRouter: Error processing jack midi output events: TOO MANY EVENTS\n");
+				return -1;
+			}
+		}
+
+		//fprintf(stderr, "ZynMidiRouter: Processed Event %d\n",i);
 	}
 
 	return 0;
@@ -1215,8 +1264,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	//---------------------------------
 	// Clear Output Port Data Buffers
 	//---------------------------------
-	zmops_clear_data();
-	//fprintf(stderr, "ZynMidiRouter: ZMOP data cleaned\n");
+	zmips_clear_events();
+	//fprintf(stderr, "ZynMidiRouter: ZMIPs events cleaned\n");
 
 	//---------------------------------
 	// Get number of connection of Output Ports
@@ -1307,7 +1356,7 @@ int write_internal_midi_event(uint8_t *event_buffer, int event_size) {
 	return 1;
 }
 
-//Get MIDI data from ringbuffer and forward to all ZMOPS except ZMOP_CTRL
+//Get MIDI data from ringbuffer and forward to all ZMOPS via ZMIP_FAKE_INT
 int forward_internal_midi_data() {
 	int nb=jack_ringbuffer_read_space(jack_ring_output_buffer);
 	if (jack_ringbuffer_read(jack_ring_output_buffer, internal_midi_data, nb)!=nb) {
@@ -1315,12 +1364,11 @@ int forward_internal_midi_data() {
 		return -1;
 	}
 	//TODO: Avoid buffer overflow => check that nb<=(JACK_MIDI_BUFFER_SIZE-n_data)
-	int i;
-	for (i=0;i<ZMOP_CTRL;i++) {
-		memcpy(zmops[i].data+zmops[i].n_data, internal_midi_data, nb);
-		zmops[i].n_data+=nb;
+	int j;
+	for (j=0;j<nb/3;j++) {
+		zmip_push_event_data(ZMIP_FAKE_INT,internal_midi_data+j*3);
 	}
-	return nb;
+	return j;
 }
 
 //------------------------------
@@ -1423,7 +1471,7 @@ int write_ctrlfb_midi_event(uint8_t *event_buffer, int event_size) {
 	return 1;
 }
 
-//Get MIDI data from ringbuffer and forward to all ZMOPS except ZMOP_CTRL
+//Get MIDI data from ringbuffer and forward to ZMOP_CTRL via ZMIP_FAKE_CTRL_FB
 int forward_ctrlfb_midi_data() {
 	int nb=jack_ringbuffer_read_space(jack_ring_ctrlfb_buffer);
 	if (jack_ringbuffer_read(jack_ring_ctrlfb_buffer, ctrlfb_midi_data, nb)!=nb) {
@@ -1432,10 +1480,12 @@ int forward_ctrlfb_midi_data() {
 	}
 
 	//TODO: Avoid buffer overflow => check that nb<=(JACK_MIDI_BUFFER_SIZE-n_data)
-	memcpy(zmops[ZMOP_CTRL].data+zmops[ZMOP_CTRL].n_data, ctrlfb_midi_data, nb);
-	zmops[ZMOP_CTRL].n_data+=nb;
+	int j;
+	for (j=0;j<nb/3;j++) {
+		zmip_push_event_data(ZMIP_FAKE_CTRL_FB, ctrlfb_midi_data+j*3);
+	}
+	return j;
 
-	return nb;
 }
 
 //------------------------------

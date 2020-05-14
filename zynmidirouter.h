@@ -197,8 +197,7 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define FLAG_ZMIP_FILTER 8
 #define FLAG_ZMIP_SWAP 16
 #define FLAG_ZMIP_TRANSPOSE 32
-#define FLAG_ZMIP_TUNING 64
-#define FLAG_ZMIP_TOGGLE 128
+#define FLAG_ZMIP_TOGGLE 64
 
 #define ZMOP_MAIN 0
 #define ZMOP_MIDI 1
@@ -226,44 +225,50 @@ uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
 #define ZMIP_MAIN 0
 #define ZMIP_NET 1
 #define ZMIP_SEQ 2
-#define ZMIP_CTRL 3
-#define ZMIP_STEP 4
-#define MAX_NUM_ZMIPS 5
+#define ZMIP_STEP 3
+#define ZMIP_CTRL 4
+#define ZMIP_FAKE_INT 5
+#define ZMIP_FAKE_CTRL_FB 6
+#define MAX_NUM_ZMIPS 7
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TUNING|FLAG_ZMIP_TOGGLE)
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TOGGLE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
 struct zmop_st {
 	jack_port_t *jport;
-	uint8_t data[JACK_MIDI_BUFFER_SIZE];
-	int n_data;
 	int midi_channel;
-	int n_connections;
+	int route_from_zmips[MAX_NUM_ZMIPS];
+	int event_counter[MAX_NUM_ZMIPS];
 	uint32_t flags;
+	int n_connections;
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
 int zmop_init(int iz, char *name, int ch, uint32_t flags);
-int zmop_push_data(int iz, jack_midi_event_t ev, int ch);
-int zmop_clear_data(int iz);
-int zmops_clear_data();
 int zmop_set_flags(int iz, uint32_t flags);
-int zoip_has_flag(int iz, uint32_t flag);
+int zmop_has_flag(int iz, uint32_t flag);
+int zmop_set_route_from(int izmop, int izmip, int route);
+int zmop_reset_event_counters(int iz);
+jack_midi_event_t *zmop_pop_event(int iz);
+
 
 struct zmip_st {
 	jack_port_t *jport;
-	int fwd_zmops[MAX_NUM_ZMOPS];
 	uint32_t flags;
+	jack_midi_event_t events[JACK_MIDI_BUFFER_SIZE];
+	int n_events;
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
 
 int zmip_init(int iz, char *name, uint32_t flags);
-int zmip_set_forward(int izmip, int izmop, int fwd);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flag(int iz, uint32_t flag);
+int zmip_push_data(int iz, jack_midi_event_t *ev);
+int zmip_clear_events(int iz);
+int zmips_clear_events();
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
