@@ -867,6 +867,7 @@ int end_jack_midi() {
 //-----------------------------------------------------
 
 int current_midi_filter_active_chan;
+uint8_t event_buffer_data[JACK_MIDI_BUFFER_SIZE];
 
 int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
@@ -896,23 +897,17 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	jack_midi_event_t ev;
 	int clone_from_chan=-1;
 	int clone_to_chan=-1;
+	uint8_t *ebd_pointer=event_buffer_data;
 
 	while (1) {
 
-		//Test if reached max num of events
-		/*
-		if (i>nframes) {
-			fprintf (stderr, "ZynMidiRouter: Error processing jack midi input events: TOO MANY EVENTS\n");
-			return -1;
-		}
-		*/
-
 		//Clone from last event ...
 		if (clone_from_chan>=0 && clone_to_chan>=0 && clone_to_chan<16) {
-			event_chan=clone_to_chan;
-			event_type=ev.buffer[0] >> 4;
-			ev.buffer[0]=(event_type << 4) | event_chan;
-			//fprintf (stdout, "CLONE %x => %d, %d\n",event_type, clone_from_chan, clone_to_chan);
+			memcpy(ebd_pointer, ev.buffer, ev.size);
+			ev.buffer=ebd_pointer;
+			ebd_pointer+=ev.size;
+			ev.buffer[0]=(ev.buffer[0] & 0xF0) | clone_to_chan;
+			//fprintf (stderr, "CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
 			clone_to_chan++;
 		}
 		//Or get next event ...
@@ -991,7 +986,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					event_chan=destiny_chan;
 				}
 			}
-
+			
 			//Is it a clonable event?
 			if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==PITCH_BENDING || event_type==KEY_PRESS || event_type==CHAN_PRESS || event_type==CTRL_CHANGE)) {
 				clone_from_chan=event_chan;
@@ -1008,11 +1003,11 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			while (clone_to_chan<16 && (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type==CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))) {
 				clone_to_chan++;
 			}
-			//fprintf (stdout, "NEXT CLONE %x => %d, %d\n",event_type, clone_from_chan, clone_to_chan);
+			//fprintf (stderr, "NEXT EVENT CLONE  %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
 		}
 
 		//if (ev.buffer[0]!=0xfe)
-		//	fprintf(stdout, "%x, %x, %x\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
+		//	fprintf(stderr, "MIDI EVENT: %x, %x, %x\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 
 		//Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event=0;
@@ -1135,7 +1130,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		if (ui_event) write_zynmidi(ui_event);
 
 		zmip_push_event(iz, &ev);
-
 	}
 	return 0;
 }
@@ -1216,7 +1210,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			}
 		}
 
-		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d\n",ev->time,i);
+		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d (CH#%d)\n",ev->time, i, ev->buffer[0] & 0xF);
 
 		//Write to Jackd buffer
 		if (jack_midi_event_write(output_port_buffer, ev->time, ev->buffer, ev->size)!=0) {
@@ -1224,10 +1218,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			continue;
 		}
 		i++;
-		if (i>nframes) {
-			fprintf (stderr, "ZynMidiRouter: Error processing jack midi output events: TOO MANY EVENTS\n");
-			return -1;
-		}
 
 		if (xev.size>0) {
 			if (jack_midi_event_write(output_port_buffer, xev.time, xev.buffer, xev.size)!=0) {
@@ -1235,10 +1225,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 				continue;
 			}
 			i++;
-			if (i>nframes) {
-				fprintf (stderr, "ZynMidiRouter: Error processing jack midi output events: TOO MANY EVENTS\n");
-				return -1;
-			}
 		}
 
 		//fprintf(stderr, "ZynMidiRouter: Processed Event %d\n",i);
