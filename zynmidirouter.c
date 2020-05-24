@@ -670,7 +670,7 @@ jack_midi_event_t *zmop_pop_event(int iz) {
 
 	//Search next event from poll of routed zmips
 	for (i=0;i<MAX_NUM_ZMIPS;i++) {
-		if (zmops[i].route_from_zmips[i]) {
+		if (zmops[iz].route_from_zmips[i]) {
 			int ci=zmops[iz].event_counter[i];
 			if (ci<zmips[i].n_events) {
 				if (zmips[i].events[ci].time<t) {
