@@ -39,6 +39,10 @@
 #if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
 	// pins 100-115 are located on the MCP23017
 	#define MCP23017_BASE_PIN 100
+	// define default I2C Address for MCP23017
+	#if !defined(MCP23017_I2C_ADDRESS)
+		#define MCP23017_I2C_ADDRESS 0x20
+	#endif
 	// define default interrupt pins for the MCP23017
 	#if !defined(MCP23017_INTA_PIN)
 		#define MCP23017_INTA_PIN 27
@@ -59,10 +63,12 @@
 #elif HAVE_WIRINGPI_LIB
 	// pins 100-107 are located on the MCP23008
 	#define MCP23008_BASE_PIN 100
+	#define MCP23008_I2C_ADDRESS 0x20
 	#include <wiringPi.h>
 	#include <mcp23008.h>
 #else
 	#define MCP23008_BASE_PIN 100
+	#define MCP23008_I2C_ADDRESS 0x20
 	#include "wiringPiEmu.h"
 #endif
 
@@ -75,6 +81,9 @@
 int init_zynlib() {
 	if (!init_zyncoder()) return 0;
 	if (!init_zynmidirouter()) return 0;
+	#ifdef ZYNAPTIK_CONFIG
+	if (!init_zynaptik()) return 0;
+	#endif
 	return 1;
 }
 
@@ -96,12 +105,15 @@ pthread_t init_poll_zynswitches();
 
 #ifdef MCP23017_ENCODERS
 // wiringpi node structure for direct access to the mcp23017
-struct wiringPiNodeStruct *mcp23017_node;
+struct wiringPiNodeStruct *zyncoder_mcp23017_node;
 
 // two ISR routines for the two banks
-void zyncoder_mcp23017_bank_ISR(uint8_t bank);
-void zyncoder_mcp23017_bankA_ISR() { zyncoder_mcp23017_bank_ISR(0); }
-void zyncoder_mcp23017_bankB_ISR() { zyncoder_mcp23017_bank_ISR(1); }
+void zyncoder_mcp23017_bankA_ISR() {
+	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node, MCP23017_BASE_PIN, 0);
+}
+void zyncoder_mcp23017_bankB_ISR() {
+	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node, MCP23017_BASE_PIN, 1);
+}
 void (*zyncoder_mcp23017_bank_ISRs[2])={
 	zyncoder_mcp23017_bankA_ISR,
 	zyncoder_mcp23017_bankB_ISR
@@ -125,9 +137,9 @@ int init_zyncoder() {
 	wiringPiSetup();
 
 #ifdef MCP23017_ENCODERS
-	init_mcp23017(MCP23017_BASE_PIN, 0x20, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
+	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
 #else
-	mcp23008Setup (MCP23008_BASE_PIN, 0x20);
+	mcp23008Setup (MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
 	init_poll_zynswitches();
 #endif
 	return 1;
@@ -138,13 +150,13 @@ int end_zyncoder() {
 }
 
 #ifdef MCP23017_ENCODERS
-void init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
+struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
 	uint8_t reg;
 
 	mcp23017Setup(base_pin, i2c_address);
 
-	// get the node cooresponding to our mcp23017 so we can do direct writes
-	mcp23017_node = wiringPiFindNode(base_pin);
+	// get the node corresponding to our mcp23017 so we can do direct writes
+	struct wiringPiNodeStruct * mcp23017_node = wiringPiFindNode(base_pin);
 
 	// setup all the pins on the banks as inputs and disable pullups on
 	// the zyncoder input
@@ -196,8 +208,10 @@ void init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t 
 	wiringPiISR(intb_pin, INT_EDGE_RISING, isrs[1]);
 
 	#ifdef DEBUG
-	printf("MCP23017 at %h initialized in %d: INTA %d, INTB %d\n",i2c_address,base_pin,inta_pin,intb_pin);
+	printf("MCP23017 at %h initialized in %d: INTA %d, INTB %d\n", i2c_address, base_pin, inta_pin, intb_pin);
 	#endif
+
+	return mcp23017_node;
 }
 #endif
 
@@ -378,8 +392,8 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 		}
 #else
 		// this is a bit brute force, but update all the banks
-		zyncoder_mcp23017_bank_ISR(0);
-		zyncoder_mcp23017_bank_ISR(1);
+		zyncoder_mcp23017_bankA_ISR();
+		zyncoder_mcp23017_bankB_ISR();
 #endif
 	}
 
@@ -625,8 +639,8 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 #else
 			// this is a bit brute force, but update all the banks
-			zyncoder_mcp23017_bank_ISR(0);
-			zyncoder_mcp23017_bank_ISR(1);
+			zyncoder_mcp23017_bankA_ISR();
+			zyncoder_mcp23017_bankB_ISR();
 #endif
 		}
 	}
@@ -663,7 +677,7 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 //-----------------------------------------------------------------------------
 
 // ISR for handling the mcp23017 interrupts
-void zyncoder_mcp23017_bank_ISR(uint8_t bank) {
+void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank) {
 	// the interrupt has gone off for a pin change on the mcp23017
 	// read the appropriate bank and compare pin states to last
 	// on a change, call the update function as appropriate
@@ -671,16 +685,16 @@ void zyncoder_mcp23017_bank_ISR(uint8_t bank) {
 	uint8_t reg;
 	uint8_t pin_min, pin_max;
 
-#ifdef DEBUG
-	printf("MCP23017 ISR => %d\n",bank);
-#endif
+	#ifdef DEBUG
+	printf("MCP23017 ISR => %d, %d\n", base_pin, bank);
+	#endif
 
 	if (bank == 0) {
-		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
-		pin_min = MCP23017_BASE_PIN;
+		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOA);
+		pin_min = base_pin;
 	} else {
-		reg = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOB);
-		pin_min = MCP23017_BASE_PIN + 8;
+		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOB);
+		pin_min = base_pin + 8;
 	}
 	pin_max = pin_min + 7;
 
@@ -717,9 +731,9 @@ void zyncoder_mcp23017_bank_ISR(uint8_t bank) {
 		if (zynswitch->pin >= pin_min && zynswitch->pin <= pin_max) {
 			uint8_t bit = zynswitch->pin - pin_min;
 			uint8_t state = bitRead(reg, bit);
-#ifdef DEBUG
+			#ifdef DEBUG
 			printf("MCP23017 Zynswitch %d => %d\n",i,state);
-#endif
+			#endif
 			if (state != zynswitch->status) {
 				update_zynswitch(i, state);
 				// note that the update function updates status with state

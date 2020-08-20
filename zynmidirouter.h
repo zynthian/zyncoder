@@ -297,6 +297,7 @@ int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 int zynmidi_send_program_change(uint8_t chan, uint8_t prgm);
+int zynmidi_send_chan_press(uint8_t chan, uint8_t val);
 int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb);
 int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
 int zynmidi_send_all_notes_off();
@@ -313,6 +314,7 @@ int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm);
+int ctrlfb_send_chan_press(uint8_t chan, uint8_t val);
 int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 //-----------------------------------------------------------------------------

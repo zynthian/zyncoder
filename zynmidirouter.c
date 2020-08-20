@@ -1393,6 +1393,14 @@ int zynmidi_send_program_change(uint8_t chan, uint8_t prgm) {
 	return write_internal_midi_event(buffer,3);
 }
 
+int zynmidi_send_chan_press(uint8_t chan, uint8_t val) {
+	uint8_t buffer[3];
+	buffer[0] = 0xD0 + (chan & 0x0F);
+	buffer[1] = val;
+	buffer[2] = 0;
+	return write_internal_midi_event(buffer,3);
+}
+
 int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb) {
 	uint8_t buffer[3];
 	buffer[0] = 0xE0 + (chan & 0x0F);
@@ -1506,6 +1514,14 @@ int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm) {
 	uint8_t buffer[3];
 	buffer[0] = 0xC0 + (chan & 0x0F);
 	buffer[1] = prgm;
+	buffer[2] = 0;
+	return write_ctrlfb_midi_event(buffer,3);
+}
+
+int ctrlfb_send_chan_press(uint8_t chan, uint8_t val) {
+	uint8_t buffer[3];
+	buffer[0] = 0xD0 + (chan & 0x0F);
+	buffer[1] = val;
 	buffer[2] = 0;
 	return write_ctrlfb_midi_event(buffer,3);
 }

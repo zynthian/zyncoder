@@ -26,10 +26,12 @@
  */
 
 #include <lo/lo.h>
+
 #include "zynmidirouter.h"
+#include "zynaptik.h"
 
 //-----------------------------------------------------------------------------
-// Library Initialization
+// Zyncoder Library Initialization
 //-----------------------------------------------------------------------------
 
 int init_zynlib();
@@ -38,14 +40,16 @@ int end_zynlib();
 int init_zyncoder();
 int end_zyncoder();
 
-void init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2]));
+struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2]));
+
+// generic auxiliar ISR routine for zyncoders
+void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank);
 
 //-----------------------------------------------------------------------------
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
-// The real limit in RPi2 is 17
-#define MAX_NUM_ZYNSWITCHES 8
+#define MAX_NUM_ZYNSWITCHES 16
 
 struct zynswitch_st {
 	uint8_t enabled;
@@ -62,7 +66,7 @@ struct zynswitch_st {
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 
 struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin); 
-int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_cc);
+int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num);
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
 
@@ -70,14 +74,10 @@ unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
 // Rotary Encoders
 //-----------------------------------------------------------------------------
 
-//#undef MCP23017_ENCODERS
-//#define MCP23017_ENCODERS
+#define MAX_NUM_ZYNCODERS 4
 
 // Number of ticks per retent in rotary encoders
 #define ZYNCODER_TICKS_PER_RETENT 4
-
-// 17 pins / 2 pins per encoder = 8 maximum encoders
-#define MAX_NUM_ZYNCODERS 8
 
 struct zyncoder_st {
 	uint8_t enabled;

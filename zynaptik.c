@@ -33,50 +33,134 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include "zyncoder.h"
-#include "zynmidirouter.h"
-#include "zynaptik.h"
-
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <mcp23017.h>
 #include <mcp23x0817.h>
+#include <ads1115.h>
 
-//Default config for ICs
-#if !defined(ZYNAPTIK_MCP23017_I2C_ADDRESS)
-	#define ZYNAPTIK_MCP23017_I2C_ADDRESS 0x21
-#endif
-#if !defined(ZYNAPTIK_MCP23017_BASE_PIN)
-	#define ZYNAPTIK_MCP23017_BASE_PIN 200
-#endif
-#if !defined(ZYNAPTIK_MCP23017_INTA_PIN)
-	#define ZYNAPTIK_MCP23017_INTA_PIN 27
-#endif
-#if !defined(ZYNAPTIK_MCP23017_INTB_PIN)
-	#define ZYNAPTIK_MCP23017_INTB_PIN 25
-#endif
-
-//#define DEBUG
+#include "zyncoder.h"
 
 //-----------------------------------------------------------------------------
-// Zynaptik Library Initialization
+// MCP23017 Stuff
 //-----------------------------------------------------------------------------
 
 // wiringpi node structure for direct access to the mcp23017
 struct wiringPiNodeStruct *zynaptik_mcp23017_node;
 
 // two ISR routines for the two banks
-void zynaptik_mcp23017_bank_ISR(uint8_t bank);
-void zynaptik_mcp23017_bankA_ISR() { zynaptik_mcp23017_bank_ISR(0); }
-void zynaptik_mcp23017_bankB_ISR() { zynaptik_mcp23017_bank_ISR(1); }
+void zynaptik_mcp23017_bankA_ISR() {
+	zyncoder_mcp23017_ISR(zynaptik_mcp23017_node, ZYNAPTIK_MCP23017_BASE_PIN, 0);
+}
+void zynaptik_mcp23017_bankB_ISR() {
+	zyncoder_mcp23017_ISR(zynaptik_mcp23017_node, ZYNAPTIK_MCP23017_BASE_PIN, 1);
+}
 void (*zynaptik_mcp23017_bank_ISRs[2])={
 	zynaptik_mcp23017_bankA_ISR,
 	zynaptik_mcp23017_bankB_ISR
 };
 
+//-----------------------------------------------------------------------------
+// ADS1115 Stuff
+//-----------------------------------------------------------------------------
+
+void init_ads1115(uint16_t base_pin, uint16_t i2c_address) {
+	ads1115Setup(base_pin, i2c_address);
+	set_ads1115_gain(base_pin, ADS115_GAIN_VREF_4_096);
+}
+
+void set_ads1115_gain(uint16_t base_pin, uint8_t gain) {
+	digitalWrite(base_pin, gain);
+}
+
+//-----------------------------------------------------------------------------
+// CV-IN: Generate MIDI CC from Analog Inputs
+//-----------------------------------------------------------------------------
+
+void setup_zynaptik_cvin(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num) {
+	zyncvins[i].pin = ZYNAPTIK_ADS1115_BASE_PIN + i;
+	zyncvins[i].val = 0;
+	zyncvins[i].midi_evt = midi_evt;
+	zyncvins[i].midi_chan = midi_chan;
+	zyncvins[i].midi_num = midi_num;
+	zyncvins[i].midi_val = 0;
+	zyncvins[i].enabled = 1;
+}
+
+void disable_zynaptik_cvin(uint8_t i) {
+	zyncvins[i].enabled = 0;
+}
+
+void send_zynaptik_cvin_midi(uint8_t i) {
+	if (zyncvins[i].midi_evt==PITCH_BENDING) {
+		//Send MIDI event to engines and ouput (ZMOPS)
+		zynmidi_send_pitchbend_change(zyncvins[i].midi_chan, zyncvins[i].val);
+	} else {
+		uint8_t mv = zyncvins[i].val>>8;
+		if (mv!=zyncvins[i].midi_val) {
+			//printf("ZYNAPTIK CV-IN [%d] => MIDI %d\n", i, mv);
+			zyncvins[i].midi_val = mv;
+			if (zyncvins[i].midi_evt==CTRL_CHANGE) {
+				//Send MIDI event to engines and ouput (ZMOPS)
+				zynmidi_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+				//Update zyncoders
+				midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+				//Send MIDI event to UI
+				write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+			} else if (zyncvins[i].midi_evt==CHAN_PRESS) {
+				//Send MIDI event to engines and ouput (ZMOPS)
+				zynmidi_send_chan_press(zyncvins[i].midi_chan, mv);
+			} 
+		}
+	}
+}
+
+void * poll_zynaptik_cvins(void *arg) {
+	int i;
+	while (1) {
+		for (i=0;i<MAX_NUM_ZYNCVINS;i++) {
+			if (zyncvins[i].enabled) {
+				zyncvins[i].val = analogRead(zyncvins[i].pin);
+				send_zynaptik_cvin_midi(i);
+				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, zyncvins[i].val);
+			}
+		}
+		usleep(POLL_ZYNAPTIK_CVINS_US);
+	}
+	return NULL;
+}
+
+pthread_t init_poll_zynaptik_cvins() {
+	pthread_t tid;
+	int err=pthread_create(&tid, NULL, &poll_zynaptik_cvins, NULL);
+	if (err != 0) {
+		printf("Zyncoder: Can't create zynaptik CV-IN poll thread :[%s]", strerror(err));
+		return 0;
+	} else {
+		printf("Zyncoder: Zynaptik CV-IN poll thread created successfully\n");
+		return tid;
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Zynaptik Library Initialization
+//-----------------------------------------------------------------------------
 
 int init_zynaptik() {
-	zynaptik_mcp23017_node=init_mcp23017()
+	int i;
+	for (i=0;i<MAX_NUM_ZYNCVINS;i++) {
+		zyncvins[i].enabled=0;
+	}
+
+	if (strstr(ZYNAPTIK_CONFIG, "xSWITCH")) {
+		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
+	}
+
+	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
+		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS);
+		init_poll_zynaptik_cvins();
+	}
+
 	return 1;
 }
 
@@ -85,72 +169,3 @@ int end_zynaptik() {
 }
 
 //-----------------------------------------------------------------------------
-// Zynaptik extra MCP23017 digital input/output
-//-----------------------------------------------------------------------------
-
-// ISR for handling the mcp23017 interrupts
-void mcp23017_bank_ISR(uint8_t bank) {
-	// the interrupt has gone off for a pin change on the mcp23017
-	// read the appropriate bank and compare pin states to last
-	// on a change, call the update function as appropriate
-	int i;
-	uint8_t reg;
-	uint8_t pin_min, pin_max;
-
-	#ifdef DEBUG
-	printf("Zynaptik MCP23017 ISR, Bank %d\n", bank);
-	#endif
-
-	if (bank == 0) {
-		reg = wiringPiI2CReadReg8(zynaptik_mcp23017_node->fd, MCP23x17_GPIOA);
-		pin_min = ZYNAPTIK_MCP23017_BASE_PIN;
-	} else {
-		reg = wiringPiI2CReadReg8(zynaptik_mcp23017_node->fd, MCP23x17_GPIOB);
-		pin_min = ZYNAPTIK_MCP23017_BASE_PIN + 8;
-	}
-	pin_max = pin_min + 7;
-
-	// search all encoders and switches for a pin in the bank's range
-	// if the last state != current state then this pin has changed
-	// call the update function
-	for (i=0; i<MAX_NUM_ZYNCODERS; i++) {
-		struct zyncoder_st *zyncoder = zyncoders + i;
-		if (zyncoder->enabled==0) continue;
-
-		// if either pin is in the range
-		if ((zyncoder->pin_a >= pin_min && zyncoder->pin_a <= pin_max) ||
-		    (zyncoder->pin_b >= pin_min && zyncoder->pin_b <= pin_max)) {
-			uint8_t bit_a = zyncoder->pin_a - pin_min;
-			uint8_t bit_b = zyncoder->pin_b - pin_min;
-			uint8_t state_a = bitRead(reg, bit_a);
-			uint8_t state_b = bitRead(reg, bit_b);
-			// if either bit is different
-			if ((state_a != zyncoder->pin_a_last_state) ||
-			    (state_b != zyncoder->pin_b_last_state)) {
-				// call the update function
-				update_zyncoder(i, state_a, state_b);
-				// update the last state
-				zyncoder->pin_a_last_state = state_a;
-				zyncoder->pin_b_last_state = state_b;
-			}
-		}
-	}
-	for (i = 0; i < MAX_NUM_ZYNSWITCHES; ++i) {
-		struct zynswitch_st *zynswitch = zynswitches + i;
-		if (zynswitch->enabled == 0) continue;
-
-		// check the pin range
-		if (zynswitch->pin >= pin_min && zynswitch->pin <= pin_max) {
-			uint8_t bit = zynswitch->pin - pin_min;
-			uint8_t state = bitRead(reg, bit);
-			#ifdef DEBUG
-			printf("MCP23017 Zynswitch %d => %d\n",i,state);
-			#endif
-			if (state != zynswitch->status) {
-				update_zynswitch(i, state);
-				// note that the update function updates status with state
-			}
-		}
-	}
-}
-
