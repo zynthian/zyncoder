@@ -152,7 +152,7 @@ int init_zynaptik() {
 		zyncvins[i].enabled=0;
 	}
 
-	if (strstr(ZYNAPTIK_CONFIG, "xSWITCH")) {
+	if (strstr(ZYNAPTIK_CONFIG, "16xSWITCH")) {
 		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 	}
 
