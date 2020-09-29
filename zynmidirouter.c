@@ -906,7 +906,8 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			memcpy(ebd_pointer, ev.buffer, ev.size);
 			ev.buffer=ebd_pointer;
 			ebd_pointer+=ev.size;
-			ev.buffer[0]=(ev.buffer[0] & 0xF0) | clone_to_chan;
+			event_chan=clone_to_chan;
+			ev.buffer[0]=(ev.buffer[0] & 0xF0) | event_chan;
 			//fprintf (stderr, "CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
 			clone_to_chan++;
 		}
