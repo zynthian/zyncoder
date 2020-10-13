@@ -29,6 +29,7 @@
 
 #include "zynmidirouter.h"
 #include "zynaptik.h"
+#include "zyntof.h"
 
 //-----------------------------------------------------------------------------
 // Zyncoder Library Initialization

@@ -84,10 +84,19 @@ int init_zynlib() {
 	#ifdef ZYNAPTIK_CONFIG
 	if (!init_zynaptik()) return 0;
 	#endif
+	#ifdef ZYNTOF_CONFIG
+	if (!init_zyntof()) return 0;
+	#endif
 	return 1;
 }
 
 int end_zynlib() {
+	#ifdef ZYNTOF_CONFIG
+	if (!end_zyntof()) return 0;
+	#endif
+	#ifdef ZYNAPTIK_CONFIG
+	if (!end_zynaptik()) return 0;
+	#endif
 	if (!end_zynmidirouter()) return 0;
 	if (!end_zyncoder()) return 0;
 	return 1;
