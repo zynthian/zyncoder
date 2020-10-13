@@ -45,7 +45,7 @@ void select_zyntof_chan(uint8_t i);
 // Generate MIDI events from Distance
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNTOFS 2
+#define MAX_NUM_ZYNTOFS 4
 #define POLL_ZYNTOFS_US 1000
 
 #define MIN_TOF_DISTANCE 60
