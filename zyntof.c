@@ -55,21 +55,22 @@ void select_zyntof_chan(uint8_t i) {
 
 void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num) {
 	zyntofs[i].i = i;
-	zyntofs[i].val = 0;
 	zyntofs[i].midi_evt = midi_evt;
 	zyntofs[i].midi_chan = midi_chan;
 	zyntofs[i].midi_num = midi_num;
-	zyntofs[i].midi_val = 0;
 
-	select_zyntof_chan(i);
-	if (tofInit(1, VL53L0X_I2C_ADDRESS, VL53L0X_DISTANCE_MODE)!=1) {
-		zyntofs[i].enabled = 0;
-		printf("Zyncoder: Can't setup zyntof device VL53L0X-%d.\n", i);
-	} else {
-		zyntofs[i].enabled = 1;
-		int model, rev;
-		tofGetModel(&model, &rev);
-		printf("Zyncoder: Zyntof device VL53L0X-%d successfully opened (model %d, rev %d)\n", i, model, rev);
+	if (zyntofs[i].enabled==0) {
+		zyntofs[i].val = 0;
+		zyntofs[i].midi_val = 0;
+		select_zyntof_chan(i);
+		if (tofInit(1, VL53L0X_I2C_ADDRESS, VL53L0X_DISTANCE_MODE)!=1) {
+			printf("Zyncoder: Can't setup zyntof device VL53L0X-%d.\n", i);
+		} else {
+			zyntofs[i].enabled = 1;
+			int model, rev;
+			tofGetModel(&model, &rev);
+			printf("Zyncoder: Zyntof device VL53L0X-%d successfully opened (model %d, rev %d)\n", i, model, rev);
+		}
 	}
 }
 
