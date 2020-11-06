@@ -138,12 +138,16 @@ int get_midi_active_chan() {
 //MIDI filter pitch-bending fine-tuning
 
 void set_midi_filter_tuning_freq(int freq) {
-	double pb=6*log((double)freq/440.0)/log(2.0);
-	if (pb<1.0 && pb>-1.0) {
-		midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
-		fprintf (stdout, "ZynMidiRouter: MIDI tuning frequency set to %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+	if (freq==440.0) {
+		midi_filter.tuning_pitchbend=0;
 	} else {
-		fprintf (stderr, "ZynMidiRouter: MIDI tuning frequency out of range!\n");
+		double pb=6*log((double)freq/440.0)/log(2.0);
+		if (pb<1.0 && pb>-1.0) {
+			midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
+			fprintf (stdout, "ZynMidiRouter: MIDI tuning frequency set to %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+		} else {
+			fprintf (stderr, "ZynMidiRouter: MIDI tuning frequency out of range!\n");
+		}
 	}
 }
 
