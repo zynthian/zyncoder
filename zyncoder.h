@@ -50,7 +50,7 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 // GPIO Switches
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNSWITCHES 16
+#define MAX_NUM_ZYNSWITCHES 24
 
 struct zynswitch_st {
 	uint8_t enabled;
