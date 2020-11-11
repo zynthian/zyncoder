@@ -216,8 +216,12 @@ struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uin
 	// bank B
 	wiringPiISR(intb_pin, INT_EDGE_RISING, isrs[1]);
 
+	//Read data for first time ...
+	wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
+	wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOB);
+
 	#ifdef DEBUG
-	printf("MCP23017 at %h initialized in %d: INTA %d, INTB %d\n", i2c_address, base_pin, inta_pin, intb_pin);
+	printf("MCP23017 at %x initialized in %d: INTA %d, INTB %d\n", i2c_address, base_pin, inta_pin, intb_pin);
 	#endif
 
 	return mcp23017_node;
