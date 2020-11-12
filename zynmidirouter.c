@@ -1077,10 +1077,15 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					midi_filter.ctrl_mode[event_chan][event_num]=0;
 					//printf("Changing Back to Absolut Mode ...\n");
 				}
-				// Every 2 messages, rel-mode mark
+				// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
 				else if (event_val==64) {
-					midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
-					continue;
+					if (midi_filter.ctrl_relmode_count[event_chan][event_num]==1) {
+						midi_filter.ctrl_relmode_count[event_chan][event_num]=0;
+						continue;
+					} else {
+						midi_filter.ctrl_mode[event_chan][event_num]=0;
+						//printf("Changing Back to Absolut Mode ...\n");
+					}
 				}
 				else {
 					int16_t last_val=midi_filter.last_ctrl_val[event_chan][event_num];
