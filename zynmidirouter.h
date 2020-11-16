@@ -105,6 +105,7 @@ struct midi_filter_st {
 	int note_toggle[16][128];
 	struct mf_clone_st clone[16][16];
 	struct midi_event_st event_map[8][16][128];
+	struct midi_event_st cc_swap[16][128];
 
 	uint8_t ctrl_mode[16][128];
 	uint8_t ctrl_relmode_count[16][128];
@@ -177,11 +178,12 @@ int midi_learning_mode;
 void set_midi_learning_mode(int mlm);
 
 //MIDI Filter Swap Mapping
-int get_mf_arrow_from(enum midi_event_type_enum type, uint8_t chan, uint8_t num, struct mf_arrow_st *arrow);
-int get_mf_arrow_to(enum midi_event_type_enum type, uint8_t chan, uint8_t num, struct mf_arrow_st *arrow);
+int get_mf_arrow_from(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow);
+int get_mf_arrow_to(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow);
 int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to, uint8_t num_to);
 int del_midi_filter_cc_swap(uint8_t chan, uint8_t num);
-uint8_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
+uint16_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
+void reset_midi_filter_cc_swap();
 
 //-----------------------------------------------------------------------------
 // Zynmidi Ports
