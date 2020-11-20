@@ -99,8 +99,6 @@ int init_midi_router() {
 			midi_filter.cc_swap[i][j].num=j;
 		}
 	}
-	memset(midi_filter.cc_toggle, 0, 16*128);
-	memset(midi_filter.note_toggle, 0, 16*128);
 	memset(midi_filter.ctrl_mode, 0, 16*128);
 	memset(midi_filter.ctrl_relmode_count, 0, 16*128);
 	memset(midi_filter.last_ctrl_val, 0, 16*128);
@@ -189,48 +187,6 @@ int get_midi_filter_transpose(uint8_t chan) {
 		return 0;
 	}
 	return midi_filter.transpose[chan];
-}
-
-//MIDI filter toggle
-
-void set_midi_filter_cc_toggle(uint8_t chan, uint8_t num, int val) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI CC-toggle channel (%d) is out of range!\n",chan);
-		return;
-	}
-	midi_filter.cc_toggle[chan][num]=val;
-}
-
-int get_midi_filter_cc_toggle(uint8_t chan, uint8_t num) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI CC-toggle channel (%d) is out of range!\n",chan);
-		return 0;
-	}
-	return midi_filter.cc_toggle[chan][num];
-}
-
-void reset_midi_filter_cc_toggle() {
-	memset(midi_filter.cc_toggle, 0, 16*128);
-}
-
-void set_midi_filter_note_toggle(uint8_t chan, uint8_t num, int val) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-toggle channel (%d) is out of range!\n",chan);
-		return;
-	}
-	midi_filter.note_toggle[chan][num]=val;
-}
-
-int get_midi_filter_note_toggle(uint8_t chan, uint8_t num) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-toggle channel (%d) is out of range!\n",chan);
-		return 0;
-	}
-	return midi_filter.note_toggle[chan][num];
-}
-
-void reset_midi_filter_note_toggle() {
-	memset(midi_filter.note_toggle, 0, 16*128);
 }
 
 //MIDI filter clone
@@ -986,16 +942,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 			else {
 				event_num=event_val=0;
-			}
-
-			//TODO: Redesign this feature ...
-			if ((zmip->flags & FLAG_ZMIP_TOGGLE) && event_val>0) {
-				if (event_type==CTRL_CHANGE && midi_filter.cc_toggle[event_chan][event_num]>0) {
-					zynmidi_send_ccontrol_change(event_chan, event_num, 0);
-				}
-				else if (event_type==NOTE_ON && midi_filter.note_toggle[event_chan][event_num]>0) {
-					zynmidi_send_note_off(event_chan, event_num, 0);
-				}
 			}
 
 			if (ev.buffer[0]<SYSTEM_EXCLUSIVE && event_chan!=midi_filter.master_chan) {

@@ -101,8 +101,6 @@ struct midi_filter_st {
 	int auto_relmode;
 
 	int transpose[16];
-	int cc_toggle[16][128];
-	int note_toggle[16][128];
 	struct mf_clone_st clone[16][16];
 	struct midi_event_st event_map[8][16][128];
 	struct midi_event_st cc_swap[16][128];
@@ -138,14 +136,6 @@ int get_midi_filter_tuning_pitchbend();
 //MIDI filter transpose
 void set_midi_filter_transpose(uint8_t chan, int offset);
 int get_midi_filter_transpose(uint8_t chan);
-
-//MIDI filter toggle
-void set_midi_filter_cc_toggle(uint8_t chan, uint8_t num, int val);
-int get_midi_filter_cc_toggle(uint8_t chan, uint8_t num);
-void reset_midi_filter_cc_toggle();
-void set_midi_filter_note_toggle(uint8_t chan, uint8_t num, int val);
-int get_midi_filter_note_toggle(uint8_t chan, uint8_t num);
-void reset_midi_filter_note_toggle();
 
 //MIDI filter clone
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v);
@@ -199,7 +189,6 @@ void reset_midi_filter_cc_swap();
 #define FLAG_ZMIP_FILTER 8
 #define FLAG_ZMIP_SWAP 16
 #define FLAG_ZMIP_TRANSPOSE 32
-#define FLAG_ZMIP_TOGGLE 64
 
 #define ZMOP_MAIN 0
 #define ZMOP_MIDI 1
@@ -235,7 +224,7 @@ void reset_midi_filter_cc_swap();
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE|FLAG_ZMIP_TOGGLE)
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
