@@ -86,12 +86,20 @@ struct mf_arrow_st {
 	enum midi_event_type_enum type;
 };
 
+
 struct mf_clone_st {
 	int enabled;
 	uint8_t cc[128];
 };
 
 static uint8_t default_cc_to_clone[]={ 1, 2, 64, 65, 66, 67, 68 };
+
+struct mf_noterange_st {
+	uint8_t note_low;
+	uint8_t note_high;
+	int8_t octave_trans;
+	int8_t halftone_trans;
+};
 
 struct midi_filter_st {
 	int tuning_pitchbend;
@@ -100,8 +108,9 @@ struct midi_filter_st {
 	int last_active_chan;
 	int auto_relmode;
 
-	int transpose[16];
+	struct mf_noterange_st noterange[16];
 	struct mf_clone_st clone[16][16];
+
 	struct midi_event_st event_map[8][16][128];
 	struct midi_event_st cc_swap[16][128];
 
@@ -133,10 +142,6 @@ int get_midi_active_chan();
 void set_midi_filter_tuning_freq(int freq);
 int get_midi_filter_tuning_pitchbend();
 
-//MIDI filter transpose
-void set_midi_filter_transpose(uint8_t chan, int offset);
-int get_midi_filter_transpose(uint8_t chan);
-
 //MIDI filter clone
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v);
 int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to);
@@ -144,6 +149,18 @@ void reset_midi_filter_clone(uint8_t chan_from);
 void set_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to, uint8_t cc[128]);
 uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
 void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
+
+//MIDI Note Range & Transpose
+void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_t oct_trans, int8_t ht_trans);
+void set_midi_filter_note_low(uint8_t chan, uint8_t nlow);
+void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh);
+void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans);
+void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans);
+uint8_t get_midi_filter_note_low(uint8_t chan);
+uint8_t get_midi_filter_note_high(uint8_t chan);
+int8_t get_midi_filter_octave_trans(uint8_t chan);
+int8_t get_midi_filter_halftone_trans(uint8_t chan);
+void reset_midi_filter_note_range(uint8_t chan);
 
 //MIDI Filter Core functions
 void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to);
@@ -188,7 +205,7 @@ void reset_midi_filter_cc_swap();
 #define FLAG_ZMIP_CLONE 4
 #define FLAG_ZMIP_FILTER 8
 #define FLAG_ZMIP_SWAP 16
-#define FLAG_ZMIP_TRANSPOSE 32
+#define FLAG_ZMIP_NOTERANGE 32
 
 #define ZMOP_MAIN 0
 #define ZMOP_MIDI 1
@@ -224,7 +241,7 @@ void reset_midi_filter_cc_swap();
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_TRANSPOSE)
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 

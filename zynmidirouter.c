@@ -69,11 +69,7 @@ int init_midi_router() {
 	midi_filter.tuning_pitchbend=-1;
 	midi_learning_mode=0;
 	midi_ctrl_automode=1;
-	
-	for (i=0;i<16;i++) {
-		midi_filter.transpose[i]=0;
-		midi_filter.last_pb_val[i]=8192;
-	}
+
 	for (i=0;i<16;i++) {
 		for (j=0;j<16;j++) {
 			midi_filter.clone[i][j].enabled=0;
@@ -82,6 +78,13 @@ int init_midi_router() {
 				midi_filter.clone[i][j].cc[default_cc_to_clone[k] & 0x7F]=1;
 			}
 		}
+	}
+	for (i=0;i<16;i++) {
+		midi_filter.noterange[i].note_low=0;
+		midi_filter.noterange[i].note_high=127;
+		midi_filter.noterange[i].octave_trans=0;
+		midi_filter.noterange[i].halftone_trans=0;
+		midi_filter.last_pb_val[i]=8192;
 	}
 	for (i=0;i<8;i++) {
 		for (j=0;j<16;j++) {
@@ -167,29 +170,8 @@ int get_tuned_pitchbend(int pb) {
 	return tpb;
 }
 
-//MIDI filter transposing
-
-void set_midi_filter_transpose(uint8_t chan, int offset) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Transpose channel (%d) is out of range!\n",chan);
-		return;
-	}
-	if (offset<-60 || offset>60) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Transpose offset (%d) is out of range!\n",offset);
-		return;
-	}
-	midi_filter.transpose[chan]=offset;
-}
-
-int get_midi_filter_transpose(uint8_t chan) {
-	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Transpose channel (%d) is out of range!\n",chan);
-		return 0;
-	}
-	return midi_filter.transpose[chan];
-}
-
 //MIDI filter clone
+
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v) {
 	if (chan_from>15) {
 		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
@@ -274,6 +256,93 @@ void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 	}
 }
 
+//MIDI Note-range & Transposing
+
+void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_t oct_trans, int8_t ht_trans) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].note_low=nlow;
+	midi_filter.noterange[chan].note_high=nhigh;
+	midi_filter.noterange[chan].octave_trans=oct_trans;
+	midi_filter.noterange[chan].halftone_trans=ht_trans;
+}
+
+void set_midi_filter_note_low(uint8_t chan, uint8_t nlow) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].note_low=nlow;
+}
+
+void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].note_high=nhigh;
+}
+
+void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].octave_trans=oct_trans;
+}
+
+void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].halftone_trans=ht_trans;
+}
+
+uint8_t get_midi_filter_note_low(uint8_t chan) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return 0;
+	}
+	return midi_filter.noterange[chan].note_low;
+}
+
+uint8_t get_midi_filter_note_high(uint8_t chan) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return 0;
+	}
+	return midi_filter.noterange[chan].note_high;
+}
+
+int8_t get_midi_filter_octave_trans(uint8_t chan) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return 0;
+	}
+	return midi_filter.noterange[chan].octave_trans;
+}
+
+int8_t get_midi_filter_halftone_trans(uint8_t chan) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return 0;
+	}
+	return midi_filter.noterange[chan].halftone_trans;
+}
+
+void reset_midi_filter_note_range(uint8_t chan) {
+	if (chan>15) {
+		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		return;
+	}
+	midi_filter.noterange[chan].note_low=0;
+	midi_filter.noterange[chan].note_high=127;
+	midi_filter.noterange[chan].octave_trans=0;
+	midi_filter.noterange[chan].halftone_trans=0;
+}
 
 //Core MIDI filter functions
 
@@ -903,7 +972,32 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			ebd_pointer+=ev.size;
 			event_chan=clone_to_chan;
 			ev.buffer[0]=(ev.buffer[0] & 0xF0) | event_chan;
-			//fprintf (stderr, "CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
+
+			event_type=ev.buffer[0] >> 4;
+
+			//Get event details depending of event type & size
+			if (event_type==PITCH_BENDING) {
+				event_num=0;
+				event_val=ev.buffer[2] & 0x7F;
+			}
+			else if (event_type==CHAN_PRESS) {
+				event_num=0;
+				event_val=ev.buffer[1] & 0x7F;
+			}
+			else if (ev.size==3) {
+				event_num=ev.buffer[1] & 0x7F;
+				event_val=ev.buffer[2] & 0x7F;
+			}
+			else if (ev.size==2) {
+				event_num=ev.buffer[1] & 0x7F;
+				event_val=0;
+			}
+			else {
+				event_num=event_val=0;
+			}
+
+			//loggin.debug("CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
+
 			clone_to_chan++;
 		}
 		//Or get next event ...
@@ -1005,7 +1099,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event=0;
-		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && event_type==CTRL_CHANGE) {
+		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && (event_type==CTRL_CHANGE || event_type==NOTE_ON || event_type==NOTE_OFF)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
@@ -1106,13 +1200,24 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//}
 		}
 
-		//Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
-		else if ((zmip->flags & FLAG_ZMIP_TRANSPOSE) && midi_filter.transpose[event_chan]!=0) {
-			if (event_type==NOTE_OFF || event_type==NOTE_ON) {
-				int note=ev.buffer[1]+midi_filter.transpose[event_chan];
-				//If transposed note is out of range, ignore message ...
-				if (note>0x7F || note<0) continue;
-				event_num=ev.buffer[1]=(uint8_t)(note & 0x7F);
+		//Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
+		else if ((zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type==NOTE_OFF || event_type==NOTE_ON)) {
+			int discard_note=0;
+			int note=ev.buffer[1];
+			//Note-range
+			if (note<midi_filter.noterange[event_chan].note_low || note>midi_filter.noterange[event_chan].note_high) discard_note=1;
+			//Transpose
+			if (!discard_note) {
+				note+=12*midi_filter.noterange[event_chan].octave_trans;
+				note+=midi_filter.noterange[event_chan].halftone_trans;
+				//If result note is out of range, ignore it ...
+				if (note>0x7F || note<0) discard_note=1;
+				else event_num=ev.buffer[1]=(uint8_t)(note & 0x7F);
+			}
+			if (discard_note) {
+				//If already captured, forward event to UI
+				if (ui_event) write_zynmidi(ui_event);
+				continue;
 			}
 		}
 
