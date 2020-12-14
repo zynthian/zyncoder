@@ -641,7 +641,11 @@ int del_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
 uint16_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
 	struct mf_arrow_st arrow;
 	if (!get_mf_arrow_to(chan,num,&arrow)) return 0;
-	else return (uint16_t)arrow.chan_from<<8 & (uint16_t)arrow.num_from;
+	else {
+		uint16_t res=(uint16_t)arrow.chan_from<<8 | (uint16_t)arrow.num_from;
+		//fprintf(stderr,"GET CC SWAP %d, %d => %x\n",chan,num,res);
+		return res;
+	}
 }
 
 void reset_midi_filter_cc_swap() {
@@ -1189,11 +1193,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//Save last controller value ...
 			midi_filter.last_ctrl_val[event_chan][event_num]=event_val;
 
-			//Set zyncoder values
-			if (zmip->flags & FLAG_ZMIP_ZYNCODER) {
-				midi_event_zyncoders(event_chan, event_num, event_val);
-			}
-
 			//Ignore Bank Change events when FLAG_ZMIP_UI
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	continue;
@@ -1247,6 +1246,12 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
+
+		//Set zyncoder values
+		if (zmip->flags & FLAG_ZMIP_ZYNCODER  && event_type==CTRL_CHANGE && !midi_learning_mode) {
+			midi_event_zyncoders(event_chan, event_num, event_val);
+		}
+
 
 		zmip_push_event(iz, &ev);
 	}
