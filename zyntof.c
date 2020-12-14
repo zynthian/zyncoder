@@ -41,8 +41,24 @@
 // TCA954X (43/44/48) Stuff => I2C Multiplexer
 //-----------------------------------------------------------------------------
 
+int i2cmult_fd = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int init_i2c_multiplexer() {
+	i2cmult_fd=wiringPiI2CSetup(TCA954X_I2C_ADDRESS);
+	if (i2cmult_fd>0) {
+		wiringPiI2CReadReg8(i2cmult_fd, 0x0);
+		return 1;
+	}
+	return 0;
+}
+
 void select_zyntof_chan(uint8_t i) {
-	wiringPiI2CWriteReg8(TCA954X_I2C_ADDRESS, 0x0, i*2);
+	if (i2cmult_fd>0) {
+		wiringPiI2CWriteReg8(i2cmult_fd, 0x0, 0xF&(0x1<<i));
+		//wiringPiI2CWriteReg8(i2cmult_fd, 0x0, 0x1);
+		usleep(10);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -62,6 +78,7 @@ void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_n
 	if (zyntofs[i].enabled==0) {
 		zyntofs[i].val = 0;
 		zyntofs[i].midi_val = 0;
+		pthread_mutex_lock(&mutex);
 		select_zyntof_chan(i);
 		if (tofInit(1, VL53L0X_I2C_ADDRESS, VL53L0X_DISTANCE_MODE)!=1) {
 			printf("Zyncoder: Can't setup zyntof device VL53L0X-%d.\n", i);
@@ -71,6 +88,7 @@ void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_n
 			tofGetModel(&model, &rev);
 			printf("Zyncoder: Zyntof device VL53L0X-%d successfully opened (model %d, rev %d)\n", i, model, rev);
 		}
+		pthread_mutex_unlock(&mutex);
 	}
 }
 
@@ -117,8 +135,10 @@ void * poll_zyntofs(void *arg) {
 	while (1) {
 		for (i=0;i<MAX_NUM_ZYNTOFS;i++) {
 			if (zyntofs[i].enabled) {
+				pthread_mutex_lock(&mutex);
 				select_zyntof_chan(i);
 				zyntofs[i].val = tofReadDistance();
+				pthread_mutex_unlock(&mutex);
 				send_zyntof_midi(i);
 				//printf("ZYNTOF [%d] => %d\n", i, zyntofs[i].val);
 			}
@@ -149,7 +169,9 @@ int init_zyntof() {
 	for (i=0;i<MAX_NUM_ZYNTOFS;i++) {
 		zyntofs[i].enabled=0;
 	}
-	init_poll_zyntofs();
+	if (init_i2c_multiplexer()) {
+		init_poll_zyntofs();
+	}
 	return 1;
 }
 

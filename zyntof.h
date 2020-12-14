@@ -28,9 +28,7 @@
 //-----------------------------------------------------------------------------
 
 //Default config for TCA9543 (I2C multiplexer)
-#if !defined(TCA954X_I2C_ADDRESS)
-	#define TCA954X_I2C_ADDRESS 0x70
-#endif
+#define TCA954X_I2C_ADDRESS 0x70
 
 void select_zyntof_chan(uint8_t i);
 
@@ -39,7 +37,7 @@ void select_zyntof_chan(uint8_t i);
 //-----------------------------------------------------------------------------
 
 #define VL53L0X_I2C_ADDRESS 0x29
-#define VL53L0X_DISTANCE_MODE 0
+#define VL53L0X_DISTANCE_MODE 1
 
 //-----------------------------------------------------------------------------
 // Generate MIDI events from Distance
