@@ -703,10 +703,12 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 	#endif
 
 	if (bank == 0) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPA);
+		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOA);
+		//reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPA);
 		pin_min = base_pin;
 	} else {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPB);
+		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOB);
+		//reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPB);
 		pin_min = base_pin + 8;
 	}
 	pin_max = pin_min + 7;
