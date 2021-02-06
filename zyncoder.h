@@ -84,10 +84,8 @@ struct zyncoder_st {
 	uint8_t enabled;
 	uint8_t pin_a;
 	uint8_t pin_b;
-#ifdef MCP23017_ENCODERS
 	volatile uint8_t pin_a_last_state;
 	volatile uint8_t pin_b_last_state;
-#endif
 	uint8_t midi_chan;
 	uint8_t midi_ctrl;
 	unsigned int osc_port;

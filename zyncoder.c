@@ -36,41 +36,43 @@
 
 #include "zyncoder.h"
 
-#if defined(MCP23017_ENCODERS) && defined(HAVE_WIRINGPI_LIB)
-	// pins 100-115 are located on the MCP23017
-	#define MCP23017_BASE_PIN 100
-	// define default I2C Address for MCP23017
-	#if !defined(MCP23017_I2C_ADDRESS)
-		#define MCP23017_I2C_ADDRESS 0x20
-	#endif
-	// define default interrupt pins for the MCP23017
-	#if !defined(MCP23017_INTA_PIN)
-		#define MCP23017_INTA_PIN 27
-	#endif
-	#if !defined(MCP23017_INTB_PIN)
-		#define MCP23017_INTB_PIN 25
-	#endif
-
+#if defined(HAVE_WIRINGPI_LIB)
 	#include <wiringPi.h>
 	#include <wiringPiI2C.h>
 	#include <mcp23017.h>
 	#include <mcp23x0817.h>
-
-	#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-	#define bitSet(value, bit) ((value) |= (1UL << (bit)))
-	#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
-	#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
-#elif HAVE_WIRINGPI_LIB
-	// pins 100-107 are located on the MCP23008
-	#define MCP23008_BASE_PIN 100
-	#define MCP23008_I2C_ADDRESS 0x20
-	#include <wiringPi.h>
 	#include <mcp23008.h>
+
+	#if defined(MCP23017_ENCODERS)
+		// pins 100-115 are located on the MCP23017
+		#define MCP23017_BASE_PIN 100
+		// define default I2C Address for MCP23017
+		#if !defined(MCP23017_I2C_ADDRESS)
+			#define MCP23017_I2C_ADDRESS 0x20
+		#endif
+		// define default interrupt pins for the MCP23017
+		#if !defined(MCP23017_INTA_PIN)
+			#define MCP23017_INTA_PIN 27
+		#endif
+		#if !defined(MCP23017_INTB_PIN)
+			#define MCP23017_INTB_PIN 25
+		#endif
+	#elif defined(MCP23008_ENCODERS)
+		// pins 100-107 are located on the MCP23008
+		#define MCP23008_BASE_PIN 100
+		#define MCP23008_I2C_ADDRESS 0x20
+	#endif
+
 #else
 	#define MCP23008_BASE_PIN 100
 	#define MCP23008_I2C_ADDRESS 0x20
 	#include "wiringPiEmu.h"
 #endif
+
+#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
+#define bitSet(value, bit) ((value) |= (1UL << (bit)))
+#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
 
 //#define DEBUG
 
@@ -127,11 +129,11 @@ void (*zyncoder_mcp23017_bank_ISRs[2])={
 	zyncoder_mcp23017_bankA_ISR,
 	zyncoder_mcp23017_bankB_ISR
 };
+#endif
 
 unsigned int int_to_int(unsigned int k) {
 	return (k == 0 || k == 1 ? k : ((k % 2) + 10 * int_to_int(k / 2)));
 }
-#endif
 
 int init_zyncoder() {
 	int i,j;
@@ -145,10 +147,10 @@ int init_zyncoder() {
 	}
 	wiringPiSetup();
 
-#ifdef MCP23017_ENCODERS
+#if defined(MCP23017_ENCODERS)
 	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
-#else
-	mcp23008Setup (MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
+#elif defined(MCP23008_ENCODERS)   
+	mcp23008Setup(MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
 	init_poll_zynswitches();
 #endif
 	return 1;
@@ -158,7 +160,7 @@ int end_zyncoder() {
 	return 1;
 }
 
-#ifdef MCP23017_ENCODERS
+#ifndef MCP23008_ENCODERS 
 struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
 	uint8_t reg;
 
@@ -272,18 +274,18 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 }
 
 
-#ifdef MCP23017_ENCODERS
-// Update the mcp23017 based switches from ISR routine
-void update_zynswitch(uint8_t i, uint8_t status) {
-#else
+#ifdef MCP23008_ENCODERS
 //Update ISR switches (native GPIO)
 void update_zynswitch(uint8_t i) {
+#else
+// Update the mcp23017 based switches from ISR routine
+void update_zynswitch(uint8_t i, uint8_t status) {
 #endif
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	struct zynswitch_st *zynswitch = zynswitches + i;
 	if (zynswitch->enabled==0) return;
 
-#ifndef MCP23017_ENCODERS
+#ifdef MCP23008_ENCODERS
 	uint8_t status=digitalRead(zynswitch->pin);
 #endif
 	if (status==zynswitch->status) return;
@@ -308,7 +310,7 @@ void update_zynswitch(uint8_t i) {
 	} else zynswitch->tsus=tsus;
 }
 
-#ifndef MCP23017_ENCODERS
+#ifdef MCP23008_ENCODERS
 void update_zynswitch_0() { update_zynswitch(0); }
 void update_zynswitch_1() { update_zynswitch(1); }
 void update_zynswitch_2() { update_zynswitch(2); }
@@ -398,7 +400,7 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	if (pin>0) {
 		pinMode(pin, INPUT);
 		pullUpDnControl(pin, PUD_UP);
-#ifndef MCP23017_ENCODERS
+#ifdef MCP23008_ENCODERS
 		if (pin<MCP23008_BASE_PIN) {
 			wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
 			update_zynswitch(i);
@@ -494,16 +496,16 @@ void send_zyncoder(uint8_t i) {
 	}
 }
 
-#ifdef MCP23017_ENCODERS
-void update_zyncoder(uint8_t i, uint8_t MSB, uint8_t LSB) {
-#else
+#ifdef MCP23008_ENCODERS
 void update_zyncoder(uint8_t i) {
+#else
+void update_zyncoder(uint8_t i, uint8_t MSB, uint8_t LSB) {
 #endif
 	if (i>=MAX_NUM_ZYNCODERS) return;
 	struct zyncoder_st *zyncoder = zyncoders + i;
 	if (zyncoder->enabled==0) return;
 
-#ifndef MCP23017_ENCODERS
+#ifdef MCP23008_ENCODERS
 	uint8_t MSB = digitalRead(zyncoder->pin_a);
 	uint8_t LSB = digitalRead(zyncoder->pin_b);
 #endif
@@ -572,7 +574,7 @@ void update_zyncoder(uint8_t i) {
 
 }
 
-#ifndef MCP23017_ENCODERS
+#ifdef MCP23008_ENCODERS
 void update_zyncoder_0() { update_zyncoder(0); }
 void update_zyncoder_1() { update_zyncoder(1); }
 void update_zyncoder_2() { update_zyncoder(2); }
@@ -647,7 +649,8 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 			pinMode(pin_b, INPUT);
 			pullUpDnControl(pin_a, PUD_UP);
 			pullUpDnControl(pin_b, PUD_UP);
-#ifndef MCP23017_ENCODERS
+
+#ifdef MCP23008_ENCODERS
 			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 #else
@@ -684,11 +687,11 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 	if (send) send_zyncoder(i);
 }
 
-#ifdef MCP23017_ENCODERS
 //-----------------------------------------------------------------------------
 // MCP23017 based encoders & switches
 //-----------------------------------------------------------------------------
 
+#ifndef MCP23008_ENCODERS 
 // ISR for handling the mcp23017 interrupts
 void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank) {
 	// the interrupt has gone off for a pin change on the mcp23017
@@ -756,5 +759,4 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 		}
 	}
 }
-
 #endif
