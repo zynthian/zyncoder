@@ -400,15 +400,16 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	if (pin>0) {
 		pinMode(pin, INPUT);
 		pullUpDnControl(pin, PUD_UP);
-#ifdef MCP23008_ENCODERS
+
+#if defined(MCP23017_ENCODERS) 
+		// this is a bit brute force, but update all the banks
+		zyncoder_mcp23017_bankA_ISR();
+		zyncoder_mcp23017_bankB_ISR();
+#elif defined(MCP23008_ENCODERS)
 		if (pin<MCP23008_BASE_PIN) {
 			wiringPiISR(pin,INT_EDGE_BOTH, update_zynswitch_funcs[i]);
 			update_zynswitch(i);
 		}
-#else
-		// this is a bit brute force, but update all the banks
-		zyncoder_mcp23017_bankA_ISR();
-		zyncoder_mcp23017_bankB_ISR();
 #endif
 	}
 
@@ -650,13 +651,13 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
 			pullUpDnControl(pin_a, PUD_UP);
 			pullUpDnControl(pin_b, PUD_UP);
 
-#ifdef MCP23008_ENCODERS
-			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
-			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
-#else
+#if defined(MCP23017_ENCODERS) 
 			// this is a bit brute force, but update all the banks
 			zyncoder_mcp23017_bankA_ISR();
 			zyncoder_mcp23017_bankB_ISR();
+#elif defined(MCP23008_ENCODERS) 
+			wiringPiISR(pin_a,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
+			wiringPiISR(pin_b,INT_EDGE_BOTH, update_zyncoder_funcs[i]);
 #endif
 		}
 	}
