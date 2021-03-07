@@ -867,7 +867,7 @@ int init_jack_midi(char *name) {
 	if (!zmop_init(ZMOP_MIDI,"midi_out",-1,0)) return 0;
 	if (!zmop_init(ZMOP_NET,"net_out",-1,0)) return 0;
 	if (!zmop_init(ZMOP_CTRL,"ctrl_out",-1,0)) return 0;
-	if (!zmop_init(ZMOP_STEP,"step_out",-1,ZMOP_MAIN_FLAGS)) return 0;
+	if (!zmop_init(ZMOP_STEP,"step_out",-1,0)) return 0;
 	char port_name[12];
 	for (i=0;i<16;i++) {
 		sprintf(port_name,"ch%d_out",i);
@@ -878,7 +878,7 @@ int init_jack_midi(char *name) {
 	if (!zmip_init(ZMIP_MAIN,"main_in",ZMIP_MAIN_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_NET,"net_in",ZMIP_MAIN_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_SEQ,"seq_in",ZMIP_SEQ_FLAGS)) return 0;
-	if (!zmip_init(ZMIP_STEP,"step_in",ZMIP_MAIN_FLAGS)) return 0;
+	if (!zmip_init(ZMIP_STEP,"step_in",ZMIP_STEP_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_CTRL,"ctrl_in",ZMIP_CTRL_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_FAKE_INT,NULL,0)) return 0;
 	if (!zmip_init(ZMIP_FAKE_CTRL_FB,NULL,0)) return 0;
@@ -1044,7 +1044,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 			if (ev.buffer[0]<SYSTEM_EXCLUSIVE && event_chan!=midi_filter.master_chan) {
 				//Active Channel => When set, move all channel events to active_chan
-				if (current_midi_filter_active_chan>=0) {
+				if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && current_midi_filter_active_chan>=0) {
 					int destiny_chan=current_midi_filter_active_chan;
 
 					if (midi_filter.last_active_chan>=0) { 
@@ -1334,6 +1334,11 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			}
 		}
 
+#ifdef ZYNAPTIK_CONFIG
+		//TODO
+		//zynaptik_cvout_midi(ev);
+#endif
+		
 		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d (CH#%d)\n",ev->time, i, ev->buffer[0] & 0xF);
 
 		//Write to Jackd buffer
