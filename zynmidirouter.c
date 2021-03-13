@@ -1141,9 +1141,14 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 
 		//Capture events for UI: MASTER CHANNEL + Program Change
-		if ((zmip->flags & FLAG_ZMIP_UI) && (event_chan==midi_filter.master_chan || event_type==PROG_CHANGE)) {
-			write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
-			continue;
+		if (zmip->flags & FLAG_ZMIP_UI) {
+			if (event_chan==midi_filter.master_chan) {
+				write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+				continue;
+			}
+			if (event_type==PROG_CHANGE) {
+				write_zynmidi((ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]));
+			}
 		}
 
 		//MIDI CC messages => TODO: Clone behaviour?!!
@@ -1305,6 +1310,11 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 			}
 		}
 
+		//Drop "Program Change" from engine zmops
+		if  ((zmop->flags & FLAG_ZMOP_ENGINE) && event_type==PROG_CHANGE) {
+			continue;
+		}
+		
 		// Fine-Tuning, using pitch-bending messages ...
 		xev.size=0;
 		if ((zmop->flags & FLAG_ZMOP_TUNING) && midi_filter.tuning_pitchbend>=0) {

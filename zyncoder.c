@@ -264,8 +264,8 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	}
 	else if (zynswitch->midi_event.type==PROG_CHANGE) {
 		if (status==0) {
-			//Send MIDI event to engines and ouput (ZMOPS) => Intercepted by UI for ZS3
-			//zynmidi_send_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
+			//Send MIDI event to engines and ouput (ZMOPS)
+			zynmidi_send_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
 			//Send MIDI event to UI
 			write_zynmidi_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
 			//printf("Zyncoder: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zynswitch->midi_event.chan, zynswitch->midi_event.num);
