@@ -139,7 +139,7 @@ void set_midi_active_chan(int chan);
 int get_midi_active_chan();
 
 //MIDI filter fine tuning => Pitch-Bending based
-void set_midi_filter_tuning_freq(int freq);
+void set_midi_filter_tuning_freq(double freq);
 int get_midi_filter_tuning_pitchbend();
 
 //MIDI filter clone

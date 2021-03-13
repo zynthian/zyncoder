@@ -145,7 +145,7 @@ int get_midi_active_chan() {
 
 //MIDI filter pitch-bending fine-tuning
 
-void set_midi_filter_tuning_freq(int freq) {
+void set_midi_filter_tuning_freq(double freq) {
 	if (freq==440.0) {
 		midi_filter.tuning_pitchbend=-1;
 	} else {
