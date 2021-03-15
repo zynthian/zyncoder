@@ -154,7 +154,7 @@ void set_midi_filter_tuning_freq(double freq) {
 			midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
 			fprintf (stdout, "ZynMidiRouter: MIDI tuning frequency set to %d Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
 		} else {
-			fprintf (stderr, "ZynMidiRouter: MIDI tuning frequency out of range!\n");
+			fprintf (stderr, "ZynMidiRouter: MIDI tuning frequency (%d) out of range!\n",freq);
 		}
 	}
 }
@@ -703,6 +703,16 @@ int zmop_has_flags(int iz, uint32_t flags) {
 	return (zmops[iz].flags & flags)==flags;
 }
 
+int zmop_chan_set_flag_droppc(int ch, uint8_t flag) {
+	if (ch<0 || ch>=16) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port chan (%d).\n", ch);
+		return 0;
+	}
+	if (flag) zmops[3+ch].flags|=(uint32_t)FLAG_ZMOP_DROPPC;
+	else zmops[3+ch].flags&=!(uint32_t)FLAG_ZMOP_DROPPC;
+	return 1;
+}
+
 int zmop_set_route_from(int izmop, int izmip, int route) {
 	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
 		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
@@ -726,33 +736,33 @@ int zmop_reset_event_counters(int iz) {
 		zmops[iz].event_counter[i]=0;
 }
 
-jack_midi_event_t *zmop_pop_event(int iz) {
-	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+jack_midi_event_t *zmop_pop_event(int izmop, int *izmip) {
+	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
+		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
 		return 0;
 	}
 
 	jack_nframes_t t=0xffffffff;
-	int izmip=-1;
-	int i;
+	*izmip=-1;
 
 	//Search next event from poll of routed zmips
+	int i;
 	for (i=0;i<MAX_NUM_ZMIPS;i++) {
-		if (zmops[iz].route_from_zmips[i]) {
-			int ci=zmops[iz].event_counter[i];
+		if (zmops[izmop].route_from_zmips[i]) {
+			int ci=zmops[izmop].event_counter[i];
 			if (ci<zmips[i].n_events) {
 				if (zmips[i].events[ci].time<t) {
 					t=zmips[i].events[ci].time;
-					izmip=i;
+					*izmip=i;
 				}
 			}
 		}
 	}
 
 	jack_midi_event_t *ev=NULL;
-	if (izmip>=0) {
+	if (*izmip>=0) {
 		//Get event and increment counter
-		ev=zmips[izmip].events+(zmops[iz].event_counter[izmip]++);
+		ev=zmips[*izmip].events+(zmops[izmop].event_counter[*izmip]++);
 	}
 
 	return ev;
@@ -1274,6 +1284,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 	struct zmop_st *zmop=zmops+iz;
 
 	int i=0;
+	int izmip=-1;
 	jack_midi_event_t *ev;
 	uint8_t event_type;
 	uint8_t event_chan;
@@ -1298,7 +1309,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 
 	zmop_reset_event_counters(iz);
 
-	while (ev=zmop_pop_event(iz)) {
+	while (ev=zmop_pop_event(iz, &izmip)) {
 		event_type= ev->buffer[0] >> 4;
 
 		//fprintf(stderr, "\nZynMidiRouter: Processing Event of type %d\n",event_type);
@@ -1311,7 +1322,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 		}
 
 		//Drop "Program Change" from engine zmops
-		if  ((zmop->flags & FLAG_ZMOP_ENGINE) && event_type==PROG_CHANGE) {
+		if  (event_type==PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip!=ZMIP_FAKE_INT) {
 			continue;
 		}
 		

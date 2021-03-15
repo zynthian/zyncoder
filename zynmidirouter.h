@@ -198,7 +198,7 @@ void reset_midi_filter_cc_swap();
 
 #define JACK_MIDI_BUFFER_SIZE 4096
 
-#define FLAG_ZMOP_ENGINE 1
+#define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_TUNING 2
 #define FLAG_ZMOP_ZYNAPTIK 4
 
@@ -280,7 +280,7 @@ void reset_midi_filter_cc_swap();
 #define MAX_NUM_ZMIPS 23
 */
 
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_ENGINE|FLAG_ZMOP_TUNING)
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE|FLAG_ZMIP_ACTIVE_CHAN)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_ACTIVE_CHAN)
@@ -300,9 +300,10 @@ struct zmop_st zmops[MAX_NUM_ZMOPS];
 int zmop_init(int iz, char *name, int ch, uint32_t flags);
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
+int zmop_chan_set_flag_droppc(int iz, uint8_t flag);
 int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_reset_event_counters(int iz);
-jack_midi_event_t *zmop_pop_event(int iz);
+jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
 
 
 struct zmip_st {
