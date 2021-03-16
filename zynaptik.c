@@ -94,7 +94,7 @@ void disable_zynaptik_cvin(uint8_t i) {
 void send_zynaptik_cvin_midi(uint8_t i) {
 	if (zyncvins[i].midi_evt==PITCH_BENDING) {
 		//Send MIDI event to engines and ouput (ZMOPS)
-		zynmidi_send_pitchbend_change(zyncvins[i].midi_chan, zyncvins[i].val);
+		internal_send_pitchbend_change(zyncvins[i].midi_chan, zyncvins[i].val);
 	} else {
 		uint8_t mv = zyncvins[i].val>>8;
 		if (mv!=zyncvins[i].midi_val) {
@@ -102,14 +102,14 @@ void send_zynaptik_cvin_midi(uint8_t i) {
 			zyncvins[i].midi_val = mv;
 			if (zyncvins[i].midi_evt==CTRL_CHANGE) {
 				//Send MIDI event to engines and ouput (ZMOPS)
-				zynmidi_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+				internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
 				//Update zyncoders
 				midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
 				//Send MIDI event to UI
 				write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
 			} else if (zyncvins[i].midi_evt==CHAN_PRESS) {
 				//Send MIDI event to engines and ouput (ZMOPS)
-				zynmidi_send_chan_press(zyncvins[i].midi_chan, mv);
+				internal_send_chan_press(zyncvins[i].midi_chan, mv);
 			} 
 		}
 	}
