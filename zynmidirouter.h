@@ -258,8 +258,9 @@ void reset_midi_filter_cc_swap();
 #define ZMIP_STEP 3
 #define ZMIP_CTRL 4
 #define ZMIP_FAKE_INT 5
-#define ZMIP_FAKE_CTRL_FB 6
-#define MAX_NUM_ZMIPS 7
+#define ZMIP_FAKE_UI 6
+#define ZMIP_FAKE_CTRL_FB 7
+#define MAX_NUM_ZMIPS 8
 /*
 #define ZMIP_DEV0 7
 #define ZMIP_DEV1 8
@@ -301,6 +302,7 @@ int zmop_init(int iz, char *name, int ch, uint32_t flags);
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
 int zmop_chan_set_flag_droppc(int iz, uint8_t flag);
+int zmop_chan_get_flag_droppc(int ch);
 int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
@@ -338,28 +340,45 @@ int jack_process(jack_nframes_t nframes, void *arg);
 #define ZYNMIDI_BUFFER_SIZE 1024
 
 //-----------------------------------------------------
-// MIDI Internal Input <= UI and internal
+// MIDI Internal Input <= internal (zyncoder)
 //-----------------------------------------------------
 
-jack_ringbuffer_t *jack_ring_output_buffer;
-int write_internal_midi_event(uint8_t *event, int event_size);
+jack_ringbuffer_t *jack_ring_internal_buffer;
+int write_internal_event(uint8_t *event, int event_size);
+int forward_internal_midi_data();
 
-int zynmidi_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
-int zynmidi_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
-int zynmidi_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
-int zynmidi_send_program_change(uint8_t chan, uint8_t prgm);
-int zynmidi_send_chan_press(uint8_t chan, uint8_t val);
-int zynmidi_send_pitchbend_change(uint8_t chan, uint16_t pb);
-int zynmidi_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
-int zynmidi_send_all_notes_off();
-int zynmidi_send_all_notes_off_chan(uint8_t chan);
+int internal_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
+int internal_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
+int internal_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int internal_send_program_change(uint8_t chan, uint8_t prgm);
+int internal_send_chan_press(uint8_t chan, uint8_t val);
+int internal_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 //-----------------------------------------------------
-// MIDI Controller Feedback <= UI and internal
+// MIDI UI Input <= UI
+//-----------------------------------------------------
+
+jack_ringbuffer_t *jack_ring_ui_buffer;
+int write_ui_event(uint8_t *event, int event_size);
+int forward_ui_midi_data();
+
+int ui_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
+int ui_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
+int ui_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int ui_send_program_change(uint8_t chan, uint8_t prgm);
+int ui_send_chan_press(uint8_t chan, uint8_t val);
+int ui_send_pitchbend_change(uint8_t chan, uint16_t pb);
+int ui_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
+int ui_send_all_notes_off();
+int ui_send_all_notes_off_chan(uint8_t chan);
+
+//-----------------------------------------------------
+// MIDI Controller Feedback <= UI & internal (zyncoder)
 //-----------------------------------------------------
 
 jack_ringbuffer_t *jack_ring_ctrlfb_buffer;
-int write_ctrlfb_midi_event(uint8_t *event, int event_size);
+int write_ctrlfb_event(uint8_t *event, int event_size);
+int forward_ctrlfb_midi_data();
 
 int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);

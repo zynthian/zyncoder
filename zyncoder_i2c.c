@@ -114,7 +114,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 		uint8_t val=0;
 		if (status==0) val=127;
 		//Send MIDI event to engines and ouput (ZMOPS)
-		zynmidi_send_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
+		internal_send_ccontrol_change(zynswitch->midi_chan, zynswitch->midi_cc, val);
 		//Update zyncoders
 		midi_event_zyncoders(zynswitch->midi_chan, zynswitch->midi_cc, val);
 		//Send MIDI event to UI
@@ -240,7 +240,7 @@ void send_zyncoder(uint8_t i) {
 	if (zyncoder->enabled==0) return;
 	if (zyncoder->midi_ctrl>0) {
 		//Send to MIDI output
-		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		internal_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
 		ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);

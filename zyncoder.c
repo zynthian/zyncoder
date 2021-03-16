@@ -239,7 +239,7 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 		uint8_t val=0;
 		if (status==0) val=127;
 		//Send MIDI event to engines and ouput (ZMOPS)
-		zynmidi_send_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
+		internal_send_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Update zyncoders
 		midi_event_zyncoders(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Send MIDI event to UI
@@ -249,14 +249,14 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	else if (zynswitch->midi_event.type==NOTE_ON) {
 		if (status==0) {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			zynmidi_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+			internal_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
 			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			zynmidi_send_note_off(zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
+			internal_send_note_off(zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
 			//Send MIDI event to UI
 			write_zynmidi_note_off(zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
 			//printf("Zyncoder: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
@@ -265,7 +265,7 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	else if (zynswitch->midi_event.type==PROG_CHANGE) {
 		if (status==0) {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			zynmidi_send_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
+			internal_send_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
 			//Send MIDI event to UI
 			write_zynmidi_program_change(zynswitch->midi_event.chan, zynswitch->midi_event.num);
 			//printf("Zyncoder: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zynswitch->midi_event.chan, zynswitch->midi_event.num);
@@ -477,7 +477,7 @@ void send_zyncoder(uint8_t i) {
 	if (zyncoder->enabled==0) return;
 	if (zyncoder->midi_ctrl>0) {
 		//Send to MIDI output
-		zynmidi_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		internal_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
 		//ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//printf("Zyncoder: SEND MIDI CH#%d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
