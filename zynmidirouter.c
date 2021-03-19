@@ -710,7 +710,7 @@ int zmop_chan_set_flag_droppc(int ch, uint8_t flag) {
 	}
 	if (flag) zmops[ZMOP_CH0 + ch].flags|=(uint32_t)FLAG_ZMOP_DROPPC;
 	else zmops[ZMOP_CH0 + ch].flags&=~(uint32_t)FLAG_ZMOP_DROPPC;
-	fprintf (stderr, "ZynMidiRouter: ZMOPS flags for chan (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
+	//fprintf (stderr, "ZynMidiRouter: ZMOPS flags for chan (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
 	return 1;
 }
 
