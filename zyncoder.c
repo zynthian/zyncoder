@@ -537,14 +537,13 @@ void update_zyncoder(uint8_t i, uint8_t MSB, uint8_t LSB) {
 		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++) dtus_avg+=zyncoder->dtus[j];
 		dtus_avg/=(ZYNCODER_TICKS_PER_RETENT+1);
 		//Add last dtus to fifo array
-		zyncoder->dtus[0]=zyncoder->dtus[1];
-		zyncoder->dtus[1]=zyncoder->dtus[2];
-		zyncoder->dtus[2]=zyncoder->dtus[3];
-		zyncoder->dtus[3]=dtus;
+		for (j=0;j<ZYNCODER_TICKS_PER_RETENT-1;j++)
+			zyncoder->dtus[j]=zyncoder->dtus[j+1];
+		zyncoder->dtus[j]=dtus;
 		//Calculate step value
-		unsigned int dsval=1;
-		if (dtus_avg < 10000) dsval=ZYNCODER_TICKS_PER_RETENT;
-		else if (dtus_avg < 30000) dsval=ZYNCODER_TICKS_PER_RETENT/2;
+		int dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
+		if (dsval<1) dsval=1;
+		else if (dsval>2*ZYNCODER_TICKS_PER_RETENT) dsval=2*ZYNCODER_TICKS_PER_RETENT;
 
 		int value=-1;
 		if (up) {
