@@ -189,29 +189,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	for (int i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
 		if  (!zyncvouts[i].enabled) continue;
 
-		if (event_type==
-	}
-	
-	if (zyncvouts[i].midi_evt==PITCH_BENDING) {
-		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_pitchbend_change(zyncvins[i].midi_chan, zyncvins[i].val);
-	} else {
-		uint8_t mv = zyncvins[i].val>>8;
-		if (mv!=zyncvins[i].midi_val) {
-			//printf("ZYNAPTIK CV-IN [%d] => MIDI %d\n", i, mv);
-			zyncvins[i].midi_val = mv;
-			if (zyncvins[i].midi_evt==CTRL_CHANGE) {
-				//Send MIDI event to engines and ouput (ZMOPS)
-				internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-				//Update zyncoders
-				midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-				//Send MIDI event to UI
-				write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-			} else if (zyncvins[i].midi_evt==CHAN_PRESS) {
-				//Send MIDI event to engines and ouput (ZMOPS)
-				internal_send_chan_press(zyncvins[i].midi_chan, mv);
-			} 
-		}
+		//if (event_type==
 	}
 }
 
