@@ -105,27 +105,25 @@ void disable_zynaptik_cvin(uint8_t i) {
 }
 
 void zynaptik_cvin_to_midi(uint8_t i) {
+	uint8_t mv = zyncvins[i].val>>8;
+	if (mv==zyncvins[i].midi_val) return;
+	//printf("ZYNAPTIK CV-IN [%d] => MIDI %d\n", i, mv);
+	zyncvins[i].midi_val = mv;
 	if (zyncvins[i].midi_evt==PITCH_BENDING) {
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_pitchbend_change(zyncvins[i].midi_chan, zyncvins[i].val);
-	} else {
-		uint8_t mv = zyncvins[i].val>>8;
-		if (mv!=zyncvins[i].midi_val) {
-			//printf("ZYNAPTIK CV-IN [%d] => MIDI %d\n", i, mv);
-			zyncvins[i].midi_val = mv;
-			if (zyncvins[i].midi_evt==CTRL_CHANGE) {
-				//Send MIDI event to engines and ouput (ZMOPS)
-				internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-				//Update zyncoders
-				midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-				//Send MIDI event to UI
-				write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
-			} else if (zyncvins[i].midi_evt==CHAN_PRESS) {
-				//Send MIDI event to engines and ouput (ZMOPS)
-				internal_send_chan_press(zyncvins[i].midi_chan, mv);
-			} 
-		}
-	}
+	} 
+	else if (zyncvins[i].midi_evt==CTRL_CHANGE) {
+		//Send MIDI event to engines and ouput (ZMOPS)
+		internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+		//Update zyncoders
+		midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+		//Send MIDI event to UI
+		write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, mv);
+	} else if (zyncvins[i].midi_evt==CHAN_PRESS) {
+		//Send MIDI event to engines and ouput (ZMOPS)
+		internal_send_chan_press(zyncvins[i].midi_chan, mv);
+	} 
 }
 
 void * poll_zynaptik_cvins(void *arg) {
@@ -134,7 +132,7 @@ void * poll_zynaptik_cvins(void *arg) {
 		for (i=0;i<MAX_NUM_ZYNCVINS;i++) {
 			if (zyncvins[i].enabled) {
 				zyncvins[i].val = analogRead(zyncvins[i].pin);
-				zynaptik_cvin_to_midi(i);
+				if (zyncvins[i].midi_evt>0) zynaptik_cvin_to_midi(i);
 				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, zyncvins[i].val);
 			}
 		}
@@ -238,14 +236,13 @@ int init_zynaptik() {
 
 	mcp4728_chip = NULL;
 
-	if (strstr(ZYNAPTIK_CONFIG, "16xSWITCH")) {
+	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
 		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
 		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS);
 		init_poll_zynaptik_cvins();
 	}
-	//TODO Implement in webconf!!!
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {
 		init_mcp4728(ZYNAPTIK_MCP4728_I2C_ADDRESS);
 		init_refresh_zynaptik_cvouts();

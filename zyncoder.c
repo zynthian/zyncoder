@@ -235,9 +235,10 @@ struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uin
 //-----------------------------------------------------------------------------
 
 void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
+
 	if (zynswitch->midi_event.type==CTRL_CHANGE) {
 		uint8_t val=0;
-		if (status==0) val=127;
+		if (status==0) val=zynswitch->midi_event.val;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Update zyncoders
@@ -248,11 +249,12 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	}
 	else if (zynswitch->midi_event.type==NOTE_ON) {
 		if (status==0) {
+			uint8_t vel=zynswitch->midi_event.val;
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+			internal_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
 			//Send MIDI event to UI
-			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
-			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 127);
+			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
+			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
@@ -262,6 +264,27 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 			//printf("Zyncoder: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, 0);
 		}
 	}
+#ifdef ZYNAPTIK_CONFIG
+	else if (zynswitch->midi_event.type==CVGATE_IN_EVENT && zynswitch->midi_event.num<4) {
+		if (status==0) {
+			//zynswitch->last_cvgate_note=zyncvins[zynswitch->midi_event.num].val>>8;
+			zynswitch->last_cvgate_note=24+(zyncvins[zynswitch->midi_event.num].val>>9);
+			uint8_t vel=zynswitch->midi_event.val;
+			//Send MIDI event to engines and ouput (ZMOPS)
+			internal_send_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
+			//Send MIDI event to UI
+			write_zynmidi_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
+			//printf("Zyncoder: Zynswitch CV/Gate event (chan=%d, raw=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zyncvins[zynswitch->midi_event.num].val, zynswitch->last_cvgate_note, vel);
+		}
+		else {
+			//Send MIDI event to engines and ouput (ZMOPS)
+			internal_send_note_off(zynswitch->midi_event.chan, zynswitch->last_cvgate_note, 0);
+			//Send MIDI event to UI
+			write_zynmidi_note_off(zynswitch->midi_event.chan, zynswitch->last_cvgate_note, 0);
+			//printf("Zyncoder: Zynswitch CV/Gate event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->last_cvgate_note, 0);
+		}
+	}
+#endif
 	else if (zynswitch->midi_event.type==PROG_CHANGE) {
 		if (status==0) {
 			//Send MIDI event to engines and ouput (ZMOPS)
@@ -416,7 +439,7 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin) {
 	return zynswitch;
 }
 
-int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num) {
+int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
 		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
 		return 0;
@@ -426,7 +449,16 @@ int setup_zynswitch_midi(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t
 	zynswitch->midi_event.type = midi_evt;
 	zynswitch->midi_event.chan = midi_chan;
 	zynswitch->midi_event.num = midi_num;
-	//printf("Zyncoder: Set Zynswitch %u MIDI %x: %u, %u\n", i, midi_evt, midi_chan, midi_num);
+	zynswitch->midi_event.val = midi_val;
+	//printf("Zyncoder: Set Zynswitch %u MIDI %d: %u, %u, %u\n", i, midi_evt, midi_chan, midi_num, midi_val);
+
+	zynswitch->last_cvgate_note = -1;
+
+#ifdef ZYNAPTIK_CONFIG
+	if (midi_evt==CVGATE_IN_EVENT) {
+		setup_zynaptik_cvin(midi_num, midi_evt, 0, 0);
+	}
+#endif
 
 	return 1;
 }

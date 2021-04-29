@@ -40,6 +40,8 @@ int end_zynmidirouter();
 
 enum midi_event_type_enum {
 	//Router-internal pseudo-message codes
+	CVGATE_OUT_EVENT=-5,
+	CVGATE_IN_EVENT=-4,
 	SWAP_EVENT=-3,
 	IGNORE_EVENT=-2,
 	THRU_EVENT=-1,
@@ -76,6 +78,7 @@ struct midi_event_st {
 	enum midi_event_type_enum type;
 	uint8_t chan;
 	uint8_t num;
+	uint8_t val;
 };
 
 struct mf_arrow_st {
