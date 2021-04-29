@@ -343,7 +343,7 @@ void update_expanded_zynswitches() {
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		struct zynswitch_st *zynswitch = zynswitches + i;
 		if (!zynswitch->enabled || zynswitch->pin<100) continue;
-		status=0x1&~digitalRead(zynswitch->pin);
+		status=digitalRead(zynswitch->pin);
 		//printf("POLLING SWITCH %d (%d) => %d\n",i,zynswitch->pin,status);
 		if (status==zynswitch->status) continue;
 		zynswitch->status=status;
