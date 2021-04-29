@@ -108,13 +108,7 @@ int end_zynlib() {
 // Zyncoder Library Initialization
 //-----------------------------------------------------------------------------
 
-//Switch Polling interval
-int poll_zynswitches_us=10000;
-
-//Switches Polling Thread (should be avoided!)
-pthread_t init_poll_zynswitches();
-
-#ifdef MCP23017_ENCODERS
+#if defined(MCP23017_ENCODERS)
 // wiringpi node structure for direct access to the mcp23017
 struct wiringPiNodeStruct *zyncoder_mcp23017_node;
 
@@ -129,6 +123,13 @@ void (*zyncoder_mcp23017_bank_ISRs[2])={
 	zyncoder_mcp23017_bankA_ISR,
 	zyncoder_mcp23017_bankB_ISR
 };
+
+#elif defined(MCP23008_ENCODERS)
+//Switch Polling interval
+int poll_zynswitches_us=10000;
+
+//Switches Polling Thread (should be avoided!)
+pthread_t init_poll_zynswitches();
 #endif
 
 unsigned int int_to_int(unsigned int k) {
@@ -329,7 +330,6 @@ void (*update_zynswitch_funcs[8])={
 	update_zynswitch_6,
 	update_zynswitch_7
 };
-#endif
 
 //Update NON-ISR switches (expanded GPIO)
 void update_expanded_zynswitches() {
@@ -343,7 +343,7 @@ void update_expanded_zynswitches() {
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		struct zynswitch_st *zynswitch = zynswitches + i;
 		if (!zynswitch->enabled || zynswitch->pin<100) continue;
-		status=digitalRead(zynswitch->pin);
+		status=0x1&~digitalRead(zynswitch->pin);
 		//printf("POLLING SWITCH %d (%d) => %d\n",i,zynswitch->pin,status);
 		if (status==zynswitch->status) continue;
 		zynswitch->status=status;
@@ -381,6 +381,7 @@ pthread_t init_poll_zynswitches() {
 		return tid;
 	}
 }
+#endif
 
 //-----------------------------------------------------------------------------
 
