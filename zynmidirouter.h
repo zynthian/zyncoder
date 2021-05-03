@@ -109,7 +109,8 @@ struct midi_filter_st {
 	int master_chan;
 	int active_chan;
 	int last_active_chan;
-	int auto_relmode;
+	int system_events;
+	int cc_automode;
 
 	struct mf_noterange_st noterange[16];
 	struct mf_clone_st clone[16][16];
@@ -182,6 +183,12 @@ void set_midi_filter_cc_ignore(uint8_t chan, uint8_t cc_from);
 uint8_t get_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void del_midi_filter_cc_map(uint8_t chan, uint8_t cc_from);
 void reset_midi_filter_cc_map();
+
+// MIDI Controller Auto-Mode (Absolut <=> Relative)
+void set_midi_filter_cc_automode(int mfccam);
+
+// MIDI System Events enable/disable
+void set_midi_filter_system_events(int mfse);
 
 //MIDI Learning Mode
 int midi_learning_mode;
@@ -402,13 +409,6 @@ int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_program_change(uint8_t chan, uint8_t num);
-
-//-----------------------------------------------------------------------------
-// MIDI Controller Auto-Mode (Absolut <=> Relative)
-//-----------------------------------------------------------------------------
-
-int midi_ctrl_automode;
-void set_midi_ctrl_automode(int mcam);
 
 
 //-----------------------------------------------------------------------------

@@ -67,8 +67,9 @@ int init_midi_router() {
 	midi_filter.active_chan=-1;
 	midi_filter.last_active_chan=-1;
 	midi_filter.tuning_pitchbend=-1;
+	midi_filter.system_events=1;
+	midi_filter.cc_automode=1;
 	midi_learning_mode=0;
-	midi_ctrl_automode=1;
 
 	for (i=0;i<16;i++) {
 		for (j=0;j<16;j++) {
@@ -456,16 +457,20 @@ void reset_midi_filter_cc_map() {
 	}
 }
 
+//MIDI Controller Automode
+void set_midi_filter_cc_automode(int mfccam) {
+	midi_filter.cc_automode=mfccam;
+}
+
+//MIDI System Messages enable/disable
+void set_midi_filter_system_events(int mfse) {
+	midi_filter.system_events=mfse;
+}
+
 //MIDI Learning Mode
 void set_midi_learning_mode(int mlm) {
 	midi_learning_mode=mlm;
 }
-
-//MIDI Controller Automode
-void set_midi_ctrl_automode(int mcam) {
-	midi_ctrl_automode=mcam;
-}
-
 
 //-----------------------------------------------------------------------------
 // Swap CC mapping => GRAPH THEORY
@@ -1042,6 +1047,8 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 			//Get event type & chan
 			if (ev.buffer[0]>=SYSTEM_EXCLUSIVE) {
+				//Ignore System Events depending on flag
+				if (!midi_filter.system_events) continue;
 				event_type=ev.buffer[0];
 				event_chan=0;
 			}
@@ -1212,7 +1219,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			}
 
 			//Absolut Mode
-			if (midi_filter.ctrl_mode[event_chan][event_num]==0 && midi_ctrl_automode==1) {
+			if (midi_filter.ctrl_mode[event_chan][event_num]==0 && midi_filter.cc_automode==1) {
 				if (event_val==64) {
 					//printf("Tenting Relative Mode ...\n");
 					midi_filter.ctrl_mode[event_chan][event_num]=1;
