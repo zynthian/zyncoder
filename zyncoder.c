@@ -238,8 +238,9 @@ struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uin
 void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 
 	if (zynswitch->midi_event.type==CTRL_CHANGE) {
-		uint8_t val=0;
+		uint8_t val;
 		if (status==0) val=zynswitch->midi_event.val;
+		else val=0;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zynswitch->midi_event.chan, zynswitch->midi_event.num, val);
 		//Update zyncoders
@@ -250,12 +251,11 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	}
 	else if (zynswitch->midi_event.type==NOTE_ON) {
 		if (status==0) {
-			uint8_t vel=zynswitch->midi_event.val;
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
+			internal_send_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, zynswitch->midi_event.val);
 			//Send MIDI event to UI
-			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
-			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, vel);
+			write_zynmidi_note_on(zynswitch->midi_event.chan, zynswitch->midi_event.num, zynswitch->midi_event.val);
+			//printf("Zyncoder: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zynswitch->midi_event.num, zynswitch->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
@@ -271,15 +271,14 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
 			uint16_t val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zynswitch->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
-			float sval=(6.21/5.0)*val;
-			zynswitch->last_cvgate_note=((uint16_t)sval)>>8;
-			//zynswitch->last_cvgate_note=24+(val>>9);
-			uint8_t vel=zynswitch->midi_event.val;
+			zynswitch->last_cvgate_note=(int)(1.0+(6.144/(5.0*256.0))*val);
+			if (zynswitch->last_cvgate_note>127) zynswitch->last_cvgate_note=127;
+			else if (zynswitch->last_cvgate_note<0) zynswitch->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
+			internal_send_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, zynswitch->midi_event.val);
 			//Send MIDI event to UI
-			write_zynmidi_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
-			//printf("Zyncoder: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zynswitch->midi_event.chan, val, zynswitch->last_cvgate_note, vel);
+			write_zynmidi_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, zynswitch->midi_event.val);
+			//printf("Zyncoder: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zynswitch->midi_event.chan, val, zynswitch->last_cvgate_note, zynswitch->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
