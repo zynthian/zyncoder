@@ -205,7 +205,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 		//printf("\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyncvouts[i].midi_event_mask, zyncvouts[i].midi_event_temp);
 		if (zyncvouts[i].midi_event_temp!=(ev_data & zyncvouts[i].midi_event_mask)) continue;
 
-		if (event_type==NOTE_ON) {
+		if (event_type==NOTE_ON && ev->buffer[2]>0) {
 			//printf("ZYNAPTIK MIDI TO CV-OUT NOTE-ON => %d, %d\n", ev->buffer[1], ev->buffer[2]);
 			if (zyncvouts[i].val>0) {
 				digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,1);
@@ -216,7 +216,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 			usleep(50);
 			digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,0);
 		}
-		else if (event_type==NOTE_OFF) {
+		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
 			//printf("ZYNAPTIK MIDI TO CV-OUT NOTE-OFF => %d\n", ev->buffer[1]);
 			if (zyncvouts[i].val==ev->buffer[1]<<7) {
 				zyncvouts[i].val=0;
