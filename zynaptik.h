@@ -61,6 +61,14 @@
 #define ADS115_GAIN_VREF_0_512 4
 #define ADS115_GAIN_VREF_0_256 5
 
+#define ADS115_RATE_8SPS 0
+#define ADS115_RATE_16SPS 1
+#define ADS115_RATE_32SPS 2
+#define ADS115_RATE_64SPS 3
+#define ADS115_RATE_128SPS 4
+#define ADS115_RATE_475SPS 5
+#define ADS115_RATE_860SPS 6
+
 void init_ads1115(uint16_t base_pin, uint16_t i2c_address);
 void set_ads1115_gain(uint16_t base_pin, uint8_t gain);
 
@@ -70,7 +78,7 @@ void set_ads1115_gain(uint16_t base_pin, uint8_t gain);
 
 //Default config for Zynaptik's MCP4728
 #if !defined(ZYNAPTIK_MCP4728_I2C_ADDRESS)
-	#define ZYNAPTIK_MCP4728_I2C_ADDRESS 0x60
+	#define ZYNAPTIK_MCP4728_I2C_ADDRESS 0x61
 #endif
 
 void init_mcp4728(uint16_t i2c_address);
@@ -84,22 +92,21 @@ void init_mcp4728(uint16_t i2c_address);
 struct zyncvin_st {
 	uint8_t enabled;
 	uint16_t pin;
-	uint16_t val;
 
-	uint8_t midi_evt;
+	int midi_evt;
 	uint8_t midi_chan;
 	uint8_t midi_num;
-	uint8_t midi_val;
+	uint16_t midi_val;
 };
 struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 
-void setup_zynaptik_cvin(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void setup_zynaptik_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvin(uint8_t i);
-void zynaptik_cvin_to_midi(uint8_t i);
+void zynaptik_cvin_to_midi(uint8_t i, uint16_t val);
 
 //CV-IN Polling interval
 #define POLL_ZYNAPTIK_CVINS_US 40000
-
+pthread_mutex_t zynaptik_cvin_lock;
 pthread_t init_poll_zynaptik_cvins();
 
 //-----------------------------------------------------------------------------
@@ -111,20 +118,22 @@ pthread_t init_poll_zynaptik_cvins();
 struct zyncvout_st {
 	uint8_t enabled;
 
-	uint8_t midi_val;
-
-	uint8_t midi_evt;
+	int midi_evt;
 	uint8_t midi_chan;
 	uint8_t midi_num;
 
 	uint16_t midi_event_temp;
 	uint16_t midi_event_mask;
+
+	uint16_t val;
 };
 struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 
-void setup_zynaptik_cvout(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvout(uint8_t i);
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev);
+void set_zynaptik_cvout(int i, uint16_t val);
+void refresh_zynaptik_cvouts();
 
 //CV-OUT Refresh interval
 #define REFRESH_ZYNAPTIK_CVOUTS_US 40000

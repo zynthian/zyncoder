@@ -1382,8 +1382,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 		}
 
 #ifdef ZYNAPTIK_CONFIG
-		//TODO
-		//zynaptik_cvout_midi(ev);
+		if (iz==ZMOP_MIDI) zynaptik_midi_to_cvout(ev);
 #endif
 		
 		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d (CH#%d)\n",ev->time, i, ev->buffer[0] & 0xF);

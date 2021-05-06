@@ -268,14 +268,18 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 #ifdef ZYNAPTIK_CONFIG
 	else if (zynswitch->midi_event.type==CVGATE_IN_EVENT && zynswitch->midi_event.num<4) {
 		if (status==0) {
-			//zynswitch->last_cvgate_note=zyncvins[zynswitch->midi_event.num].val>>8;
-			zynswitch->last_cvgate_note=24+(zyncvins[zynswitch->midi_event.num].val>>9);
+			pthread_mutex_lock(&zynaptik_cvin_lock);
+			uint16_t val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zynswitch->midi_event.num);
+			pthread_mutex_unlock(&zynaptik_cvin_lock);
+			float sval=(6.21/5.0)*val;
+			zynswitch->last_cvgate_note=((uint16_t)sval)>>8;
+			//zynswitch->last_cvgate_note=24+(val>>9);
 			uint8_t vel=zynswitch->midi_event.val;
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zynswitch->midi_event.chan, (uint8_t)zynswitch->last_cvgate_note, vel);
-			//printf("Zyncoder: Zynswitch CV/Gate event (chan=%d, raw=%d, num=%d) => %d\n",zynswitch->midi_event.chan, zyncvins[zynswitch->midi_event.num].val, zynswitch->last_cvgate_note, vel);
+			//printf("Zyncoder: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zynswitch->midi_event.chan, val, zynswitch->last_cvgate_note, vel);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
@@ -456,8 +460,9 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	zynswitch->last_cvgate_note = -1;
 
 #ifdef ZYNAPTIK_CONFIG
-	if (midi_evt==CVGATE_IN_EVENT) {
-		setup_zynaptik_cvin(midi_num, midi_evt, 0, 0);
+	if (midi_evt==CVGATE_OUT_EVENT) {
+		pinMode(zynswitch->pin, OUTPUT);
+		setup_zynaptik_cvout(midi_num, midi_evt, midi_chan, i);
 	}
 #endif
 
