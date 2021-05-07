@@ -106,6 +106,7 @@ void disable_zynaptik_cvin(uint8_t i) {
 
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (zyncvins[i].midi_evt==PITCH_BENDING) {
+		val>>=1;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_pitchbend_change(zyncvins[i].midi_chan, val);
 		zyncvins[i].midi_val=val;
@@ -130,15 +131,17 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 }
 
 void * poll_zynaptik_cvins(void *arg) {
-	int i;
-	float val;
+	int i, val;
 	while (1) {
 		for (i=0;i<MAX_NUM_ZYNCVINS;i++) {
 			if (zyncvins[i].enabled) {
 				pthread_mutex_lock(&zynaptik_cvin_lock);
-				val=(6.21/5.0)*(uint16_t)analogRead(zyncvins[i].pin);
+				val=analogRead(zyncvins[i].pin);
 				pthread_mutex_unlock(&zynaptik_cvin_lock);
-				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, (uint16_t)val);
+				val=(int)((1.03*6.144/5.0)*val);
+				if (val>32767) val=32767;
+				else if (val<0) val=0;
+				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, val);
 				zynaptik_cvin_to_midi(i,(uint16_t)val);
 			}
 		}

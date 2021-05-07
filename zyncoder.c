@@ -269,9 +269,9 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 	else if (zynswitch->midi_event.type==CVGATE_IN_EVENT && zynswitch->midi_event.num<4) {
 		if (status==0) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
-			uint16_t val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zynswitch->midi_event.num);
+			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zynswitch->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
-			zynswitch->last_cvgate_note=(int)(1.0+(6.144/(5.0*256.0))*val);
+			zynswitch->last_cvgate_note=(int)((1.03*6.144/(5.0*256.0))*val);
 			if (zynswitch->last_cvgate_note>127) zynswitch->last_cvgate_note=127;
 			else if (zynswitch->last_cvgate_note<0) zynswitch->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
