@@ -210,7 +210,6 @@ void reset_midi_filter_cc_swap();
 
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_TUNING 2
-#define FLAG_ZMOP_ZYNAPTIK 4
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_ZYNCODER 2
@@ -229,7 +228,7 @@ void reset_midi_filter_cc_swap();
 #define ZMOP_CH3 6
 #define ZMOP_CH4 7
 #define ZMOP_CH5 8
-#define ZMOP_CH6 8
+#define ZMOP_CH6 9
 #define ZMOP_CH7 10
 #define ZMOP_CH8 11
 #define ZMOP_CH9 12
@@ -272,23 +271,23 @@ void reset_midi_filter_cc_swap();
 #define ZMIP_FAKE_CTRL_FB 7
 #define MAX_NUM_ZMIPS 8
 /*
-#define ZMIP_DEV0 7
-#define ZMIP_DEV1 8
-#define ZMIP_DEV2 9
-#define ZMIP_DEV3 10
-#define ZMIP_DEV4 11
-#define ZMIP_DEV5 12
-#define ZMIP_DEV6 13
-#define ZMIP_DEV7 14
-#define ZMIP_DEV8 15
-#define ZMIP_DEV9 16
-#define ZMIP_DEV10 17
-#define ZMIP_DEV11 18
-#define ZMIP_DEV12 19
-#define ZMIP_DEV13 20
-#define ZMIP_DEV14 21
-#define ZMIP_DEV15 22
-#define MAX_NUM_ZMIPS 23
+#define ZMIP_DEV0 8
+#define ZMIP_DEV1 9
+#define ZMIP_DEV2 10
+#define ZMIP_DEV3 11
+#define ZMIP_DEV4 12
+#define ZMIP_DEV5 13
+#define ZMIP_DEV6 14
+#define ZMIP_DEV7 15
+#define ZMIP_DEV8 16
+#define ZMIP_DEV9 17
+#define ZMIP_DEV10 18
+#define ZMIP_DEV11 19
+#define ZMIP_DEV12 20
+#define ZMIP_DEV13 21
+#define ZMIP_DEV14 22
+#define ZMIP_DEV15 23
+#define MAX_NUM_ZMIPS 24
 */
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)

@@ -28,6 +28,7 @@
 #include <lo/lo.h>
 
 #include "zynmidirouter.h"
+#include "zynmaster.h"
 #include "zynaptik.h"
 #include "zyntof.h"
 

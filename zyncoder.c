@@ -89,10 +89,12 @@ int init_zynlib() {
 	#ifdef ZYNTOF_CONFIG
 	if (!init_zyntof()) return 0;
 	#endif
+	if (!init_zynmaster_jack()) return 0;
 	return 1;
 }
 
 int end_zynlib() {
+	if (!end_zynmaster_jack()) return 0;
 	#ifdef ZYNTOF_CONFIG
 	if (!end_zyntof()) return 0;
 	#endif
@@ -271,7 +273,7 @@ void send_zynswitch_midi(struct zynswitch_st *zynswitch, uint8_t status) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
 			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zynswitch->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
-			zynswitch->last_cvgate_note=(int)((1.03*6.144/(5.0*256.0))*val);
+			zynswitch->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
 			if (zynswitch->last_cvgate_note>127) zynswitch->last_cvgate_note=127;
 			else if (zynswitch->last_cvgate_note<0) zynswitch->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
@@ -503,7 +505,7 @@ void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val) {
 		if (zyncoders[j].enabled && zyncoders[j].midi_chan==midi_chan && zyncoders[j].midi_ctrl==midi_ctrl) {
 			zyncoders[j].value=val;
 			zyncoders[j].subvalue=val*ZYNCODER_TICKS_PER_RETENT;
-			//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_ctrl);
+			//fprintf(stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_ctrl);
 		}
 	}
 }

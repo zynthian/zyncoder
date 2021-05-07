@@ -23,17 +23,13 @@
  * ******************************************************************
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
-#include <jack/ringbuffer.h>
-#include <lo/lo.h>
 
 #include "zyncoder.h"
 
@@ -43,10 +39,9 @@
 
 
 int init_zynmidirouter() {
-
 	if (!init_zynmidi_buffer()) return 0;
 	if (!init_midi_router()) return 0;
-	if (!init_jack_midi("ZynMidiRouter")) return 0; //ZynMidiRouter
+	if (!init_jack_midi("ZynMidiRouter")) return 0;
 	return 1;
 }
 
@@ -119,7 +114,7 @@ int end_midi_router() {
 
 void set_midi_master_chan(int chan) {
 	if (chan>15 || chan<-1) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Master channel (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI Master channel (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.master_chan=chan;
@@ -131,7 +126,7 @@ int get_midi_master_chan() {
 
 void set_midi_active_chan(int chan) {
 	if (chan>15 || chan<-1) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI Active channel (%d) is out of range!\n",chan);
 		return;
 	}
 	if (chan!=midi_filter.active_chan) {
@@ -153,9 +148,9 @@ void set_midi_filter_tuning_freq(double freq) {
 		double pb=6*log((double)freq/440.0)/log(2.0);
 		if (pb<1.0 && pb>-1.0) {
 			midi_filter.tuning_pitchbend=((int)(8192.0*(1.0+pb)))&0x3FFF;
-			fprintf (stdout, "ZynMidiRouter: MIDI tuning frequency set to %f Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+			fprintf(stdout, "ZynMidiRouter: MIDI tuning frequency set to %f Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
 		} else {
-			fprintf (stderr, "ZynMidiRouter: MIDI tuning frequency (%f) out of range!\n",freq);
+			fprintf(stderr, "ZynMidiRouter: MIDI tuning frequency (%f) out of range!\n",freq);
 		}
 	}
 }
@@ -175,11 +170,11 @@ int get_tuned_pitchbend(int pb) {
 
 void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return;
 	}
 	if (chan_to>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
 		return;
 	}
 	midi_filter.clone[chan_from][chan_to].enabled=v;
@@ -187,11 +182,11 @@ void set_midi_filter_clone(uint8_t chan_from, uint8_t chan_to, int v) {
 
 int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return 0;
 	}
 	if (chan_to>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
 		return 0;
 	}
 	return midi_filter.clone[chan_from][chan_to].enabled;
@@ -199,7 +194,7 @@ int get_midi_filter_clone(uint8_t chan_from, uint8_t chan_to) {
 
 void reset_midi_filter_clone(uint8_t chan_from) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return;
 	}
 	int j, k;
@@ -214,11 +209,11 @@ void reset_midi_filter_clone(uint8_t chan_from) {
 
 void set_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to, uint8_t cc[128]) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return;
 	}
 	if (chan_to>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
 		return;
 	}
 	int i;
@@ -229,11 +224,11 @@ void set_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to, uint8_t cc[128
 
 uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return NULL;
 	}
 	if (chan_to>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
 		return NULL;
 	}
 	return midi_filter.clone[chan_from][chan_to].cc;
@@ -242,11 +237,11 @@ uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 
 void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 	if (chan_from>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_from (%d) is out of range!\n",chan_from);
 		return;
 	}
 	if (chan_to>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
+		fprintf(stderr, "ZynMidiRouter: MIDI clone chan_to (%d) is out of range!\n",chan_to);
 		return;
 	}
 
@@ -261,7 +256,7 @@ void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 
 void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_t oct_trans, int8_t ht_trans) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_low=nlow;
@@ -272,7 +267,7 @@ void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_
 
 void set_midi_filter_note_low(uint8_t chan, uint8_t nlow) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_low=nlow;
@@ -280,7 +275,7 @@ void set_midi_filter_note_low(uint8_t chan, uint8_t nlow) {
 
 void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_high=nhigh;
@@ -288,7 +283,7 @@ void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh) {
 
 void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].octave_trans=oct_trans;
@@ -296,7 +291,7 @@ void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans) {
 
 void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].halftone_trans=ht_trans;
@@ -304,7 +299,7 @@ void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans) {
 
 uint8_t get_midi_filter_note_low(uint8_t chan) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].note_low;
@@ -312,7 +307,7 @@ uint8_t get_midi_filter_note_low(uint8_t chan) {
 
 uint8_t get_midi_filter_note_high(uint8_t chan) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].note_high;
@@ -320,7 +315,7 @@ uint8_t get_midi_filter_note_high(uint8_t chan) {
 
 int8_t get_midi_filter_octave_trans(uint8_t chan) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].octave_trans;
@@ -328,7 +323,7 @@ int8_t get_midi_filter_octave_trans(uint8_t chan) {
 
 int8_t get_midi_filter_halftone_trans(uint8_t chan) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].halftone_trans;
@@ -336,7 +331,7 @@ int8_t get_midi_filter_halftone_trans(uint8_t chan) {
 
 void reset_midi_filter_note_range(uint8_t chan) {
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n",chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_low=0;
@@ -349,15 +344,15 @@ void reset_midi_filter_note_range(uint8_t chan) {
 
 int validate_midi_event(struct midi_event_st *ev) {
 	if (ev->type>0xE) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Event type (%d) is out of range!\n",ev->type);
+		fprintf(stderr, "ZynMidiRouter: MIDI Event type (%d) is out of range!\n",ev->type);
 		return 0;
 	}
 	if (ev->chan>15) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Event channel (%d) is out of range!\n",ev->chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI Event channel (%d) is out of range!\n",ev->chan);
 		return 0;
 	}
 	if (ev->num>127) {
-		fprintf (stderr, "ZynMidiRouter: MIDI Event num (%d) is out of range!\n",ev->num);
+		fprintf(stderr, "ZynMidiRouter: MIDI Event num (%d) is out of range!\n",ev->num);
 		return 0;
 	}
 	return 1;
@@ -527,7 +522,7 @@ int get_mf_arrow_from(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
 	arrow->num_to=to->num;
 	arrow->type=to->type;
 #ifdef DEBUG
-	//fprintf (stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_from %d, %d => %d, %d (%d)\n", arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
+	//fprintf(stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_from %d, %d => %d, %d (%d)\n", arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
 #endif
 	return 1;
 }
@@ -539,15 +534,15 @@ int get_mf_arrow_to(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
 	//Follow the rabbit ... ;-)
 	do {
 		if (++limit>128) {
-			fprintf (stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to => Not Closed Path or it's too long!\n");
+			fprintf(stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to => Not Closed Path or it's too long!\n");
 			return 0;
 		}
 		if (!get_mf_arrow_from(arrow->chan_to,arrow->num_to,arrow)) {
-			fprintf (stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to => Bad Path!\n");
+			fprintf(stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to => Bad Path!\n");
 			return 0;
 		}
 #ifdef DEBUG
-		fprintf (stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to %d, %d, %d => %d, %d (%d)\n", limit, arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
+		fprintf(stderr, "ZynMidiRouter: MIDI filter get_mf_arrow_to %d, %d, %d => %d, %d (%d)\n", limit, arrow->chan_from, arrow->num_from, arrow->chan_to, arrow->num_to, arrow->type);
 #endif
 	} while (arrow->chan_to!=chan || arrow->num_to!=num);
 	//Return 1 => last arrow pointing to origin!
@@ -569,19 +564,19 @@ int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to
 	//---------------------------------------------------------------------------
 	//No CTRL_CHANGE arrow from same origin
 	if (arrow_from.type==CTRL_CHANGE) {
-		fprintf (stderr, "ZynMidiRouter: MIDI filter CC set swap-map => Origin already has a CTRL_CHANGE map!\n");
+		fprintf(stderr, "ZynMidiRouter: MIDI filter CC set swap-map => Origin already has a CTRL_CHANGE map!\n");
 		return 0;
 	}
 	//No CTRL_CHANGE arrow to same destiny
 	if (arrow_to.type==CTRL_CHANGE) {
-		fprintf (stderr, "ZynMidiRouter: MIDI filter CC set swap-map => Destiny already has a CTRL_CHANGE map!\n");
+		fprintf(stderr, "ZynMidiRouter: MIDI filter CC set swap-map => Destiny already has a CTRL_CHANGE map!\n");
 		return 0;
 	}
 
 	//Create CC Map from => to
 	_set_midi_filter_cc_swap(chan_from,num_from,CTRL_CHANGE,chan_to,num_to);
 #ifdef DEBUG
-	fprintf (stderr, "ZynMidiRouter: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", chan_from, num_from, chan_to, num_to, CTRL_CHANGE);
+	fprintf(stderr, "ZynMidiRouter: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", chan_from, num_from, chan_to, num_to, CTRL_CHANGE);
 #endif
 	
 	//Create extra mapping overwriting current extra mappings, to enforce Rule A
@@ -590,7 +585,7 @@ int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to
 	_set_midi_filter_cc_swap(arrow_to.chan_from,arrow_to.num_from,type,arrow_from.chan_to,arrow_from.num_to);
 	//set_midi_filter_cc_swap(arrow_from.chan_to,arrow_from.num_to,type,arrow_to.chan_from,arrow_to.num_from);
 #ifdef DEBUG
-	fprintf (stderr, "ZynMidiRouter: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", arrow_to.chan_from, arrow_to.num_from, arrow_from.chan_to, arrow_from.num_to, type);
+	fprintf(stderr, "ZynMidiRouter: MIDI filter set_mf_arrow %d, %d => %d, %d (%d)\n", arrow_to.chan_from, arrow_to.num_from, arrow_from.chan_to, arrow_from.num_to, type);
 #endif
 
 	return 1;
@@ -670,13 +665,13 @@ void reset_midi_filter_cc_swap() {
 
 int zmop_init(int iz, char *name, int ch, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad index (%d) initializing ouput port '%s'.\n", iz, name);
+		fprintf(stderr, "ZynMidiRouter: Bad index (%d) initializing ouput port '%s'.\n", iz, name);
 		return 0;
 	}
 	//Create Jack Output Port
 	zmops[iz].jport = jack_port_register(jack_client, name, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
 	if (zmops[iz].jport == NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error creating jack midi output port '%s'.\n", name);
+		fprintf(stderr, "ZynMidiRouter: Error creating jack midi output port '%s'.\n", name);
 		return 0;
 	}
 	//Set init values
@@ -693,7 +688,7 @@ int zmop_init(int iz, char *name, int ch, uint32_t flags) {
 
 int zmop_set_flags(int iz, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return 0;
 	}
 	zmops[iz].flags=flags;
@@ -702,7 +697,7 @@ int zmop_set_flags(int iz, uint32_t flags) {
 
 int zmop_has_flags(int iz, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return 0;
 	}
 	return (zmops[iz].flags & flags)==flags;
@@ -710,18 +705,18 @@ int zmop_has_flags(int iz, uint32_t flags) {
 
 int zmop_chan_set_flag_droppc(int ch, uint8_t flag) {
 	if (ch<0 || ch>=16) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port chan (%d).\n", ch);
+		fprintf(stderr, "ZynMidiRouter: Bad output port chan (%d).\n", ch);
 		return 0;
 	}
 	if (flag) zmops[ZMOP_CH0 + ch].flags|=(uint32_t)FLAG_ZMOP_DROPPC;
 	else zmops[ZMOP_CH0 + ch].flags&=~(uint32_t)FLAG_ZMOP_DROPPC;
-	//fprintf (stderr, "ZynMidiRouter: ZMOPS flags for chan (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
+	//fprintf(stderr, "ZynMidiRouter: ZMOPS flags for chan (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
 	return 1;
 }
 
 int zmop_chan_get_flag_droppc(int ch) {
 	if (ch<0 || ch>=16) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port chan (%d).\n", ch);
+		fprintf(stderr, "ZynMidiRouter: Bad output port chan (%d).\n", ch);
 		return 0;
 	}
 	return zmops[ZMOP_CH0 + ch].flags & (uint32_t)FLAG_ZMOP_DROPPC;
@@ -729,11 +724,11 @@ int zmop_chan_get_flag_droppc(int ch) {
 
 int zmop_set_route_from(int izmop, int izmip, int route) {
 	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
 		return 0;
 	}
 	if (izmip<0 || izmip>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmip);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmip);
 		return 0;
 	}
 	zmops[izmop].route_from_zmips[izmip]=route;
@@ -742,7 +737,7 @@ int zmop_set_route_from(int izmop, int izmip, int route) {
 
 int zmop_reset_event_counters(int iz) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return 0;
 	}
 	int i;
@@ -752,7 +747,7 @@ int zmop_reset_event_counters(int iz) {
 
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip) {
 	if (izmop<0 || izmop>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmop);
 		return 0;
 	}
 
@@ -785,7 +780,7 @@ jack_midi_event_t *zmop_pop_event(int izmop, int *izmip) {
 
 int zmip_init(int iz, char *name, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad index (%d) initializing input port '%s'.\n", iz, name);
+		fprintf(stderr, "ZynMidiRouter: Bad index (%d) initializing input port '%s'.\n", iz, name);
 		return 0;
 	}
 
@@ -793,7 +788,7 @@ int zmip_init(int iz, char *name, uint32_t flags) {
 		//Create Jack Output Port
 		zmips[iz].jport = jack_port_register(jack_client, name, JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
 		if (zmips[iz].jport == NULL) {
-			fprintf (stderr, "ZynMidiRouter: Error creating jack midi input port '%s'.\n", name);
+			fprintf(stderr, "ZynMidiRouter: Error creating jack midi input port '%s'.\n", name);
 			return 0;
 		}
 	} else {
@@ -809,7 +804,7 @@ int zmip_init(int iz, char *name, uint32_t flags) {
 
 int zmip_set_flags(int iz, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return 0;
 	}
 	zmips[iz].flags=flags;
@@ -818,7 +813,7 @@ int zmip_set_flags(int iz, uint32_t flags) {
 
 int zmip_has_flags(int iz, uint32_t flags) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return 0;
 	}
 	return (zmips[iz].flags & flags)==flags;
@@ -826,7 +821,7 @@ int zmip_has_flags(int iz, uint32_t flags) {
 
 int zmip_push_event(int iz, jack_midi_event_t *ev) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return 0;
 	}
 
@@ -836,7 +831,7 @@ int zmip_push_event(int iz, jack_midi_event_t *ev) {
 
 int zmip_push_event_data(int iz, uint8_t *data) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return 0;
 	}
 
@@ -859,7 +854,7 @@ int zmip_push_event_data(int iz, uint8_t *data) {
 
 int zmip_clear_events(int iz) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return 0;
 	}
 	zmips[iz].n_events=0;
@@ -879,8 +874,8 @@ int zmips_clear_events() {
 //-----------------------------------------------------------------------------
 
 int init_jack_midi(char *name) {
-	if ((jack_client = jack_client_open(name, JackNullOption , 0 , 0 )) == NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error connecting with jack server.\n");
+	if ((jack_client=jack_client_open(name, JackNullOption, 0, 0))==NULL) {
+		fprintf(stderr, "ZynMidiRouter: Error connecting with jack server.\n");
 		return 0;
 	}
 
@@ -904,26 +899,33 @@ int init_jack_midi(char *name) {
 	if (!zmip_init(ZMIP_SEQ,"seq_in",ZMIP_SEQ_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_STEP,"step_in",ZMIP_STEP_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_CTRL,"ctrl_in",ZMIP_CTRL_FLAGS)) return 0;
+
 	if (!zmip_init(ZMIP_FAKE_INT,NULL,0)) return 0;
 	if (!zmip_init(ZMIP_FAKE_UI,NULL,0)) return 0;
 	if (!zmip_init(ZMIP_FAKE_CTRL_FB,NULL,0)) return 0;
 
 	//Route Input to Output Ports
 	for (i=0;i<ZMOP_CTRL;i++) {
+		//External Controllers to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_MAIN, 1)) return 0;
+		//MIDI player to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
+		//Network input to all ZMOPS except Network output
 		if (i!=ZMOP_NET) {
 			if (!zmop_set_route_from(i, ZMIP_NET, 1)) return 0;
 		}
+		//Sequencer input to all ZMOPS except Sequencer output
 		if (i!=ZMOP_STEP) {
 			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
 		}
+		//Internal MIDI to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
+		//MIDI from UI to Layer's ZMOPS 
 		if (i==ZMOP_MAIN || (i>=ZMOP_CH0 && i<=ZMOP_CH15)) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
 	}
-	// ZMOP_CTRL only receive feedback from Zynthian UI
+	//ZMOP_CTRL only receive feedback from Zynthian UI
 	if (!zmop_set_route_from(ZMOP_CTRL, ZMIP_FAKE_CTRL_FB, 1)) return 0;
 
 	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI
@@ -932,26 +934,26 @@ int init_jack_midi(char *name) {
 	jack_ring_internal_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_internal_buffer)) {
-		fprintf (stderr, "ZynMidiRouter: Error locking memory for internal ring-buffer.\n");
+		fprintf(stderr, "ZynMidiRouter: Error locking memory for internal ring-buffer.\n");
 		return 0;
 	}
 	jack_ring_ui_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_ui_buffer)) {
-		fprintf (stderr, "ZynMidiRouter: Error locking memory for UI ring-buffer.\n");
+		fprintf(stderr, "ZynMidiRouter: Error locking memory for UI ring-buffer.\n");
 		return 0;
 	}
 	jack_ring_ctrlfb_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_ctrlfb_buffer)) {
-		fprintf (stderr, "ZynMidiRouter: Error locking memory for controller feedback ring-buffer.\n");
+		fprintf(stderr, "ZynMidiRouter: Error locking memory for controller feedback ring-buffer.\n");
 		return 0;
 	}
 
 	//Init Jack Process
 	jack_set_process_callback(jack_client, jack_process, 0);
 	if (jack_activate(jack_client)) {
-		fprintf (stderr, "ZynMidiRouter: Error activating jack client.\n");
+		fprintf(stderr, "ZynMidiRouter: Error activating jack client.\n");
 		return 0;
 	}
 
@@ -959,7 +961,10 @@ int init_jack_midi(char *name) {
 }
 
 int end_jack_midi() {
-	return jack_client_close(jack_client);
+	if (jack_client_close(jack_client)) {
+		fprintf(stderr, "ZynMidiRouter: Error closing jack client.\n");
+	}
+	return 1;
 }
 
 
@@ -973,7 +978,7 @@ uint8_t event_buffer_data[JACK_MIDI_BUFFER_SIZE];
 
 int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	if (iz<0 || iz>=MAX_NUM_ZMIPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 	}
 	struct zmip_st *zmip=zmips+iz;
 
@@ -990,7 +995,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 	//Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(zmip->jport, nframes);
 	if (input_port_buffer==NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error getting jack input port buffer: %d frames\n", nframes);
+		fprintf(stderr, "ZynMidiRouter: Error getting jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
 
@@ -1131,7 +1136,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			while (clone_to_chan<16 && (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type==CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))) {
 				clone_to_chan++;
 			}
-			//fprintf (stderr, "NEXT EVENT CLONE  %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
+			//fprintf(stderr, "NEXT EVENT CLONE  %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
 		}
 
 		//if (ev.buffer[0]!=0xfe)
@@ -1148,12 +1153,12 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 			struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
 			//Ignore event...
 			if (event_map->type==IGNORE_EVENT) {
-				//fprintf (stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
+				//fprintf(stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
 				continue;
 			}
 			//Map event ...
 			if (event_map->type>=0) {
-				//fprintf (stdout, "ZynMidiRouter: Event Map %x, %x => ",ev.buffer[0],ev.buffer[1]);
+				//fprintf(stdout, "ZynMidiRouter: Event Map %x, %x => ",ev.buffer[0],ev.buffer[1]);
 				event_type=event_map->type;
 				event_chan=event_map->chan;
 				ev.buffer[0]=(event_type << 4) | event_chan;
@@ -1172,7 +1177,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 					ev.buffer[2]=event_val;
 					ev.size=3;
 				}
-				//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
+				//fprintf(stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
 			}
 		}
 
@@ -1277,14 +1282,14 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		//fprintf(stderr, "PRESWAP MIDI EVENT: %d, %d, %d\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type==CTRL_CHANGE) {
 			struct midi_event_st *cc_swap=&midi_filter.cc_swap[event_chan][event_num];
-			//fprintf (stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev.buffer[0],ev.buffer[1]);
+			//fprintf(stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev.buffer[0],ev.buffer[1]);
 			event_chan=cc_swap->chan;
 			event_num=cc_swap->num;
 			ev.buffer[0]=(event_type << 4) | event_chan;
 			ev.buffer[1]=event_num;
 			ev.buffer[2]=event_val;
 			ev.size=3;
-			//fprintf (stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
+			//fprintf(stdout, "MIDI MSG => %x, %x\n",ev.buffer[0],ev.buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 
@@ -1305,7 +1310,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 int jack_process_zmop(int iz, jack_nframes_t nframes) {
 	if (iz<0 || iz>=MAX_NUM_ZMOPS) {
-		fprintf (stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 	}
 	struct zmop_st *zmop=zmops+iz;
 
@@ -1323,7 +1328,7 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 	//Get MIDI jack data buffer and clear it
 	void *output_port_buffer = jack_port_get_buffer(zmop->jport, nframes);
 	if (output_port_buffer==NULL) {
-		fprintf (stderr, "ZynMidiRouter: Error getting jack output port buffer: %d frames\n", nframes);
+		fprintf(stderr, "ZynMidiRouter: Error getting jack output port buffer: %d frames\n", nframes);
 		return -1;
 	}
 	jack_midi_clear_buffer(output_port_buffer);
@@ -1380,10 +1385,6 @@ int jack_process_zmop(int iz, jack_nframes_t nframes) {
 				ev->buffer[2]=(pb >> 7) & 0x7F;
 			}
 		}
-
-#ifdef ZYNAPTIK_CONFIG
-		if (iz==ZMOP_MIDI) zynaptik_midi_to_cvout(ev);
-#endif
 		
 		//fprintf(stderr, "ZynMidiRouter: Writing Event %d => %d (CH#%d)\n",ev->time, i, ev->buffer[0] & 0xF);
 
@@ -1489,12 +1490,12 @@ uint8_t internal_midi_data[JACK_MIDI_BUFFER_SIZE];
 int write_internal_midi_event(uint8_t *event_buffer, int event_size) {
 	if (jack_ringbuffer_write_space(jack_ring_internal_buffer)>=event_size) {
 		if (jack_ringbuffer_write(jack_ring_internal_buffer, event_buffer, event_size)!=event_size) {
-			fprintf (stderr, "ZynMidiRouter: Error writing internal ring-buffer: INCOMPLETE\n");
+			fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
 	}
 	else {
-		fprintf (stderr, "ZynMidiRouter: Error writing internal ring-buffer: FULL\n");
+		fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: FULL\n");
 		return 0;
 	}
 
@@ -1525,7 +1526,7 @@ int write_internal_midi_event(uint8_t *event_buffer, int event_size) {
 int forward_internal_midi_data() {
 	int nb=jack_ringbuffer_read_space(jack_ring_internal_buffer);
 	if (jack_ringbuffer_read(jack_ring_internal_buffer, internal_midi_data, nb)!=nb) {
-		fprintf (stderr, "ZynMidiRouter: Error reading midi data from internal ring-buffer: %d bytes\n", nb);
+		fprintf(stderr, "ZynMidiRouter: Error reading midi data from internal ring-buffer: %d bytes\n", nb);
 		return -1;
 	}
 	//TODO: Avoid buffer overflow => check that nb<=(JACK_MIDI_BUFFER_SIZE-n_data)
@@ -1603,7 +1604,7 @@ int internal_send_all_notes_off_chan(uint8_t chan) {
 	int note;
 
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter:internal_send_all_notes_off_chan(chan) => chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter:internal_send_all_notes_off_chan(chan) => chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 
@@ -1628,12 +1629,12 @@ uint8_t ui_midi_data[JACK_MIDI_BUFFER_SIZE];
 int write_ui_midi_event(uint8_t *event_buffer, int event_size) {
 	if (jack_ringbuffer_write_space(jack_ring_ui_buffer)>=event_size) {
 		if (jack_ringbuffer_write(jack_ring_ui_buffer, event_buffer, event_size)!=event_size) {
-			fprintf (stderr, "ZynMidiRouter: Error writing UI ring-buffer: INCOMPLETE\n");
+			fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
 	}
 	else {
-		fprintf (stderr, "ZynMidiRouter: Error writing UI ring-buffer: FULL\n");
+		fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: FULL\n");
 		return 0;
 	}
 
@@ -1664,7 +1665,7 @@ int write_ui_midi_event(uint8_t *event_buffer, int event_size) {
 int forward_ui_midi_data() {
 	int nb=jack_ringbuffer_read_space(jack_ring_ui_buffer);
 	if (jack_ringbuffer_read(jack_ring_ui_buffer, ui_midi_data, nb)!=nb) {
-		fprintf (stderr, "ZynMidiRouter: Error reading midi data from UI ring-buffer: %d bytes\n", nb);
+		fprintf(stderr, "ZynMidiRouter: Error reading midi data from UI ring-buffer: %d bytes\n", nb);
 		return -1;
 	}
 	//TODO: Avoid buffer overflow => check that nb<=(JACK_MIDI_BUFFER_SIZE-n_data)
@@ -1748,7 +1749,7 @@ int ui_send_all_notes_off_chan(uint8_t chan) {
 	int note;
 
 	if (chan>15) {
-		fprintf (stderr, "ZynMidiRouter:ui_send_all_notes_off_chan(chan) => chan (%d) is out of range!\n",chan);
+		fprintf(stderr, "ZynMidiRouter:ui_send_all_notes_off_chan(chan) => chan (%d) is out of range!\n",chan);
 		return 0;
 	}
 
@@ -1772,12 +1773,12 @@ uint8_t ctrlfb_midi_data[JACK_MIDI_BUFFER_SIZE];
 int write_ctrlfb_midi_event(uint8_t *event_buffer, int event_size) {
 	if (jack_ringbuffer_write_space(jack_ring_ctrlfb_buffer)>=event_size) {
 		if (jack_ringbuffer_write(jack_ring_ctrlfb_buffer, event_buffer, event_size)!=event_size) {
-			fprintf (stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: INCOMPLETE\n");
+			fprintf(stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
 	}
 	else {
-		fprintf (stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: FULL\n");
+		fprintf(stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: FULL\n");
 		return 0;
 	}
 	return 1;
@@ -1787,7 +1788,7 @@ int write_ctrlfb_midi_event(uint8_t *event_buffer, int event_size) {
 int forward_ctrlfb_midi_data() {
 	int nb=jack_ringbuffer_read_space(jack_ring_ctrlfb_buffer);
 	if (jack_ringbuffer_read(jack_ring_ctrlfb_buffer, ctrlfb_midi_data, nb)!=nb) {
-		fprintf (stderr, "ZynMidiRouter: Error reading midi data from controller feedback ring-buffer: %d bytes\n", nb);
+		fprintf(stderr, "ZynMidiRouter: Error reading midi data from controller feedback ring-buffer: %d bytes\n", nb);
 		return -1;
 	}
 

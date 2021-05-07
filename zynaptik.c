@@ -104,6 +104,9 @@ void disable_zynaptik_cvin(uint8_t i) {
 	zyncvins[i].enabled = 0;
 }
 
+void set_k_cvin(float k) { k_cvin=k; }
+float get_k_cvin() { return k_cvin; }
+
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (zyncvins[i].midi_evt==PITCH_BENDING) {
 		val>>=1;
@@ -138,7 +141,7 @@ void * poll_zynaptik_cvins(void *arg) {
 				pthread_mutex_lock(&zynaptik_cvin_lock);
 				val=analogRead(zyncvins[i].pin);
 				pthread_mutex_unlock(&zynaptik_cvin_lock);
-				val=(int)((1.03*6.144/5.0)*val);
+				val=(int)(k_cvin*(6.144/5.0)*val);
 				if (val>32767) val=32767;
 				else if (val<0) val=0;
 				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, val);
@@ -165,7 +168,6 @@ pthread_t init_poll_zynaptik_cvins() {
 		return tid;
 	}
 }
-
 
 //-----------------------------------------------------------------------------
 // CV-OUT: Set Analog Outputs from MIDI: CC, Pitchbend, Channel Pressure, Notes (velocity+pitchbend)
@@ -198,11 +200,16 @@ void disable_zynaptik_cvout(uint8_t i) {
 	zyncvouts[i].enabled = 0;
 }
 
+float k_cvout=DEFAULT_K_CVOUT;
+void set_k_cvout(float k) { k_cvout=k; }
+float get_k_cvout() { return k_cvout; }
+
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	uint8_t event_type= ev->buffer[0] >> 4;
-	uint16_t ev_data=ev->buffer[0]<<8 | ev->buffer[1];
+	if (event_type<NOTE_OFF || event_type>PITCH_BENDING) return;
 	//printf("ZYNAPTIK MIDI TO CV-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
+	uint16_t ev_data=ev->buffer[0]<<8 | ev->buffer[1];
 	for (int i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
 		if  (!zyncvouts[i].enabled) continue;
 		//printf("\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyncvouts[i].midi_event_mask, zyncvouts[i].midi_event_temp);
@@ -247,7 +254,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 }
 
 void set_zynaptik_cvout(int i, uint16_t val) {
-	float vout=val/16384.0;
+	float vout=k_cvout*val/16384.0;
 	//printf("ZYNAPTIK CV-OUT %d => %f\n", i, vout);
 	int err=mcp4728_singleexternal(mcp4728_chip, i, vout, 0);
 	if (err!=0) {
@@ -260,8 +267,7 @@ void refresh_zynaptik_cvouts() {
 	float buffer[MAX_NUM_ZYNCVOUTS];
 	for (i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
 		if (zyncvouts[i].enabled) {
-			//buffer[i] = 4.096*zyncvouts[i].val/16384.0;
-			buffer[i] = zyncvouts[i].val/16384.0;
+			buffer[i] = k_cvout*zyncvouts[i].val/16384.0;
 		} else {
 			buffer[i] = 0;
 		}
@@ -310,6 +316,9 @@ int init_zynaptik() {
 	}
 
 	mcp4728_chip = NULL;
+
+	k_cvin=DEFAULT_K_CVIN;
+	k_cvout=DEFAULT_K_CVOUT;
 
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
 		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
