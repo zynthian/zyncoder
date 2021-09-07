@@ -78,7 +78,11 @@ void set_ads1115_gain(uint16_t base_pin, uint8_t gain);
 
 //Default config for Zynaptik's MCP4728
 #if !defined(ZYNAPTIK_MCP4728_I2C_ADDRESS)
-	#define ZYNAPTIK_MCP4728_I2C_ADDRESS 0x61
+	#if ZYNAPTIK_VERSION==1
+		#define ZYNAPTIK_MCP4728_I2C_ADDRESS 0x60
+	#else
+		#define ZYNAPTIK_MCP4728_I2C_ADDRESS 0x61
+	#endif
 #endif
 
 void init_mcp4728(uint16_t i2c_address);
