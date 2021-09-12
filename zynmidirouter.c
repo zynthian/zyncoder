@@ -1271,7 +1271,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		else if (event_type==NOTE_OFF) midi_filter.note_state[event_chan][event_num]=0;
 
 		//Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, SysEx]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type>=SYSTEM_EXCLUSIVE)) {
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type==NOTE_OFF || event_type==NOTE_ON || event_type==CTRL_CHANGE || event_type==PITCH_BENDING || event_type>=SYSTEM_EXCLUSIVE)) {
 			ui_event=(ev.buffer[0]<<16)|(ev.buffer[1]<<8)|(ev.buffer[2]);
 		}
 
