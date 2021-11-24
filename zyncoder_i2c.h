@@ -27,23 +27,21 @@
 
 #include <lo/lo.h>
 
-//-----------------------------------------------------------------------------
-// Library Initialization
-//-----------------------------------------------------------------------------
-
-int init_zynlib();
-int end_zynlib();
-
-int init_zyncoder();
-int end_zyncoder();
+#include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------
-// GPIO Switches
+// I2C Stuff
+//-----------------------------------------------------------------------------
+
+int hwci2c_fd; // File descriptor for I2C interface to hardware controller
+void handleRibanHwc();
+
+//-----------------------------------------------------------------------------
+// Switches
 //-----------------------------------------------------------------------------
 
 // Maximum 50 I2C switches
 #define MAX_NUM_ZYNSWITCHES 50
-#define HWC_ADDR 0x08 // I2C address of riban hardware controller
 
 struct zynswitch_st {
 	uint8_t enabled; // 1 if switch enabled
@@ -57,13 +55,12 @@ struct zynswitch_st {
 };
 struct zynswitch_st zynswitches[MAX_NUM_ZYNSWITCHES];
 
-struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t pin);
+int setup_zynswitch(uint8_t i, uint8_t pin);
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
-int hwci2c_fd; // File descriptor for I2C interface to hardware controller
 
 //-----------------------------------------------------------------------------
-// Rotary Encoders
+// Incremental Rotary Encoders
 //-----------------------------------------------------------------------------
 
 // Maximum 30 I2C encoders
@@ -85,10 +82,18 @@ struct zyncoder_st {
 };
 struct zyncoder_st zyncoders[MAX_NUM_ZYNCODERS];
 
+int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step);
+
 void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val);
 
-struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step);
 unsigned int get_value_zyncoder(uint8_t i);
 void set_value_zyncoder(uint8_t i, unsigned int v, int send);
 
-void handleRibanHwc();
+//-----------------------------------------------------------------------------
+// Library Initialization
+//-----------------------------------------------------------------------------
+
+void reset_zyncoders();
+
+//-----------------------------------------------------------------------------
+

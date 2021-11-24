@@ -34,68 +34,15 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "zyncoder_i2c.h"
-#include "zynmidirouter.h"
-
 #include <wiringPi.h>
+#include <wiringPiI2C.h>
 
-#define DEBUG
+#include "zyncoder_i2c.h"
 
-#if !defined(MCP23017_INTA_PIN)
-		#define INTERRUPT_PIN 7
-#else
-    #define INTERRUPT_PIN MCP23017_INTA_PIN
-#endif
-//-----------------------------------------------------------------------------
-// Library Initialisation
-//-----------------------------------------------------------------------------
-
-/** Initialise zyncoder library */
-int init_zynlib() {
-	if (!init_zyncoder()) return 0;
-	if (!init_zynmidirouter()) return 0;
-	return 1;
-}
-
-/** Destruct zyncoder library */
-int end_zynlib() {
-	if (!end_zynmidirouter()) return 0;
-	if (!end_zyncoder()) return 0;
-	return 1;
-}
+//#define DEBUG
 
 //-----------------------------------------------------------------------------
-// Zyncoder Library Initialisation
-//-----------------------------------------------------------------------------
-
-/** @brief  Initialises encoders and switches
-*   @retval int 1 on success, 0 on fail
-*/
-int init_zyncoder() {
-	int i;
-	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
-		zynswitches[i].enabled=0;
-		zynswitches[i].midi_cc=0;
-	}
-	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
-		zyncoders[i].enabled=0;
-	}
-	wiringPiSetup();
-	hwci2c_fd = wiringPiI2CSetup(HWC_ADDR);
-	wiringPiI2CWriteReg8(hwci2c_fd, 0, 0); // Reset HWC
-	wiringPiISR(INTERRUPT_PIN, INT_EDGE_FALLING, handleRibanHwc);
-	return 1;
-}
-
-/** @brief  Destroy encoders and switches
-*   @retval int 1 on success, 0 on fail
-*/
-int end_zyncoder() {
-	return 1;
-}
-
-//-----------------------------------------------------------------------------
-// GPIO Switches
+// Switches
 //-----------------------------------------------------------------------------
 
 /** @brief  Update the status (value) of a switch
@@ -142,11 +89,11 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 /** @brief  Configure switch
 *   @param  i Vitrual switch index
 *   @param  index Physical (I2C) switch index
-*   @retval zynswitch_st* Pointer to the switch structure (null if invalid switch virtual index)
+*   @retval int 0=error, 1=success
 */
-struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t index) {
+int setup_zynswitch(uint8_t i, uint8_t index) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
+		printf("ZynCore: Zyncoder index %d out of range!\n", i);
 		return 0;
 	}
 	struct zynswitch_st *zynswitch = zynswitches + i;
@@ -155,7 +102,7 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t index) {
 	zynswitch->tsus = 0;
 	zynswitch->dtus = 0;
 	zynswitch->status = 1; // Switches are active low
-    return zynswitch;
+    return 1;
 }
 
 /** @brief  Configure MIDI event to trigger for switch press (release)
@@ -166,7 +113,7 @@ struct zynswitch_st *setup_zynswitch(uint8_t i, uint8_t index) {
 */
 int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("Zyncoder: Maximum number of zynswitches exceeded: %d\n", MAX_NUM_ZYNSWITCHES);
+		printf("ZynCore: Zyncoder index %d out of range!\n", i);
 		return 0;
 	}
 
@@ -212,7 +159,7 @@ unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus) {
 }
 
 //-----------------------------------------------------------------------------
-// Generic Rotary Encoders
+// Incremental Rotary Encoders
 //-----------------------------------------------------------------------------
 
 /** @brief Set encoder value from MIDI event
@@ -272,12 +219,12 @@ void send_zyncoder(uint8_t i) {
 *   @param  value Inital value of encoder
 *   @param  max_value Maximum permissible value
 *   @param  step Value increment size per encoder click
-*   @retval zyncoder_st* Pointer to encoder structure
+*   @retval int 0=error, 1=success
 */
-struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
+int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
-		printf("Zyncoder: Maximum number of zyncoders exceded: %d\n", MAX_NUM_ZYNCODERS);
-		return NULL;
+		printf("ZynCore: Zyncoder index %d out of range!\n", i);
+		return 0;
 	}
 #ifdef DEBUG
 	printf("Set up encoder i=%d, pin_a=%d, pin_b=%d, midich=%d, midictl=%d, oscpath=%s, value=%d, maxval=%d, step=%d\n",
@@ -307,7 +254,7 @@ struct zyncoder_st *setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint
     zyncoder->max_value = max_value;
     zyncoder->enabled = 1;
 
-	return zyncoder;
+	return 1;
 }
 
 /** @brief  Get rotary encoder value
@@ -338,7 +285,6 @@ void set_value_zyncoder(uint8_t i, unsigned int v, int send) {
 	if (send) send_zyncoder(i);
 }
 
-#include <wiringPiI2C.h>
 /** Called when an interrupt signal detected from riban HWC.
     Interrupt indicates a change has occured on HWC hence there is data to read.
     Must read one byte from HWC register 0 to detect the control that has changed then read that control's value.
@@ -381,3 +327,20 @@ void handleRibanHwc() {
         }
     }
 }
+
+//-----------------------------------------------------------------------------
+// Zyncoder Library Initialisation
+//-----------------------------------------------------------------------------
+
+void reset_zyncoders() {
+	int i;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
+		zynswitches[i].enabled=0;
+		zynswitches[i].midi_cc=0;
+	}
+	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
+		zyncoders[i].enabled=0;
+	}
+}
+
+//-----------------------------------------------------------------------------
