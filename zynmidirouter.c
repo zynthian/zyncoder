@@ -31,7 +31,8 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 
-#include "zyncoder.h"
+#include "zynpot.h"
+#include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------
 // Library Initialization
@@ -342,7 +343,7 @@ void reset_midi_filter_note_range(uint8_t chan) {
 
 //Core MIDI filter functions
 
-int validate_midi_event(struct midi_event_st *ev) {
+int validate_midi_event(midi_event_t *ev) {
 	if (ev->type>0xE) {
 		fprintf(stderr, "ZynMidiRouter: MIDI Event type (%d) is out of range!\n",ev->type);
 		return 0;
@@ -358,46 +359,46 @@ int validate_midi_event(struct midi_event_st *ev) {
 	return 1;
 }
 
-void set_midi_filter_event_map_st(struct midi_event_st *ev_from, struct midi_event_st *ev_to) {
+void set_midi_filter_event_map_st(midi_event_t *ev_from, midi_event_t *ev_to) {
 	if (validate_midi_event(ev_from) && validate_midi_event(ev_to)) {
 		//memcpy(&midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num],ev_to,sizeof(ev_to));
-		struct midi_event_st *event_map=&midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num];
+		midi_event_t *event_map=&midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num];
 		event_map->type=ev_to->type;
 		event_map->chan=ev_to->chan;
 		event_map->num=ev_to->num;
 	}
 }
 
-void set_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from, enum midi_event_type_enum type_to, uint8_t chan_to, uint8_t num_to) {
-	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
-	struct midi_event_st ev_to={ .type=type_to, .chan=chan_to, .num=num_to };
+void set_midi_filter_event_map(midi_event_type type_from, uint8_t chan_from, uint8_t num_from, midi_event_type type_to, uint8_t chan_to, uint8_t num_to) {
+	midi_event_t ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+	midi_event_t ev_to={ .type=type_to, .chan=chan_to, .num=num_to };
 	set_midi_filter_event_map_st(&ev_from, &ev_to);
 }
 
-void set_midi_filter_event_ignore_st(struct midi_event_st *ev_from) {
+void set_midi_filter_event_ignore_st(midi_event_t *ev_from) {
 	if (validate_midi_event(ev_from)) {
 		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].type=IGNORE_EVENT;
 	}
 }
 
-void set_midi_filter_event_ignore(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
-	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+void set_midi_filter_event_ignore(midi_event_type type_from, uint8_t chan_from, uint8_t num_from) {
+	midi_event_t ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
 	set_midi_filter_event_ignore_st(&ev_from);
 }
 
-struct midi_event_st *get_midi_filter_event_map_st(struct midi_event_st *ev_from) {
+midi_event_t *get_midi_filter_event_map_st(midi_event_t *ev_from) {
 	if (validate_midi_event(ev_from)) {
 		return &midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num];
 	}
 	return NULL;
 }
 
-struct midi_event_st *get_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
-	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+midi_event_t *get_midi_filter_event_map(midi_event_type type_from, uint8_t chan_from, uint8_t num_from) {
+	midi_event_t ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
 	return get_midi_filter_event_map_st(&ev_from);
 }
 
-void del_midi_filter_event_map_st(struct midi_event_st *ev_from) {
+void del_midi_filter_event_map_st(midi_event_t *ev_from) {
 	if (validate_midi_event(ev_from)) {
 		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].type=THRU_EVENT;
 		midi_filter.event_map[ev_from->type&0x7][ev_from->chan][ev_from->num].chan=ev_from->chan;
@@ -405,8 +406,8 @@ void del_midi_filter_event_map_st(struct midi_event_st *ev_from) {
 	}
 }
 
-void del_midi_filter_event_map(enum midi_event_type_enum type_from, uint8_t chan_from, uint8_t num_from) {
-	struct midi_event_st ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
+void del_midi_filter_event_map(midi_event_type type_from, uint8_t chan_from, uint8_t num_from) {
+	midi_event_t ev_from={ .type=type_from, .chan=chan_from, .num=num_from };
 	del_midi_filter_event_map_st(&ev_from);
 }
 
@@ -435,7 +436,7 @@ void set_midi_filter_cc_ignore(uint8_t chan_from, uint8_t cc_from) {
 
 //TODO: It doesn't take into account if chan_from!=chan_to
 uint8_t get_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from) {
-	struct midi_event_st *ev=get_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from);
+	midi_event_t *ev=get_midi_filter_event_map(CTRL_CHANGE,chan_from,cc_from);
 	return ev->num;
 }
 
@@ -495,14 +496,14 @@ void set_midi_learning_mode(int mlm) {
 //-----------------------------------------------------------------------------
 
 
-void _set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, enum midi_event_type_enum type_to, uint8_t chan_to, uint8_t num_to) {
-	struct midi_event_st *cc_swap=&midi_filter.cc_swap[chan_from][num_from];
+void _set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, midi_event_type type_to, uint8_t chan_to, uint8_t num_to) {
+	midi_event_t *cc_swap=&midi_filter.cc_swap[chan_from][num_from];
 	cc_swap->type=type_to;
 	cc_swap->chan=chan_to;
 	cc_swap->num=num_to;
 }
 
-struct midi_event_st *_get_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from) {
+midi_event_t *_get_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from) {
 	return &midi_filter.cc_swap[chan_from][num_from];
 }
 
@@ -513,8 +514,8 @@ void _del_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from) {
 }
 
 
-int get_mf_arrow_from(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
-	struct midi_event_st *to=_get_midi_filter_cc_swap(chan,num);
+int get_mf_arrow_from(uint8_t chan, uint8_t num, mf_arrow_t *arrow) {
+	midi_event_t *to=_get_midi_filter_cc_swap(chan,num);
 	if (!to) return 0;
 	arrow->chan_from=chan;
 	arrow->num_from=num;
@@ -527,7 +528,7 @@ int get_mf_arrow_from(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
 	return 1;
 }
 
-int get_mf_arrow_to(uint8_t chan, uint8_t num, struct mf_arrow_st *arrow) {
+int get_mf_arrow_to(uint8_t chan, uint8_t num, mf_arrow_t *arrow) {
 	int limit=0;
 	arrow->chan_to=chan;
 	arrow->num_to=num;
@@ -554,8 +555,8 @@ int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to
 	//---------------------------------------------------------------------------
 	//Get current arrows "from origin" and "to destiny"
 	//---------------------------------------------------------------------------
-	struct mf_arrow_st arrow_from;
-	struct mf_arrow_st arrow_to;
+	mf_arrow_t arrow_from;
+	mf_arrow_t arrow_to;
 	if (!get_mf_arrow_from(chan_from,num_from,&arrow_from)) return 0;
 	if (!get_mf_arrow_to(chan_to,num_to,&arrow_to)) return 0;
 
@@ -580,7 +581,7 @@ int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to
 #endif
 	
 	//Create extra mapping overwriting current extra mappings, to enforce Rule A
-	enum midi_event_type_enum type=SWAP_EVENT;
+	midi_event_type type=SWAP_EVENT;
 	if (arrow_from.chan_to==arrow_to.chan_from && arrow_from.num_to==arrow_to.num_from) type=THRU_EVENT;
 	_set_midi_filter_cc_swap(arrow_to.chan_from,arrow_to.num_from,type,arrow_from.chan_to,arrow_from.num_to);
 	//set_midi_filter_cc_swap(arrow_from.chan_to,arrow_from.num_to,type,arrow_to.chan_from,arrow_to.num_from);
@@ -596,19 +597,19 @@ int del_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
 	//---------------------------------------------------------------------------
 	//Get current arrow Axy (from origin to destiny)
 	//---------------------------------------------------------------------------
-	struct mf_arrow_st arrow;
+	mf_arrow_t arrow;
 	if (!get_mf_arrow_from(chan,num,&arrow)) return 0;
 
 	//---------------------------------------------------------------------------
 	//Get current arrow pointing to origin (Ajx)
 	//---------------------------------------------------------------------------
-	struct mf_arrow_st arrow_to;
+	mf_arrow_t arrow_to;
 	if (!get_mf_arrow_to(chan,num,&arrow_to)) return 0;
 
 	//---------------------------------------------------------------------------
 	//Get current arrow from destiny (Ayk)
 	//---------------------------------------------------------------------------
-	struct mf_arrow_st arrow_from;
+	mf_arrow_t arrow_from;
 	if (!get_mf_arrow_from(arrow.chan_to,arrow.num_to,&arrow_from)) return 0;
 
 	//---------------------------------------------------------------------------
@@ -639,7 +640,7 @@ int del_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
 }
 
 uint16_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num) {
-	struct mf_arrow_st arrow;
+	mf_arrow_t arrow;
 	if (!get_mf_arrow_to(chan,num,&arrow)) return 0;
 	else {
 		uint16_t res=(uint16_t)arrow.chan_from<<8 | (uint16_t)arrow.num_from;
@@ -1150,7 +1151,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//Event Mapping
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type>=NOTE_OFF && event_type<=PITCH_BENDING) {
-			struct midi_event_st *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
+			midi_event_t *event_map=&midi_filter.event_map[event_type & 0x7][event_chan][event_num];
 			//Ignore event...
 			if (event_map->type==IGNORE_EVENT) {
 				//fprintf(stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
@@ -1281,7 +1282,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		//Swap Mapping
 		//fprintf(stderr, "PRESWAP MIDI EVENT: %d, %d, %d\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type==CTRL_CHANGE) {
-			struct midi_event_st *cc_swap=&midi_filter.cc_swap[event_chan][event_num];
+			midi_event_t *cc_swap=&midi_filter.cc_swap[event_chan][event_num];
 			//fprintf(stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev.buffer[0],ev.buffer[1]);
 			event_chan=cc_swap->chan;
 			event_num=cc_swap->num;
@@ -1295,7 +1296,7 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 
 		//Set zyncoder values
 		if (zmip->flags & FLAG_ZMIP_ZYNCODER  && event_type==CTRL_CHANGE && !midi_learning_mode) {
-			midi_event_zyncoders(event_chan, event_num, event_val);
+			midi_event_zynpot(event_chan, event_num, event_val);
 		}
 
 

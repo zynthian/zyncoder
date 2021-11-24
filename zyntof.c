@@ -33,9 +33,11 @@
 
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
-#include <tof.h> // time of flight sensor library
+#include <tof.h>
 
+#include "zynpot.h"
 #include "zyncoder.h"
+#include "zyntof.h"
 
 //-----------------------------------------------------------------------------
 // TCA954X (43/44/48) Stuff => I2C Multiplexer
@@ -119,7 +121,7 @@ void send_zyntof_midi(uint8_t i) {
 				//Send MIDI event to engines and ouput (ZMOPS)
 				internal_send_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 				//Update zyncoders
-				midi_event_zyncoders(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
+				midi_event_zynpot(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 				//Send MIDI event to UI
 				write_zynmidi_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 			} else if (zyntofs[i].midi_evt==CHAN_PRESS) {
