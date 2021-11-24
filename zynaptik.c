@@ -36,13 +36,12 @@
 
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
+#include <mcp23017.h>
+#include <mcp23x0817.h>
 #include <ads1115.h>
 #include <MCP4728.h>
 
-#include "zynpot.h"
 #include "zyncoder.h"
-#include "zynaptik.h"
-#include "zynads1115.h"
 
 //-----------------------------------------------------------------------------
 // MCP23017 Stuff
@@ -62,6 +61,21 @@ void (*zynaptik_mcp23017_bank_ISRs[2])={
 	zynaptik_mcp23017_bankA_ISR,
 	zynaptik_mcp23017_bankB_ISR
 };
+
+//-----------------------------------------------------------------------------
+// ADS1115 Stuff
+//-----------------------------------------------------------------------------
+
+void init_ads1115(uint16_t base_pin, uint16_t i2c_address) {
+	ads1115Setup(base_pin, i2c_address);
+	//set_ads1115_gain(base_pin, ADS115_GAIN_VREF_4_096);
+	set_ads1115_gain(base_pin, ADS115_GAIN_VREF_6_144);
+	set_ads1115_gain(base_pin+1, ADS115_RATE_860SPS);
+}
+
+void set_ads1115_gain(uint16_t base_pin, uint8_t gain) {
+	digitalWrite(base_pin, gain);
+}
 
 //-----------------------------------------------------------------------------
 // MCP4728 Stuff
@@ -108,7 +122,7 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 		//Update zyncoders
-		midi_event_zynpot(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
+		midi_event_zyncoders(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 	}
@@ -141,16 +155,16 @@ void * poll_zynaptik_cvins(void *arg) {
 
 pthread_t init_poll_zynaptik_cvins() {
 	if (pthread_mutex_init(&zynaptik_cvin_lock, NULL) != 0) {
-		fprintf(stderr,"ZynCore: Zynaptik CV-IN mutex init failed\n");
+		fprintf(stderr,"Zyncoder: Zynaptik CV-IN mutex init failed\n");
 		return 0;
     }
 	pthread_t tid;
 	int err=pthread_create(&tid, NULL, &poll_zynaptik_cvins, NULL);
 	if (err != 0) {
-		fprintf(stderr,"ZynCore: Can't create zynaptik CV-IN poll thread :[%s]", strerror(err));
+		fprintf(stderr,"Zyncoder: Can't create zynaptik CV-IN poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("ZynCore: Zynaptik CV-IN poll thread created successfully\n");
+		printf("Zyncoder: Zynaptik CV-IN poll thread created successfully\n");
 		return tid;
 	}
 }
@@ -310,8 +324,7 @@ int init_zynaptik() {
 		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
-		//init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_4_096, ADS1115_RATE_860SPS);
-		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_6_144, ADS1115_RATE_128SPS);
+		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS);
 		init_poll_zynaptik_cvins();
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {

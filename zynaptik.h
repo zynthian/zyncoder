@@ -24,9 +24,6 @@
  * ******************************************************************
  */
 
-#include <jack/jack.h>
-#include <jack/midiport.h>
-
 //-----------------------------------------------------------------------------
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
@@ -56,6 +53,24 @@
 #if !defined(ZYNAPTIK_ADS1115_BASE_PIN)
 	#define ZYNAPTIK_ADS1115_BASE_PIN 300
 #endif
+
+#define ADS115_GAIN_VREF_6_144 0
+#define ADS115_GAIN_VREF_4_096 1
+#define ADS115_GAIN_VREF_2_048 2
+#define ADS115_GAIN_VREF_1_024 3
+#define ADS115_GAIN_VREF_0_512 4
+#define ADS115_GAIN_VREF_0_256 5
+
+#define ADS115_RATE_8SPS 0
+#define ADS115_RATE_16SPS 1
+#define ADS115_RATE_32SPS 2
+#define ADS115_RATE_64SPS 3
+#define ADS115_RATE_128SPS 4
+#define ADS115_RATE_475SPS 5
+#define ADS115_RATE_860SPS 6
+
+void init_ads1115(uint16_t base_pin, uint16_t i2c_address);
+void set_ads1115_gain(uint16_t base_pin, uint8_t gain);
 
 //-----------------------------------------------------------------------------
 // MCP4728 Stuff

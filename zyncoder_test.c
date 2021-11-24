@@ -1,10 +1,12 @@
 /*
  * ******************************************************************
- * ZYNTHIAN PROJECT: Zyncoder Library Test
+ * ZYNTHIAN PROJECT: Zyncoder Library Tests
  * 
- * Test switches & encoders for zynthian kit configurations
+ * Library for interfacing Rotary Encoders & Switches connected 
+ * to RBPi native GPIOs or expanded with MCP23008. Includes an 
+ * emulator mode to ease developping.
  * 
- * Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2016 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
@@ -28,64 +30,59 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "zynpot.h"
 #include "zyncoder.h"
-#include "zyncontrol.h"
 
 #ifndef HAVE_WIRINGPI_LIB
-	#define NUM_ZYNSWITCHES 4
-	unsigned int zyncoder_pin_a[4]={4,5,6,7};
-	unsigned int zyncoder_pin_b[4]={8,9,10,11};
-	unsigned int zynswitch_pin[NUM_ZYNSWITCHES]={0,1,2,3};
+#define NUM_SWITCHES 4
+unsigned int zyncoder_pin_a[4]={4,5,6,7};
+unsigned int zyncoder_pin_b[4]={8,9,10,11};
+unsigned int zynswitch_pin[NUM_SWITCHES]={0,1,2,3};
 #else
-	#ifdef MCP23017_ENCODERS
-		#define NUM_ZYNSWITCHES 8
-		unsigned int zyncoder_pin_a[4] = { 102, 105, 110, 113 };
-		unsigned int zyncoder_pin_b[4] = { 101, 104, 109, 112 };
-		unsigned int zynswitch_pin[NUM_ZYNSWITCHES]  = { 100, 103, 108, 111, 106, 107, 114, 115 };
-	#else
-		#define NUM_ZYNSWITCHES 4
-		//PROTOTYPE-3
-		//unsigned int zyncoder_pin_a[4]={27,21,3,7};
-		//unsigned int zyncoder_pin_b[4]={25,26,4,0};
-		//PROTOTYPE-4
-		unsigned int zyncoder_pin_a[4]={26,25,0,4};
-		unsigned int zyncoder_pin_b[4]={21,27,7,3};
-		unsigned int zynswitch_pin[NUM_ZYNSWITCHES]={107,23,106,2};
-	#endif
+
+#ifdef MCP23017_ENCODERS
+#define NUM_SWITCHES 8
+unsigned int zyncoder_pin_a[4] = { 102, 105, 110, 113 };
+unsigned int zyncoder_pin_b[4] = { 101, 104, 109, 112 };
+unsigned int zynswitch_pin[NUM_SWITCHES]  = { 100, 103, 108, 111, 106, 107, 114, 115 };
+#else
+#define NUM_SWITCHES 4
+//PROTOTYPE-3
+//unsigned int zyncoder_pin_a[4]={27,21,3,7};
+//unsigned int zyncoder_pin_b[4]={25,26,4,0};
+//PROTOTYPE-4
+unsigned int zyncoder_pin_a[4]={26,25,0,4};
+unsigned int zyncoder_pin_b[4]={21,27,7,3};
+unsigned int zynswitch_pin[NUM_SWITCHES]={107,23,106,2};
+#endif
+
 #endif
 
 int main() {
 	int i;
 
-	printf("Starting ZynCore...\n");
-	init_zyncontrol();
-	init_zynmidirouter();
+	printf("INITIALIZING ZYNCODER LIBRARY!\n");
+	init_zynlib();
 
-	printf("Setting-up %d x Zynswitches\n", NUM_ZYNSWITCHES);
-	for (i=0;i<NUM_ZYNSWITCHES;i++) {
+	printf("SETTING UP ZYNSWITCHES!\n");
+	for (i=0;i<NUM_SWITCHES;i++) {
 		setup_zynswitch(i,zynswitch_pin[i]);
 	}
 
-	printf("Setting-up 4 x Zyncoders\n");
+	printf("SETTING UP ZYNCODERS!\n");
 	for (i=0;i<4;i++) {
-		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i]);
-		setup_zynpot(i,ZYNPOT_ZYNCODER,i);
-		setup_rangescale_zynpot(i,0,127,64,0);
+		setup_zyncoder(i,zyncoder_pin_a[i],zyncoder_pin_b[i],0,70+i,NULL,64,127,1);
 	}
 
-	printf("Testing switches & rotaries...\n");
+	printf("TESTING ...\n");
 	while(1) {
-		for (i=0;i<NUM_ZYNSWITCHES;i++) {
-			int ts = get_zynswitch(i,2000000);
-			if (ts>0) fprintf(stdout, "SW-%d = %d\n", i, ts);
+		for (i=0;i<NUM_SWITCHES;i++) {
+			printf("SW%d = %d\n", i, get_zynswitch(i,2000000));
 		}
 		for (i=0;i<4;i++) {
-			if (get_value_flag_zynpot(i)) {
-				printf("PT-%d = %d\n", i, get_value_zynpot(i));
-			}
+			printf("ZC%d = %d\n", i, get_value_zyncoder(i));
 		}
-		usleep(5000);
+		printf("-----------------------\n");
+		usleep(500000);
 	}
 
 	return 0;

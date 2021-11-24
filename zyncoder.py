@@ -38,14 +38,14 @@ lib_zyncoder=None
 def lib_zyncoder_init():
 	global lib_zyncoder
 	try:
-		lib_zyncoder=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
-		lib_zyncoder.init_zyncore()
+		lib_zyncoder=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncoder.so")
+		lib_zyncoder.init_zynlib()
 		#Setup return type for some functions
 		lib_zyncoder.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
 
 	except Exception as e:
 		lib_zyncoder=None
-		print("Can't init zyncore library: %s" % str(e))
+		print("Can't init zyncoder library: %s" % str(e))
 
 	return lib_zyncoder
 
