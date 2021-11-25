@@ -64,6 +64,10 @@ int32_t get_value_zynpot(uint8_t i);
 uint8_t get_value_flag_zynpot(uint8_t i);
 int set_value_zynpot(uint8_t i, int32_t v, int send);
 
+//-----------------------------------------------------------------------------
+// MIDI & OSC stuff
+//-----------------------------------------------------------------------------
+
 int setup_midi_zynpot(uint8_t i, uint8_t midi_chan, uint8_t midi_cc);
 int setup_osc_zynpot(uint8_t i, char *osc_path);
 int send_zynpot(uint8_t i);

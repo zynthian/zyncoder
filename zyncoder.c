@@ -123,7 +123,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 
 int setup_zynswitch(uint8_t i, uint8_t pin) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore: Zynswitch index %d out of range!\n", i);
+		printf("ZynCore->setup_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 	
@@ -154,7 +154,7 @@ int setup_zynswitch(uint8_t i, uint8_t pin) {
 
 int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore: Zynswitch index %d out of range!\n", i);
+		printf("ZynCore->setup_zynswitch_midi(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -178,7 +178,10 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 }
 
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
-	if (i >= MAX_NUM_ZYNSWITCHES) return 0;
+	if (i >= MAX_NUM_ZYNSWITCHES) {
+		printf("ZynCore->get_zynswitch_dtus(%d, ...): Invalid index!\n", i);
+		return 0;
+	}
 
 	unsigned int dtus=zynswitches[i].dtus;
 	if (dtus>0) {
