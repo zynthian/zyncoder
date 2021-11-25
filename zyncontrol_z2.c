@@ -82,15 +82,13 @@ void (*zyncoder_mcp23017_2_bank_ISRs[2])={
 //-----------------------------------------------------------------------------
 
 void init_zynswitches() {
-	reset_zyncoders();
-
 	zyncoder_mcp23017_node_1 = init_mcp23017(MCP23017_1_BASE_PIN, MCP23017_1_I2C_ADDRESS, MCP23017_1_INTA_PIN, MCP23017_1_INTB_PIN, zyncoder_mcp23017_1_bank_ISRs);
 	zyncoder_mcp23017_node_2 = init_mcp23017(MCP23017_2_BASE_PIN, MCP23017_2_I2C_ADDRESS, MCP23017_2_INTA_PIN, MCP23017_2_INTB_PIN, zyncoder_mcp23017_2_bank_ISRs);
 
 	int i;
 	printf("Setting-up 30 x Zynswitches...\n");
-	for (i=0;i<16;i++) setup_zynswitch(i,100+i);
-	for (i=0;i<14;i++) setup_zynswitch(16+i,200+i);
+	for (i=0;i<16;i++) setup_zynswitch(i, MCP23017_1_BASE_PIN + i);
+	for (i=0;i<14;i++) setup_zynswitch(16+i, MCP23017_2_BASE_PIN + i);
 }
 
 //-----------------------------------------------------------------------------
@@ -130,12 +128,15 @@ void init_zynpots() {
 
 int init_zyncontrol() {
 	wiringPiSetup();
+	reset_zynpots();
+	reset_zyncoders();
 	init_zynswitches();
 	init_zynpots();
 	return 1;
 }
 
 int end_zyncontrol() {
+	reset_zynpots();
 	reset_zyncoders();
 	reset_rv112s();
 	return 1;

@@ -73,6 +73,8 @@ typedef struct rv112_st {
 } rv112_t;
 rv112_t rv112s[MAX_NUM_RV112];
 
+int get_num_rv112s();
+
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv);
 int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);
 

@@ -23,6 +23,10 @@
  * ******************************************************************
  */
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "zynpot.h"
 #include "zyncoder.h"
 
@@ -78,22 +82,98 @@ void (*zyncoder_mcp23017_bank_ISRs[2])={
 #endif
 
 //-----------------------------------------------------------------------------
+// Get wiring config from environment
+//-----------------------------------------------------------------------------
+
+int zynswitch_pins[8];
+int zyncoder_pins_a[4];
+int zyncoder_pins_b[4];
+
+void reset_wiring_config() {
+	int i;
+	for (i=0;i<16;i++) zynswitch_pins[i] = 0;
+	for (i=0;i<4;i++) {
+		zyncoder_pins_a[i] = 0;
+		zyncoder_pins_b[i] = 0;
+	}
+}
+
+void parse_envar2intarr(const char *envar_name, int *result, int limit) {
+	const char *envar_ptr = getenv(envar_name);
+	if (envar_ptr) {
+		char envar_cpy[64];
+		char *save_ptr;
+		int i=0;
+		strcpy(envar_cpy, envar_ptr);
+		char *token = strtok_r(envar_cpy, ",", &save_ptr);
+		result[i++] = atoi(token);
+		while (token!=NULL && i<limit) {
+			token = strtok_r(NULL, ",", &save_ptr);
+			result[i++] = atoi(token);
+		}
+	}
+}
+
+void get_wiring_config() {
+	reset_wiring_config();
+	parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, 8);
+	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_A", zyncoder_pins_a, 4);
+	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_B", zyncoder_pins_b, 4);
+}
+
+//-----------------------------------------------------------------------------
+// 8 x ZynSwitches
+//-----------------------------------------------------------------------------
+
+void init_zynswitches() {
+	#if defined(MCP23017_ENCODERS)
+	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
+	#elif defined(MCP23008_ENCODERS)   
+	mcp23008Setup(MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
+	init_poll_zynswitches();
+	#endif
+
+	printf("Setting-up 8 x Zynswitches...\n");
+	int i;
+	for (i=0;i<8;i++) {
+		if (zynswitch_pins[i]>0) {
+			setup_zynswitch(i, zynswitch_pins[i]);
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// 4 x Zynpòts (Analog Encoder RV112)
+//-----------------------------------------------------------------------------
+
+void init_zynpots() {
+	printf("Setting-up 4 x Zynpots (zyncoders)...\n");
+	int i;
+	for (i=0;i<4;i++) {
+		if (zyncoder_pins_a[i]>0 && zyncoder_pins_b[i]>0) {
+			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
+			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
+			setup_rangescale_zynpot(i,0,127,64,0);
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 // Zyncontrol Initialization
 //-----------------------------------------------------------------------------
 
 int init_zyncontrol() {
-	reset_zyncoders();
 	wiringPiSetup();
-	#if defined(MCP23017_ENCODERS)
-	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
-#elif defined(MCP23008_ENCODERS)   
-	mcp23008Setup(MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
-	init_poll_zynswitches();
-#endif
+	reset_zynpots();
+	reset_zyncoders();
+	get_wiring_config();
+	init_zynswitches();
+	init_zynpots();
 	return 1;
 }
 
 int end_zyncontrol() {
+	reset_zynpots();
 	reset_zyncoders();
 	return 1;
 }

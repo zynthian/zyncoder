@@ -86,6 +86,15 @@ unsigned int int_to_int(unsigned int k) {
 // Zynswitches
 //-----------------------------------------------------------------------------
 
+int get_num_zynswitches() {
+	int i;
+	int n = 0;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
+		if (zynswitches[i].enabled!=0) n++;
+	}
+	return n;
+}
+
 void update_zynswitch(uint8_t i, uint8_t status) {
 	zynswitch_t *zsw = zynswitches + i;
 
@@ -260,6 +269,15 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 //-----------------------------------------------------------------------------
 // Incremental Rotary Encoders
 //-----------------------------------------------------------------------------
+
+int get_num_zyncoders() {
+	int i;
+	int n = 0;
+	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
+		if (zyncoders[i].enabled!=0) n++;
+	}
+	return n;
+}
 
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	zyncoder_t *zcdr = zyncoders + i;

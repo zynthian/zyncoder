@@ -70,7 +70,6 @@ else()
 	add_definitions(-DMCP23008_ENCODERS)
 endif()
 
-
 if (DEFINED ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU})
 	message("++ Forced wiringPiEmu")
 	set(ZYNTHIAN_FORCE_WIRINGPI_EMU "$ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU}")
@@ -86,9 +85,6 @@ elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V1")
 	message("++ Using Z2_V1")
 	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_z2.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
 	target_link_libraries(zyncore wiringPi jack lo)
-
-	add_executable(z2_test z2_test.c)
-	target_link_libraries(z2_test zyncore)
 
 elseif (NOT ZYNTHIAN_FORCE_WIRINGPI_EMU AND HAVE_WIRINGPI_LIB)
 	message("++ Using wiringPI")
@@ -109,18 +105,14 @@ elseif (NOT ZYNTHIAN_FORCE_WIRINGPI_EMU AND HAVE_WIRINGPI_LIB)
 		target_link_libraries(zyncore wiringPi jack lo)
 	endif()
 
-	add_executable(zyncoder_test zyncoder_test.c)
-	target_link_libraries(zyncoder_test zyncore)
-
 else()
 	message("++ Using wiringPiEmu")
 	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zyncoder.h zyncoder.c wiringPiEmu.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
 	target_link_libraries(zyncore jack lo)
 
-	add_executable(zyncoder_test zyncoder_test.c)
-	target_link_libraries(zyncoder_test zyncore)
-
 endif()
 
+add_executable(zyncoder_test zyncoder_test.c)
+target_link_libraries(zyncoder_test zyncore)
 
 install(TARGETS zyncore LIBRARY DESTINATION lib)

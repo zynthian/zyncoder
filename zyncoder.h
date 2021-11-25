@@ -71,6 +71,8 @@ typedef struct zynswitch_st {
 } zynswitch_t;
 zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 
+int get_num_zynswitches();
+
 int setup_zynswitch(uint8_t i, uint8_t pin); 
 int setup_zynswitch_midi(uint8_t i, midi_event_type midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val);
 
@@ -107,6 +109,8 @@ typedef struct zyncoder_st {
 	unsigned int dtus[ZYNCODER_TICKS_PER_RETENT];
 } zyncoder_t;
 zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
+
+int get_num_zyncoders();
 
 int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b);
 int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);

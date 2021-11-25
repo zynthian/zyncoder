@@ -44,6 +44,15 @@
 // RV112 Stuff
 //-----------------------------------------------------------------------------
 
+int get_num_rv112s() {
+	int i;
+	int n = 0;
+	for (i=0;i<MAX_NUM_RV112;i++) {
+		if (rv112s[i].enabled!=0) n++;
+	}
+	return n;
+}
+
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 	if (i > MAX_NUM_RV112) {
 		printf("ZynCore: RV112 index %d out of range!\n", i);

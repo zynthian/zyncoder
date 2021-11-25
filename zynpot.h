@@ -55,6 +55,8 @@ typedef struct zynpot_st {
 } zynpot_t;
 zynpot_t zynpots[MAX_NUM_ZYNPOTS];
 
+int get_num_zynpots();
+
 int setup_zynpot(uint8_t i, uint8_t type, uint8_t j);
 int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);
 

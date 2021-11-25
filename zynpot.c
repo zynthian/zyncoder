@@ -35,6 +35,15 @@
 // Generic Rotaries
 //-----------------------------------------------------------------------------
 
+int get_num_zynpots() {
+	int i;
+	int n = 0;
+	for (i=0;i<MAX_NUM_ZYNPOTS;i++) {
+		if (zynpots[i].type!=ZYNPOT_NONE) n++;
+	}
+	return n;
+}
+
 int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 	if (i>MAX_NUM_ZYNPOTS) {
 		printf("ZynCore: Zynpot index %d out of range!\n", i);
@@ -95,11 +104,12 @@ int setup_osc_zynpot(uint8_t i, char *osc_path) {
 
 	//printf("OSC PATH: %s\n",osc_path);
 	if (osc_path) {
-		char *osc_port_str=strtok(osc_path,":");
+		char *saveptr;
+		char *osc_port_str=strtok_r(osc_path, ":", &saveptr);
 		zpt->osc_port=atoi(osc_port_str);
 		if (zpt->osc_port>0) {
 			zpt->osc_lo_addr=lo_address_new(NULL, osc_port_str);
-			strcpy(zpt->osc_path,strtok(NULL,":"));
+			strcpy(zpt->osc_path, strtok_r(NULL, ":", &saveptr));
 		} else {
 			zpt->osc_path[0] = 0;
 		}
