@@ -85,14 +85,17 @@ void (*zyncoder_mcp23017_bank_ISRs[2])={
 // Get wiring config from environment
 //-----------------------------------------------------------------------------
 
-int zynswitch_pins[8];
-int zyncoder_pins_a[4];
-int zyncoder_pins_b[4];
+#define NUM_ZYNSWITCHES 8
+#define NUM_ZYNPOTS 4
+
+int zynswitch_pins[NUM_ZYNSWITCHES];
+int zyncoder_pins_a[NUM_ZYNPOTS];
+int zyncoder_pins_b[NUM_ZYNPOTS];
 
 void reset_wiring_config() {
 	int i;
-	for (i=0;i<16;i++) zynswitch_pins[i] = 0;
-	for (i=0;i<4;i++) {
+	for (i=0;i<NUM_ZYNSWITCHES;i++) zynswitch_pins[i] = 0;
+	for (i=0;i<NUM_ZYNPOTS;i++) {
 		zyncoder_pins_a[i] = 0;
 		zyncoder_pins_b[i] = 0;
 	}
@@ -101,7 +104,7 @@ void reset_wiring_config() {
 void parse_envar2intarr(const char *envar_name, int *result, int limit) {
 	const char *envar_ptr = getenv(envar_name);
 	if (envar_ptr) {
-		char envar_cpy[64];
+		char envar_cpy[128];
 		char *save_ptr;
 		int i=0;
 		strcpy(envar_cpy, envar_ptr);
@@ -116,9 +119,9 @@ void parse_envar2intarr(const char *envar_name, int *result, int limit) {
 
 void get_wiring_config() {
 	reset_wiring_config();
-	parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, 8);
-	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_A", zyncoder_pins_a, 4);
-	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_B", zyncoder_pins_b, 4);
+	parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, NUM_ZYNSWITCHES);
+	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_A", zyncoder_pins_a, NUM_ZYNPOTS);
+	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_B", zyncoder_pins_b, NUM_ZYNPOTS);
 }
 
 //-----------------------------------------------------------------------------
@@ -133,9 +136,9 @@ void init_zynswitches() {
 	init_poll_zynswitches();
 	#endif
 
-	printf("Setting-up 8 x Zynswitches...\n");
+	printf("Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	int i;
-	for (i=0;i<8;i++) {
+	for (i=0;i<NUM_ZYNSWITCHES;i++) {
 		if (zynswitch_pins[i]>0) {
 			setup_zynswitch(i, zynswitch_pins[i]);
 		}
@@ -147,9 +150,9 @@ void init_zynswitches() {
 //-----------------------------------------------------------------------------
 
 void init_zynpots() {
-	printf("Setting-up 4 x Zynpots (zyncoders)...\n");
+	printf("Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
 	int i;
-	for (i=0;i<4;i++) {
+	for (i=0;i<NUM_ZYNPOTS;i++) {
 		if (zyncoder_pins_a[i]>0 && zyncoder_pins_b[i]>0) {
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
