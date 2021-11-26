@@ -53,7 +53,7 @@ pthread_t init_poll_zynswitches();
 #endif
 
 //-----------------------------------------------------------------------------
-// Switches
+// Zynswitch data & functions
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNSWITCHES 32
@@ -71,6 +71,7 @@ typedef struct zynswitch_st {
 } zynswitch_t;
 zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 
+void reset_zynswitches();
 int get_num_zynswitches();
 
 int setup_zynswitch(uint8_t i, uint8_t pin); 
@@ -80,7 +81,7 @@ unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
 
 //-----------------------------------------------------------------------------
-// Incremental Rotary Encoders
+// Zyncoder data (Incremental Rotary Encoders)
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCODERS 4
@@ -92,17 +93,18 @@ typedef struct zyncoder_st {
 	uint8_t enabled;
 	int32_t min_value;
 	int32_t max_value;
+	int32_t step;
 	int32_t value;
 	uint8_t value_flag;
+	int8_t zpot_i;
 
 	// Next fields are zyncoder-specific
-
 	uint8_t pin_a;
 	uint8_t pin_b;
+	
 	uint8_t pin_a_last_state;
 	uint8_t pin_b_last_state;
 
-	unsigned int step;
 	unsigned int subvalue;
 	unsigned int last_encoded;
 	unsigned long tsus;
@@ -110,19 +112,18 @@ typedef struct zyncoder_st {
 } zyncoder_t;
 zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
 
+//-----------------------------------------------------------------------------
+// Zyncoder's zynpot API
+//-----------------------------------------------------------------------------
+
+void reset_zyncoders();
 int get_num_zyncoders();
 
 int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b);
-int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);
+int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
 int32_t get_value_zyncoder(uint8_t i);
 uint8_t get_value_flag_zyncoder(uint8_t i);
 int set_value_zyncoder(uint8_t i, int32_t v);
-
-//-----------------------------------------------------------------------------
-// Initialization
-//-----------------------------------------------------------------------------
-
-void reset_zyncoders();
 
 //-----------------------------------------------------------------------------

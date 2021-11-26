@@ -29,7 +29,7 @@
 #include "zynads1115.h"
 
 //-----------------------------------------------------------------------------
-// ADS1115 Stuff
+// ADS1115 data
 //-----------------------------------------------------------------------------
 
 #define ADS1115_VDD 3.3
@@ -37,6 +37,8 @@
 #define MAX_NUM_ADS1115 2
 struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 
+//-----------------------------------------------------------------------------
+// RV112 data
 //-----------------------------------------------------------------------------
 
 #define RV112_ADS1115_RANGE_100 (int)(0xFFFF*ADS1115_VDD/4.096)/2
@@ -47,21 +49,18 @@ struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 //#define RV112_ADS1115_NOISE_DIV 32
 #define RV112_ADS1115_NOISE_DIV 8
 
-//-----------------------------------------------------------------------------
-// RV112 
-//-----------------------------------------------------------------------------
-
 #define MAX_NUM_RV112 4
 
 typedef struct rv112_st {
 	uint8_t enabled;
 	uint32_t min_value;
 	uint32_t max_value;
+	int32_t step;
 	int32_t value;
 	uint8_t value_flag;
+	int8_t zpot_i;
 
 	// Next fields are RV112-specific
-
 	uint16_t base_pin;
 	uint16_t pinA;
 	uint16_t pinB;
@@ -73,23 +72,27 @@ typedef struct rv112_st {
 } rv112_t;
 rv112_t rv112s[MAX_NUM_RV112];
 
+//-----------------------------------------------------------------------------
+// RV112's zynpot API
+//-----------------------------------------------------------------------------
+
+void reset_rv112s();
 int get_num_rv112s();
 
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv);
-int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);
-
-int16_t read_rv112(uint8_t i);
-pthread_t init_poll_rv112();
+int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
 int32_t get_value_rv112(uint8_t i);
 uint8_t get_value_flag_rv112(uint8_t i);
 int set_value_rv112(uint8_t i, int32_t v);
 
+
 //-----------------------------------------------------------------------------
-// Initialization
+// RV112 specific functions
 //-----------------------------------------------------------------------------
 
-void reset_rv112s();
+int16_t read_rv112(uint8_t i);
+pthread_t init_poll_rv112();
 
 //-----------------------------------------------------------------------------
 

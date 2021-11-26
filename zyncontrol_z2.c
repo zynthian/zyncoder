@@ -82,6 +82,8 @@ void (*zyncoder_mcp23017_2_bank_ISRs[2])={
 //-----------------------------------------------------------------------------
 
 void init_zynswitches() {
+	reset_zynswitches();
+
 	zyncoder_mcp23017_node_1 = init_mcp23017(MCP23017_1_BASE_PIN, MCP23017_1_I2C_ADDRESS, MCP23017_1_INTA_PIN, MCP23017_1_INTB_PIN, zyncoder_mcp23017_1_bank_ISRs);
 	zyncoder_mcp23017_node_2 = init_mcp23017(MCP23017_2_BASE_PIN, MCP23017_2_I2C_ADDRESS, MCP23017_2_INTA_PIN, MCP23017_2_INTB_PIN, zyncoder_mcp23017_2_bank_ISRs);
 
@@ -104,12 +106,14 @@ void init_zynswitches() {
 #define RV112_ADS1115_RATE ADS1115_RATE_475SPS
 
 void init_zynpots() {
-	printf("Setting-up 4 x Zynpots (RV112)...\n");
+	reset_zynpots();
+	reset_rv112s();
 
 	ads1115_nodes[0] = init_ads1115(RV112_ADS1115_BASE_PIN_1, RV112_ADS1115_I2C_ADDRESS_1, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
 	ads1115_nodes[1] = init_ads1115(RV112_ADS1115_BASE_PIN_2, RV112_ADS1115_I2C_ADDRESS_2, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
-	
-	reset_rv112s();
+
+	printf("Setting-up 4 x Zynpots (RV112)...\n");
+
 	setup_rv112(0, RV112_ADS1115_BASE_PIN_1, 0);
 	setup_rv112(1, RV112_ADS1115_BASE_PIN_1, 0);
 	setup_rv112(2, RV112_ADS1115_BASE_PIN_2, 0);
@@ -128,8 +132,6 @@ void init_zynpots() {
 
 int init_zyncontrol() {
 	wiringPiSetup();
-	reset_zynpots();
-	reset_zyncoders();
 	init_zynswitches();
 	init_zynpots();
 	return 1;
@@ -138,7 +140,7 @@ int init_zyncontrol() {
 int end_zyncontrol() {
 	reset_zynpots();
 	reset_zyncoders();
-	reset_rv112s();
+	reset_zynswitches();
 	return 1;
 }
 

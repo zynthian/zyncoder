@@ -50,6 +50,7 @@
 	#include "zynaptik.h"
 #endif
 
+#include "zynpot.h"
 #include "zyncoder.h"
 
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
@@ -61,7 +62,6 @@
 // Function headers
 //-----------------------------------------------------------------------------
 
-extern int midi_event_zynpot(uint8_t midi_chan, uint8_t midi_cc, uint8_t val);
 void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status);
 
 void zynswitch_rbpi_ISR(uint8_t i);
@@ -83,8 +83,16 @@ unsigned int int_to_int(unsigned int k) {
 #endif
 
 //-----------------------------------------------------------------------------
-// Zynswitches
+// Zynswitch functions
 //-----------------------------------------------------------------------------
+
+void reset_zynswitches() {
+	int i;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
+		zynswitches[i].enabled = 0;
+		zynswitches[i].midi_event.type = NONE_EVENT;
+	}
+}
 
 int get_num_zynswitches() {
 	int i;
@@ -101,7 +109,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	if (status==zsw->status) return;
 	zsw->status=status;
 
-	// Note that MIDI is sent before software debouncing!!
+	// NOTE: It's called before software debouncing!!
 	send_zynswitch_midi(zsw, status);
 
 	struct timespec ts;
@@ -270,8 +278,19 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 }
 
 //-----------------------------------------------------------------------------
-// Incremental Rotary Encoders
+// Zyncoder's zynpot API
 //-----------------------------------------------------------------------------
+
+void reset_zyncoders() {
+	int i,j;
+	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
+		zyncoders[i].enabled = 0;
+		zyncoders[i].value_flag = 0;
+ 		zyncoders[i].zpot_i = -1;
+		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++)
+			zyncoders[i].dtus[j] = 0;
+	}
+}
 
 int get_num_zyncoders() {
 	int i;
@@ -337,10 +356,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 			zcdr->value=value;
 			zcdr->value_flag = 1;
-			//*******************
-			// TODO FIX THIS!!
-			//*******************
-			//send_zyncoder(i);
+			send_zynpot(zcdr->zpot_i);
 		}
 	} 
 	else {
@@ -350,10 +366,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		else if (zcdr->value>=zcdr->step && down) zcdr->value-=zcdr->step;
 		if (last_value!=zcdr->value) {
 			zcdr->value_flag = 1;
-			//*******************
-			// TODO FIX THIS!!
-			//*******************
-			//send_zyncoder(i);
+			send_zynpot(zcdr->zpot_i);
 		}
 	}
 }
@@ -404,7 +417,7 @@ int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b) {
 	return 1;
 }
 
-int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step) {
+int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step) {
 	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
 		printf("ZynCore->setup_rangescale_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
@@ -655,7 +668,6 @@ struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uin
 	return mcp23017_node;
 }
 
-
 void zynswitch_mcp23017_update(uint8_t i) {
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	zynswitch_t *zsw = zynswitches + i;
@@ -679,7 +691,6 @@ void zynswitch_mcp23017_update(uint8_t i) {
 	}
 	update_zynswitch(i, (uint8_t)bitRead(reg, bit));
 }
-
 
 void zyncoder_mcp23017_update(uint8_t i) {
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
@@ -706,7 +717,6 @@ void zyncoder_mcp23017_update(uint8_t i) {
 	}
 	update_zyncoder(i, (uint8_t)bitRead(reg, bit_a), (uint8_t)bitRead(reg, bit_b));
 }
-
 
 // ISR for handling the mcp23017 interrupts
 void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank) {
@@ -776,24 +786,5 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 	}
 }
 #endif
-
-
-//-----------------------------------------------------------------------------
-// Initialization
-//-----------------------------------------------------------------------------
-
-void reset_zyncoders() {
-	int i,j;
-	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
-		zynswitches[i].enabled = 0;
-		zynswitches[i].midi_event.type = NONE_EVENT;
-	}
-	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
-		zyncoders[i].enabled = 0;
-		zyncoders[i].value_flag = 0;
-		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++)
-			zyncoders[i].dtus[j] = 0;
-	}
-}
 
 //-----------------------------------------------------------------------------

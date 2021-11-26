@@ -129,6 +129,8 @@ void get_wiring_config() {
 //-----------------------------------------------------------------------------
 
 void init_zynswitches() {
+	reset_zynswitches();
+
 	#if defined(MCP23017_ENCODERS)
 	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
 	#elif defined(MCP23008_ENCODERS)   
@@ -136,8 +138,8 @@ void init_zynswitches() {
 	init_poll_zynswitches();
 	#endif
 
-	printf("Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	int i;
+	printf("Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	for (i=0;i<NUM_ZYNSWITCHES;i++) {
 		if (zynswitch_pins[i]>0) {
 			setup_zynswitch(i, zynswitch_pins[i]);
@@ -150,8 +152,11 @@ void init_zynswitches() {
 //-----------------------------------------------------------------------------
 
 void init_zynpots() {
-	printf("Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
+	reset_zynpots();
+	reset_zyncoders();
+
 	int i;
+	printf("Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
 	for (i=0;i<NUM_ZYNPOTS;i++) {
 		if (zyncoder_pins_a[i]>0 && zyncoder_pins_b[i]>0) {
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
@@ -167,8 +172,6 @@ void init_zynpots() {
 
 int init_zyncontrol() {
 	wiringPiSetup();
-	reset_zynpots();
-	reset_zyncoders();
 	get_wiring_config();
 	init_zynswitches();
 	init_zynpots();
@@ -178,6 +181,7 @@ int init_zyncontrol() {
 int end_zyncontrol() {
 	reset_zynpots();
 	reset_zyncoders();
+	reset_zynswitches();
 	return 1;
 }
 

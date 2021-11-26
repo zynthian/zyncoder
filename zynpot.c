@@ -32,8 +32,19 @@
 #include "zynrv112.h"
 
 //-----------------------------------------------------------------------------
-// Generic Rotaries
+// Zynpot common API
 //-----------------------------------------------------------------------------
+
+void reset_zynpots() {
+	int i;
+	for (i=0;i<MAX_NUM_ZYNPOTS;i++) {
+		zynpots[i].type = ZYNPOT_NONE;
+		zynpots[i].data = NULL;
+		zynpots[i].midi_chan = 0;
+		zynpots[i].midi_cc = 0;
+		zynpots[i].osc_path[0] = 0;
+	}
+}
 
 int get_num_zynpots() {
 	int i;
@@ -53,14 +64,16 @@ int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 	zynpots[i].i = ii;
 	switch (type) {
 		case ZYNPOT_ZYNCODER:
-			zynpots[i].data = zyncoders + ii;
+			zyncoders[i].zpot_i = i;
+			zynpots[i].data = (zynpot_data_t *) &zyncoders[ii];
 			zynpots[i].setup_rangescale = setup_rangescale_zyncoder;
 			zynpots[i].get_value = get_value_zyncoder;
 			zynpots[i].get_value_flag = get_value_flag_zyncoder;
 			zynpots[i].set_value = set_value_zyncoder;
 			break;
 		case ZYNPOT_RV112:
-			zynpots[i].data = rv112s + ii;
+			rv112s[i].zpot_i = i;
+			zynpots[i].data = (zynpot_data_t *) &rv112s[ii];
 			zynpots[i].setup_rangescale = setup_rangescale_rv112;
 			zynpots[i].get_value = get_value_rv112;
 			zynpots[i].get_value_flag = get_value_flag_rv112;
@@ -70,7 +83,7 @@ int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 	return 1;
 }
 
-int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step) {
+int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step) {
 	if (i>MAX_NUM_ZYNPOTS || zynpots[i].type==ZYNPOT_NONE) {
 		printf("ZynCore: Zynpot index %d out of range!\n", i);
 		return 0;
@@ -105,7 +118,7 @@ int set_value_zynpot(uint8_t i, int32_t v, int send) {
 }
 
 //-----------------------------------------------------------------------------
-// MIDI & OSC stuff
+// Zynpot MIDI & OSC API
 //-----------------------------------------------------------------------------
 
 int setup_midi_zynpot(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
@@ -164,11 +177,7 @@ int send_zynpot(uint8_t i) {
 		//printf("ZynCore: SEND MIDI CH#%d, CTRL %d = %d\n",zpt->midi_chan, zpt->midi_cc, value);
 	} else if (zpt->osc_lo_addr!=NULL && zpt->osc_path[0]) {
 		int32_t value = zpt->get_value(zpt->i);
-		//TODO *************************
-		//TODO FIX THIS SHIT!!!
-		//TODO *************************
-		//if (zyncoder->step >= 8) {
-		if (0) {
+		if (zpt->data->step >= 8) {
 			if (value>=64) {
 				lo_send(zpt->osc_lo_addr, zpt->osc_path, "T");
 				//printf("SEND OSC %s => T\n",zyncoder->osc_path);
@@ -190,27 +199,13 @@ int midi_event_zynpot(uint8_t midi_chan, uint8_t midi_cc, uint8_t val) {
 	for (i=0;i<MAX_NUM_ZYNPOTS;i++) {
 		if (zynpots[i].type && zynpots[i].midi_chan==midi_chan && zynpots[i].midi_cc==midi_cc) {
 			zynpots[i].set_value(zynpots[i].i, val);
+			//TODO VERIFY THIS WORKS OK!!!
 			//zyncoders[j].value=val;
 			//zyncoders[j].subvalue=val*ZYNCODER_TICKS_PER_RETENT;
 			//fprintf(stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_cc);
 		}
 	}
 	return 1;
-}
-
-//-----------------------------------------------------------------------------
-// Initialization
-//-----------------------------------------------------------------------------
-
-void reset_zynpots() {
-	int i;
-	for (i=0;i<MAX_NUM_ZYNPOTS;i++) {
-		zynpots[i].type = ZYNPOT_NONE;
-		zynpots[i].data = NULL;
-		zynpots[i].midi_chan = 0;
-		zynpots[i].midi_cc = 0;
-		zynpots[i].osc_path[0] = 0;
-	}
 }
 
 //-----------------------------------------------------------------------------

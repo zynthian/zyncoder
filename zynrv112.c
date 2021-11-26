@@ -38,11 +38,21 @@
 #include <wiringPiI2C.h>
 #include <ads1115.h>
 
+#include "zynpot.h"
 #include "zynrv112.h"
 
 //-----------------------------------------------------------------------------
-// RV112 Stuff
+// RV112's zynpot API
 //-----------------------------------------------------------------------------
+
+void reset_rv112s() {
+	int i;
+	for (i=0;i<MAX_NUM_RV112;i++) {
+		rv112s[i].enabled = 0;
+		rv112s[i].value_flag = 0;
+		rv112s[i].zpot_i = -1;
+	}
+}
 
 int get_num_rv112s() {
 	int i;
@@ -78,7 +88,7 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 	return 1;
 }
 
-int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step) {
+int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step) {
 	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
 		printf("ZynCore->setup_rangescale_rv112(%d, ...): Invalid index!\n", i);
 		return 0;
@@ -91,15 +101,45 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 	if (value>max_value) value = max_value;
 	else if (value<min_value) value = min_value;
 
-	//rv112s[i].step = step;
-	if (step>0) {
-		rv112s[i].value = value;
-		rv112s[i].min_value = min_value;
-		rv112s[i].max_value = max_value;
-	}
+	rv112s[i].step = step;
+	rv112s[i].value = value;
+	rv112s[i].min_value = min_value;
+	rv112s[i].max_value = max_value;
 
 	return 1;
 }
+
+int32_t get_value_rv112(uint8_t i) {
+	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
+		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
+		return 0;
+	}
+	rv112s[i].value_flag = 0;
+	return rv112s[i].value;
+}
+
+uint8_t get_value_flag_rv112(uint8_t i) {
+	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0)  {
+		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
+		return 0;
+	}
+	return rv112s[i].value_flag;
+}
+
+
+int set_value_rv112(uint8_t i, int32_t v) {
+	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
+		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
+		return 0;
+	}
+	rv112s[i].value = v;
+	rv112s[i].value_flag = 1;
+	return 1;
+}
+
+//-----------------------------------------------------------------------------
+// RV112 specific functions
+//-----------------------------------------------------------------------------
 
 int16_t read_rv112(uint8_t i) {
 	int32_t vA = analogRead(rv112s[i].pinA);
@@ -213,6 +253,7 @@ void * poll_rv112(void *arg) {
 				if (rv112s[i].lastdv!=0) {
 					rv112s[i].value += rv112s[i].lastdv;
 					rv112s[i].value_flag = 1;
+					send_zynpot(rv112s[i].zpot_i);
 					//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
 				}
 			}
@@ -230,46 +271,6 @@ pthread_t init_poll_rv112() {
 	} else {
 		fprintf(stdout, "ZynCore: RV112 poll thread created successfully\n");
 		return tid;
-	}
-}
-
-int32_t get_value_rv112(uint8_t i) {
-	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
-		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
-		return 0;
-	}
-	rv112s[i].value_flag = 0;
-	return rv112s[i].value;
-}
-
-uint8_t get_value_flag_rv112(uint8_t i) {
-	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0)  {
-		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
-		return 0;
-	}
-	return rv112s[i].value_flag;
-}
-
-
-int set_value_rv112(uint8_t i, int32_t v) {
-	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
-		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
-		return 0;
-	}
-	rv112s[i].value = v;
-	rv112s[i].value_flag = 1;
-	return 1;
-}
-
-//-----------------------------------------------------------------------------
-// Initialization
-//-----------------------------------------------------------------------------
-
-void reset_rv112s() {
-	int i;
-	for (i=0;i<MAX_NUM_RV112;i++) {
-		rv112s[i].enabled = 0;
-		rv112s[i].value_flag = 0;
 	}
 }
 

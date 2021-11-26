@@ -26,7 +26,7 @@
 #include <lo/lo.h>
 
 //-----------------------------------------------------------------------------
-// Generic Rotaries
+// Zynpot data
 //-----------------------------------------------------------------------------
 
 #define ZYNPOT_NONE 0
@@ -35,10 +35,21 @@
 
 #define MAX_NUM_ZYNPOTS 4
 
+typedef struct zynpot_data_st {
+	uint8_t enabled;
+	int32_t min_value;
+	int32_t max_value;
+	int32_t step;
+	int32_t value;
+	uint8_t value_flag;
+	int8_t zpot_i;
+} zynpot_data_t;
+
+
 typedef struct zynpot_st {
 	uint8_t type;
 	uint8_t i;
-	void *data;
+	zynpot_data_t *data;
 
 	uint8_t midi_chan;
 	uint8_t midi_cc;
@@ -48,36 +59,35 @@ typedef struct zynpot_st {
 	char osc_path[512];
 
 	// Function pointers
-	int (*setup_rangescale)(uint8_t, int32_t, int32_t, int32_t, unsigned int);
-	int (*get_value)(uint8_t);
+	int (*setup_rangescale)(uint8_t, int32_t, int32_t, int32_t, int32_t);
+	int32_t (*get_value)(uint8_t);
 	uint8_t (*get_value_flag)(uint8_t);
 	int (*set_value)(uint8_t, int32_t);
 } zynpot_t;
 zynpot_t zynpots[MAX_NUM_ZYNPOTS];
 
+//-----------------------------------------------------------------------------
+// Zynpot common API
+//-----------------------------------------------------------------------------
+
+void reset_zynpots();
 int get_num_zynpots();
 
-int setup_zynpot(uint8_t i, uint8_t type, uint8_t j);
-int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, unsigned int step);
+int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii);
+int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
 int32_t get_value_zynpot(uint8_t i);
 uint8_t get_value_flag_zynpot(uint8_t i);
 int set_value_zynpot(uint8_t i, int32_t v, int send);
 
 //-----------------------------------------------------------------------------
-// MIDI & OSC stuff
+// Zynpot MIDI & OSC API
 //-----------------------------------------------------------------------------
 
 int setup_midi_zynpot(uint8_t i, uint8_t midi_chan, uint8_t midi_cc);
 int setup_osc_zynpot(uint8_t i, char *osc_path);
 int send_zynpot(uint8_t i);
 int midi_event_zynpot(uint8_t midi_chan, uint8_t midi_cc, uint8_t val);
-
-//-----------------------------------------------------------------------------
-// Initialization
-//-----------------------------------------------------------------------------
-
-void reset_zynpots();
 
 //-----------------------------------------------------------------------------
 
