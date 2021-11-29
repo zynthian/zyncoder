@@ -96,7 +96,8 @@ int32_t get_value_zynpot(uint8_t i) {
 		printf("ZynCore->get_value_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
-	return zynpots[i].get_value(zynpots[i].i);
+	zynpots[i].data->value_flag=0;
+	return zynpots[i].data->value;
 }
 
 uint8_t get_value_flag_zynpot(uint8_t i) {
@@ -104,7 +105,7 @@ uint8_t get_value_flag_zynpot(uint8_t i) {
 		printf("ZynCore->get_value_flag_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
-	return zynpots[i].get_value_flag(zynpots[i].i);
+	return zynpots[i].data->value_flag;
 }
 
 int set_value_zynpot(uint8_t i, int32_t v, int send) {
@@ -169,14 +170,14 @@ int send_zynpot(uint8_t i) {
 	zynpot_t *zpt = zynpots + i;
 
 	if (zpt->midi_cc>0) {
-		int32_t value = zpt->get_value(zpt->i);
+		int32_t value = zpt->data->value;
 		//Send to MIDI output
 		internal_send_ccontrol_change(zpt->midi_chan, zpt->midi_cc, value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
 		//ctrlfb_send_ccontrol_change(zpt->midi_chan, zpt->midi_cc, value);
 		//printf("ZynCore: SEND MIDI CH#%d, CTRL %d = %d\n",zpt->midi_chan, zpt->midi_cc, value);
 	} else if (zpt->osc_lo_addr!=NULL && zpt->osc_path[0]) {
-		int32_t value = zpt->get_value(zpt->i);
+		int32_t value = zpt->data->value;
 		if (zpt->data->step >= 8) {
 			if (value>=64) {
 				lo_send(zpt->osc_lo_addr, zpt->osc_path, "T");

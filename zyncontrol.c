@@ -161,7 +161,6 @@ void init_zynpots() {
 		if (zyncoder_pins_a[i]>0 && zyncoder_pins_b[i]>0) {
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
-			setup_rangescale_zynpot(i,0,127,64,0);
 		}
 	}
 }

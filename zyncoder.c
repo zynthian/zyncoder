@@ -335,7 +335,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			zcdr->dtus[j]=zcdr->dtus[j+1];
 		zcdr->dtus[j]=dtus;
 		//Calculate step value
-		int dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
+		int32_t dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
 		if (dsval<1) dsval=1;
 		else if (dsval>2*ZYNCODER_TICKS_PER_RETENT) dsval=2*ZYNCODER_TICKS_PER_RETENT;
 
@@ -378,6 +378,8 @@ int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b) {
 	}
 	zyncoder_t *zcdr = zyncoders + i;
 
+	//setup_rangescale_zyncoder(i,0,127,64,0);
+	zcdr->step = 1;
 	zcdr->value = 0;
 	zcdr->subvalue = 0;
 	zcdr->min_value = 0;
@@ -433,16 +435,16 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 	else if (value<min_value) value = min_value;
 
 	zcdr->step = step;
-	if (step>0) {
-		zcdr->value = value;
-		zcdr->subvalue = 0;
-		zcdr->min_value = min_value;
-		zcdr->max_value = max_value;
-	} else {
+	if (step==0) {
 		zcdr->value = value;
 		zcdr->subvalue = ZYNCODER_TICKS_PER_RETENT * value;
 		zcdr->min_value = ZYNCODER_TICKS_PER_RETENT * min_value;
 		zcdr->max_value = ZYNCODER_TICKS_PER_RETENT * max_value;
+	} else {
+		zcdr->value = value;
+		zcdr->subvalue = 0;
+		zcdr->min_value = min_value;
+		zcdr->max_value = max_value;
 	}
 }
 
@@ -470,7 +472,6 @@ int set_value_zyncoder(uint8_t i, int32_t v) {
 	}
 	zyncoder_t *zcdr = zyncoders + i;
 
-	//unsigned int last_value=zcdr->value;
 	if (zcdr->step==0) {
 		v*=ZYNCODER_TICKS_PER_RETENT;
 		if (v>zcdr->max_value) zcdr->subvalue=zcdr->max_value;
@@ -480,7 +481,7 @@ int set_value_zyncoder(uint8_t i, int32_t v) {
 		if (v>zcdr->max_value) zcdr->value=zcdr->max_value;
 		else zcdr->value=v;
 	}
-	zcdr->value_flag = 1;
+	//zcdr->value_flag = 1;
 	return 1;
 }
 

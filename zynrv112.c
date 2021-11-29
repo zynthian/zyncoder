@@ -133,7 +133,7 @@ int set_value_rv112(uint8_t i, int32_t v) {
 		return 0;
 	}
 	rv112s[i].value = v;
-	rv112s[i].value_flag = 1;
+	//rv112s[i].value_flag = 1;
 	return 1;
 }
 
