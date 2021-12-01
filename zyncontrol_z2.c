@@ -49,7 +49,7 @@ void zyncoder_mcp23017_1_bankA_ISR() {
 void zyncoder_mcp23017_1_bankB_ISR() {
 	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node_1, MCP23017_1_BASE_PIN, 1);
 }
-void (*zyncoder_mcp23017_1_bank_ISRs[2])={
+void (*zyncoder_mcp23017_1_bank_ISRs[2]) = {
 	zyncoder_mcp23017_1_bankA_ISR,
 	zyncoder_mcp23017_1_bankB_ISR
 };
@@ -89,8 +89,8 @@ void init_zynswitches() {
 
 	int i;
 	printf("Setting-up 30 x Zynswitches...\n");
-	for (i=0;i<16;i++) setup_zynswitch(i, MCP23017_1_BASE_PIN + i);
-	for (i=0;i<14;i++) setup_zynswitch(16+i, MCP23017_2_BASE_PIN + i);
+	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i);
+	for (i=0;i<14;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i);
 }
 
 //-----------------------------------------------------------------------------

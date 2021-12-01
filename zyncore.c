@@ -27,37 +27,17 @@
 #include "zynmidirouter.h"
 #include "zynmaster.h"
 
-#ifdef ZYNAPTIK_CONFIG
-#include "zynaptik.h"
-#endif
-
-#ifdef ZYNTOF_CONFIG
-#include "zyntof.h"
-#endif
-
 //-----------------------------------------------------------------------------
 
 int init_zyncore() {
 	if (!init_zyncontrol()) return 0;
 	if (!init_zynmidirouter()) return 0;
-	#ifdef ZYNAPTIK_CONFIG
-	if (!init_zynaptik()) return 0;
-	#endif
-	#ifdef ZYNTOF_CONFIG
-	if (!init_zyntof()) return 0;
-	#endif
 	if (!init_zynmaster_jack()) return 0;
 	return 1;
 }
 
 int end_zyncore() {
 	if (!end_zynmaster_jack()) return 0;
-	#ifdef ZYNTOF_CONFIG
-	if (!end_zyntof()) return 0;
-	#endif
-	#ifdef ZYNAPTIK_CONFIG
-	if (!end_zynaptik()) return 0;
-	#endif
 	if (!end_zynmidirouter()) return 0;
 	if (!end_zyncontrol()) return 0;
 	return 1;

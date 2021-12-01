@@ -30,6 +30,14 @@
 #include "zynpot.h"
 #include "zyncoder.h"
 
+#ifdef ZYNAPTIK_CONFIG
+#include "zynaptik.h"
+#endif
+
+#ifdef ZYNTOF_CONFIG
+#include "zyntof.h"
+#endif
+
 //-----------------------------------------------------------------------------
 // GPIO Expander
 //-----------------------------------------------------------------------------
@@ -74,7 +82,7 @@ void zyncoder_mcp23017_bankA_ISR() {
 void zyncoder_mcp23017_bankB_ISR() {
 	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node, MCP23017_BASE_PIN, 1);
 }
-void (*zyncoder_mcp23017_bank_ISRs[2])={
+void (*zyncoder_mcp23017_bank_ISRs[2]) = {
 	zyncoder_mcp23017_bankA_ISR,
 	zyncoder_mcp23017_bankB_ISR
 };
@@ -174,10 +182,22 @@ int init_zyncontrol() {
 	get_wiring_config();
 	init_zynswitches();
 	init_zynpots();
+	#ifdef ZYNAPTIK_CONFIG
+		init_zynaptik();
+	#endif
+	#ifdef ZYNTOF_CONFIG
+		init_zyntof();
+	#endif
 	return 1;
 }
 
 int end_zyncontrol() {
+	#ifdef ZYNTOF_CONFIG
+		end_zyntof();
+	#endif
+	#ifdef ZYNAPTIK_CONFIG
+		end_zynaptik();
+	#endif
 	reset_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
