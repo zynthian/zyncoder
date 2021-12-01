@@ -48,13 +48,14 @@ struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 
 //#define RV112_ADS1115_NOISE_DIV 32
 #define RV112_ADS1115_NOISE_DIV 8
+#define RV112_ADS1115_MAX_VALRAW 1270
 
 #define MAX_NUM_RV112 4
 
 typedef struct rv112_st {
 	uint8_t enabled;
-	uint32_t min_value;
-	uint32_t max_value;
+	int32_t min_value;
+	int32_t max_value;
 	int32_t step;
 	int32_t value;
 	uint8_t value_flag;
@@ -69,6 +70,7 @@ typedef struct rv112_st {
 	int32_t valB;
 	uint8_t curseg;
 	int16_t lastdv;
+	int32_t valraw;
 } rv112_t;
 rv112_t rv112s[MAX_NUM_RV112];
 

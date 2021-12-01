@@ -49,8 +49,11 @@ void reset_rv112s() {
 	int i;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
+		rv112s[i].value = 0;
 		rv112s[i].value_flag = 0;
 		rv112s[i].zpot_i = -1;
+		rv112s[i].lastdv = 0;
+		rv112s[i].valraw = 0;
 	}
 }
 
@@ -84,6 +87,9 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 	rv112s[i].lastdv = 0;
 	rv112s[i].value = 0;
 	rv112s[i].value_flag = 0;
+	rv112s[i].step = 1;
+	rv112s[i].min_value = 0;
+	rv112s[i].max_value = 127;
 	rv112s[i].enabled = 1;
 	return 1;
 }
@@ -93,7 +99,7 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 		printf("ZynCore->setup_rangescale_rv112(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	if (min_value>max_value) {
+	if (min_value>=max_value) {
 		printf("ZynCore->setup_rangescale_rv112(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
 		return 0;
 	}
@@ -105,6 +111,7 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 	rv112s[i].value = value;
 	rv112s[i].min_value = min_value;
 	rv112s[i].max_value = max_value;
+	rv112s[i].valraw = RV112_ADS1115_MAX_VALRAW * (value - min_value) / (max_value - min_value);
 
 	return 1;
 }
@@ -132,8 +139,13 @@ int set_value_rv112(uint8_t i, int32_t v) {
 		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
 		return 0;
 	}
-	rv112s[i].value = v;
-	//rv112s[i].value_flag = 1;
+	if (v>rv112s[i].max_value) v = rv112s[i].max_value;
+	else if (v<rv112s[i].min_value) v = rv112s[i].min_value;
+	if (rv112s[i].value!=v) {
+		rv112s[i].value = v;
+		rv112s[i].valraw = RV112_ADS1115_MAX_VALRAW * (rv112s[i].value - rv112s[i].min_value) / (rv112s[i].max_value - rv112s[i].min_value);
+		//rv112s[i].value_flag = 1;
+	}
 	return 1;
 }
 
@@ -251,10 +263,16 @@ void * poll_rv112(void *arg) {
 			if (rv112s[i].enabled) {
 				rv112s[i].lastdv = read_rv112(i);
 				if (rv112s[i].lastdv!=0) {
-					rv112s[i].value += rv112s[i].lastdv;
-					rv112s[i].value_flag = 1;
-					send_zynpot(rv112s[i].zpot_i);
-					//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
+					int32_t vr = rv112s[i].valraw + rv112s[i].lastdv;
+					if (vr>RV112_ADS1115_MAX_VALRAW) vr = RV112_ADS1115_MAX_VALRAW;
+					else if (vr<0) vr = 0;
+					if (vr!=rv112s[i].valraw) {
+						rv112s[i].valraw = vr;
+						rv112s[i].value = rv112s[i].min_value + vr * (rv112s[i].max_value - rv112s[i].min_value) / RV112_ADS1115_MAX_VALRAW;
+						rv112s[i].value_flag = 1;
+						send_zynpot(rv112s[i].zpot_i);
+						//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
+					}
 				}
 			}
 		}
