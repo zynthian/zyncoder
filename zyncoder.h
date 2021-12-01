@@ -56,7 +56,7 @@ pthread_t init_poll_zynswitches();
 // Zynswitch data & functions
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNSWITCHES 32
+#define MAX_NUM_ZYNSWITCHES 36
 
 typedef struct zynswitch_st {
 	uint8_t enabled;
@@ -78,7 +78,7 @@ int setup_zynswitch(uint8_t i, uint8_t pin);
 int setup_zynswitch_midi(uint8_t i, midi_event_type midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val);
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
-unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus);
+int get_next_pending_zynswitch(uint8_t i);
 
 //-----------------------------------------------------------------------------
 // Zyncoder data (Incremental Rotary Encoders)

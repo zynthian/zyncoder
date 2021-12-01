@@ -109,6 +109,8 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	if (status==zsw->status) return;
 	zsw->status=status;
 
+	//printf("SWITCH ISR %d => STATUS=%d\n",i,status);
+
 	// NOTE: It's called before software debouncing!!
 	send_zynswitch_midi(zsw, status);
 
@@ -186,11 +188,6 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 }
 
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
-	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore->get_zynswitch_dtus(%d, ...): Invalid index!\n", i);
-		return 0;
-	}
-
 	unsigned int dtus=zynswitches[i].dtus;
 	if (dtus>0) {
 		zynswitches[i].dtus=0;
@@ -209,7 +206,19 @@ unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
 }
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus) {
+	if (i >= MAX_NUM_ZYNSWITCHES) {
+		printf("ZynCore->get_zynswitch_dtus(%d, ...): Invalid index!\n", i);
+		return 0;
+	}
 	return get_zynswitch_dtus(i, long_dtus);
+}
+
+int get_next_pending_zynswitch(uint8_t i) {
+	while (i<MAX_NUM_ZYNSWITCHES) {
+		if (zynswitches[i].dtus>0 || zynswitches[i].tsus>0) return (int)i;
+		i++;
+	} 
+	return -1;
 }
 
 void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
@@ -285,6 +294,7 @@ void reset_zyncoders() {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled = 0;
+		zyncoders[i].value = 0;
 		zyncoders[i].value_flag = 0;
  		zyncoders[i].zpot_i = -1;
 		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++)
@@ -424,7 +434,7 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 		printf("ZynCore->setup_rangescale_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	if (min_value>max_value) {
+	if (min_value>=max_value) {
 		printf("ZynCore->setup_rangescale_zyncoder(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
 		return 0;
 	}

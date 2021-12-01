@@ -57,9 +57,14 @@ int main() {
 	
 	printf("Testing switches & rotaries...\n");
 	while(1) {
-		for (i=0;i<num_zynswitches;i++) {
-			int ts = get_zynswitch(i,2000000);
-			if (ts>0) fprintf(stdout, "SW-%d = %d\n", i, ts);
+		i=0;
+		while (i>=0) {
+			i = get_next_pending_zynswitch(i);
+			if (i>=0) {
+				int dtus = get_zynswitch(i,2000000);
+				if (dtus>0) fprintf(stdout, "SW-%d = %d\n", i, dtus);
+				i++;
+			}
 		}
 		for (i=0;i<num_zynpots;i++) {
 			if (get_value_flag_zynpot(i)) {
