@@ -30,6 +30,7 @@
 #include "zyncoder.h"
 #include "zynads1115.h"
 #include "zynrv112.h"
+#include "lm4811.h"
 
 //-----------------------------------------------------------------------------
 // GPIO Expander 1
@@ -60,8 +61,10 @@ void (*zyncoder_mcp23017_1_bank_ISRs[2]) = {
 
 #define MCP23017_2_BASE_PIN 200
 #define MCP23017_2_I2C_ADDRESS 0x21
-#define MCP23017_2_INTA_PIN 11
-#define MCP23017_2_INTB_PIN 10
+#define MCP23017_2_INTA_PIN 0
+#define MCP23017_2_INTB_PIN 2
+//#define MCP23017_2_INTA_PIN 11
+//#define MCP23017_2_INTB_PIN 10
 
 struct wiringPiNodeStruct *zyncoder_mcp23017_node_2;
 
@@ -130,8 +133,13 @@ void init_zynpots() {
 // Zyncontrol Initialization
 //-----------------------------------------------------------------------------
 
+uint8_t set_hpvol(uint8_t vol) { return lm4811_set_volume(vol); }
+uint8_t get_hpvol() { return lm4811_get_volume(); }
+uint8_t get_hpvol_max() { return lm4811_get_volume_max(); }
+
 int init_zyncontrol() {
 	wiringPiSetup();
+	lm4811_init();
 	init_zynswitches();
 	init_zynpots();
 	return 1;
@@ -141,6 +149,7 @@ int end_zyncontrol() {
 	reset_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
+	lm4811_end();
 	return 1;
 }
 
