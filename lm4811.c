@@ -33,12 +33,10 @@
 
 //#define DEBUG
 
-#define Z2_VERSION 2
-
 #if Z2_VERSION==1
 	#define PIN_AMP_CLK 14
 	#define PIN_AMP_VOL 26
-#elif Z2_VERSION==2
+#else
 	#define PIN_AMP_CLK 7
 	#define PIN_AMP_VOL 27
 #endif

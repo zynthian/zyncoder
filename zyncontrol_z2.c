@@ -61,10 +61,14 @@ void (*zyncoder_mcp23017_1_bank_ISRs[2]) = {
 
 #define MCP23017_2_BASE_PIN 200
 #define MCP23017_2_I2C_ADDRESS 0x21
-#define MCP23017_2_INTA_PIN 0
-#define MCP23017_2_INTB_PIN 2
-//#define MCP23017_2_INTA_PIN 11
-//#define MCP23017_2_INTB_PIN 10
+
+#if Z2_VERSION==1
+	#define MCP23017_2_INTA_PIN 11
+	#define MCP23017_2_INTB_PIN 10
+#else
+	#define MCP23017_2_INTA_PIN 0
+	#define MCP23017_2_INTB_PIN 2
+#endif
 
 struct wiringPiNodeStruct *zyncoder_mcp23017_node_2;
 
