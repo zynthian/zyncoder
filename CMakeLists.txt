@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
+#project(zyncore LANGUAGES CXX)
 project(zyncore)
 
 include(CheckIncludeFiles)
@@ -82,6 +83,8 @@ if (DEFINED ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU})
 endif()
 
 message("++ Building for Wiring Layout $ENV{ZYNTHIAN_WIRING_LAYOUT}")
+
+set_source_files_properties( zynrv112.c PROPERTIES LANGUAGE CXX LINKER_LANGUAGE CXX)
 
 if ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "I2C_HWC")
 	message("++ Using wiringPi")

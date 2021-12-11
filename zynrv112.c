@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdbool.h> 
+#include <boost/circular_buffer.hpp>
 
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
@@ -111,7 +112,10 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 	rv112s[i].value = value;
 	rv112s[i].min_value = min_value;
 	rv112s[i].max_value = max_value;
-	rv112s[i].valraw = RV112_ADS1115_MAX_VALRAW * (value - min_value) / (max_value - min_value);
+	
+	if (step==0) rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW;
+	else rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW * step;
+	rv112s[i].valraw = (rv112s[i].max_valraw - 1) * (value - min_value) / (1 + max_value - min_value);
 
 	return 1;
 }
@@ -143,7 +147,7 @@ int set_value_rv112(uint8_t i, int32_t v) {
 	else if (v<rv112s[i].min_value) v = rv112s[i].min_value;
 	if (rv112s[i].value!=v) {
 		rv112s[i].value = v;
-		rv112s[i].valraw = RV112_ADS1115_MAX_VALRAW * (rv112s[i].value - rv112s[i].min_value) / (rv112s[i].max_value - rv112s[i].min_value);
+		rv112s[i].valraw = (rv112s[i].max_valraw-1) * (rv112s[i].value - rv112s[i].min_value) / (1 + rv112s[i].max_value - rv112s[i].min_value);
 		//rv112s[i].value_flag = 1;
 	}
 	return 1;
@@ -256,19 +260,31 @@ int16_t read_rv112(uint8_t i) {
 	return d / RV112_ADS1115_NOISE_DIV;
 }
 
+#define DVBUF_SIZE 200
+
 void * poll_rv112(void *arg) {
 	int i;
+	int32_t dvavg = 0;
+	boost::circular_buffer<int32_t> dvbuf(DVBUF_SIZE);
 	while (1) {
 		for (i=0;i<MAX_NUM_RV112;i++) {
 			if (rv112s[i].enabled) {
 				rv112s[i].lastdv = read_rv112(i);
 				if (rv112s[i].lastdv!=0) {
+					// Adaptative speed variation using a moving average 
+					if (rv112s[i].step==0) {
+						dvbuf.push_back(rv112s[i].lastdv);
+						dvavg += (dvbuf[DVBUF_SIZE-1] - dvbuf[0]) / DVBUF_SIZE;
+						if (dvavg < 20) rv112s[i].lastdv /= 8;
+						else if (dvavg < 30) rv112s[i].lastdv /= 4;
+						else if (dvavg < 40) rv112s[i].lastdv /= 2;
+					}
 					int32_t vr = rv112s[i].valraw + rv112s[i].lastdv;
-					if (vr>RV112_ADS1115_MAX_VALRAW) vr = RV112_ADS1115_MAX_VALRAW;
+					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw-1;
 					else if (vr<0) vr = 0;
 					if (vr!=rv112s[i].valraw) {
 						rv112s[i].valraw = vr;
-						rv112s[i].value = rv112s[i].min_value + vr * (rv112s[i].max_value - rv112s[i].min_value) / RV112_ADS1115_MAX_VALRAW;
+						rv112s[i].value = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / rv112s[i].max_valraw;
 						rv112s[i].value_flag = 1;
 						send_zynpot(rv112s[i].zpot_i);
 						//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);

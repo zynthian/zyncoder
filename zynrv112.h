@@ -71,8 +71,14 @@ typedef struct rv112_st {
 	uint8_t curseg;
 	int16_t lastdv;
 	int32_t valraw;
+	int32_t max_valraw;
 } rv112_t;
 rv112_t rv112s[MAX_NUM_RV112];
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //-----------------------------------------------------------------------------
 // RV112's zynpot API
@@ -88,7 +94,6 @@ int32_t get_value_rv112(uint8_t i);
 uint8_t get_value_flag_rv112(uint8_t i);
 int set_value_rv112(uint8_t i, int32_t v);
 
-
 //-----------------------------------------------------------------------------
 // RV112 specific functions
 //-----------------------------------------------------------------------------
@@ -98,3 +103,6 @@ pthread_t init_poll_rv112();
 
 //-----------------------------------------------------------------------------
 
+#ifdef __cplusplus
+}
+#endif
