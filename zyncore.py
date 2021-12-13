@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #********************************************************************
-# ZYNTHIAN PROJECT: Zyncoder Python Wrapper
+# ZYNTHIAN PROJECT: Zynthian Core library python wrapper
 # 
-# A Python wrapper for zyncoder library
+# A Python wrapper for Zynthian Core library
 # 
-# Copyright (C) 2015-2016 Fernando Moyano <jofemodo@zynthian.org>
+# Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
 #
 #********************************************************************
 # 
@@ -31,26 +31,26 @@ from numpy.ctypeslib import ndpointer
 # Zyncoder Library Wrapper
 #-------------------------------------------------------------------------------
 
-global lib_zyncoder
-lib_zyncoder=None
+global lib_zyncore
+lib_zyncore=None
 
 
-def lib_zyncoder_init():
-	global lib_zyncoder
+def lib_zyncore_init():
+	global lib_zyncore
 	try:
-		lib_zyncoder=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncoder.so")
-		lib_zyncoder.init_zynlib()
+		lib_zyncore=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
+		lib_zyncore.init_zyncore()
 		#Setup return type for some functions
-		lib_zyncoder.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
+		lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
 
 	except Exception as e:
-		lib_zyncoder=None
-		print("Can't init zyncoder library: %s" % str(e))
+		lib_zyncore=None
+		print("Can't init zyncore library: %s" % str(e))
 
-	return lib_zyncoder
+	return lib_zyncore
 
 
-def get_lib_zyncoder():
-	return lib_zyncoder
+def get_lib_zyncore():
+	return lib_zyncore
 
 #-------------------------------------------------------------------------------

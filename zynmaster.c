@@ -28,13 +28,17 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 
-#include "zyncoder.h"
+#ifdef ZYNAPTIK_CONFIG
+	#include "zynaptik.h"
+#endif
 
 //-----------------------------------------------------------------------------
 
 jack_client_t *zynmaster_jack_client;
 jack_port_t  *zynmaster_jack_port_midi_in;
 jack_port_t  *zynmaster_jack_port_midi_out;
+
+int zynmaster_jack_process(jack_nframes_t nframes, void *arg);
 
 //-----------------------------------------------------------------------------
 
