@@ -66,6 +66,11 @@ typedef struct zynpot_st {
 } zynpot_t;
 zynpot_t zynpots[MAX_NUM_ZYNPOTS];
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //-----------------------------------------------------------------------------
 // Zynpot common API
 //-----------------------------------------------------------------------------
@@ -90,4 +95,8 @@ int send_zynpot(uint8_t i);
 int midi_event_zynpot(uint8_t midi_chan, uint8_t midi_cc, uint8_t val);
 
 //-----------------------------------------------------------------------------
+
+#ifdef __cplusplus
+}
+#endif
 
