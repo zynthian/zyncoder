@@ -46,7 +46,7 @@
 // RV112's zynpot API
 //-----------------------------------------------------------------------------
 
-void reset_rv112s() {
+void init_rv112s() {
 	int i;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
@@ -55,6 +55,23 @@ void reset_rv112s() {
 		rv112s[i].zpot_i = -1;
 		rv112s[i].lastdv = 0;
 		rv112s[i].valraw = 0;
+		rv112s[i].dvavg = 0;
+		rv112s[i].dvbuf = new boost::circular_buffer<int32_t>(DVBUF_SIZE);
+	}
+}
+
+void end_rv112s() {
+	int i;
+	for (i=0;i<MAX_NUM_RV112;i++) {
+		rv112s[i].enabled = 0;
+		rv112s[i].value = 0;
+		rv112s[i].value_flag = 0;
+		rv112s[i].zpot_i = -1;
+		rv112s[i].lastdv = 0;
+		rv112s[i].valraw = 0;
+		rv112s[i].dvavg = 0;
+		delete (boost::circular_buffer<int32_t> *)rv112s[i].dvbuf;
+		rv112s[i].dvbuf = NULL;
 	}
 }
 
@@ -260,25 +277,25 @@ int16_t read_rv112(uint8_t i) {
 	return d / RV112_ADS1115_NOISE_DIV;
 }
 
-#define DVBUF_SIZE 200
 
 void * poll_rv112(void *arg) {
 	int i;
-	int32_t dvavg = 0;
-	boost::circular_buffer<int32_t> dvbuf(DVBUF_SIZE);
 	while (1) {
 		for (i=0;i<MAX_NUM_RV112;i++) {
 			if (rv112s[i].enabled) {
 				rv112s[i].lastdv = read_rv112(i);
+				// Adaptative speed variation using a moving average 
+				if (rv112s[i].step==0) {
+					boost::circular_buffer<int32_t> *dvbuf = (boost::circular_buffer<int32_t> *)rv112s[i].dvbuf;
+					dvbuf->push_back(rv112s[i].lastdv);
+					rv112s[i].dvavg += ((*dvbuf)[DVBUF_SIZE-1] - (*dvbuf)[0]) / DVBUF_SIZE;
+					//fprintf(stdout, "DVAVG %d = %d\n", i, avavg);
+				}
 				if (rv112s[i].lastdv!=0) {
-					// Adaptative speed variation using a moving average 
-					if (rv112s[i].step==0) {
-						dvbuf.push_back(rv112s[i].lastdv);
-						dvavg += (dvbuf[DVBUF_SIZE-1] - dvbuf[0]) / DVBUF_SIZE;
-						if (dvavg < 20) rv112s[i].lastdv /= 8;
-						else if (dvavg < 30) rv112s[i].lastdv /= 4;
-						else if (dvavg < 40) rv112s[i].lastdv /= 2;
-					}
+					if (rv112s[i].dvavg < 20) rv112s[i].lastdv /= 8;
+					else if (rv112s[i].dvavg < 30) rv112s[i].lastdv /= 4;
+					else if (rv112s[i].dvavg < 40) rv112s[i].lastdv /= 2;
+
 					int32_t vr = rv112s[i].valraw + rv112s[i].lastdv;
 					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw-1;
 					else if (vr<0) vr = 0;

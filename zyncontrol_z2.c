@@ -114,7 +114,7 @@ void init_zynswitches() {
 
 void init_zynpots() {
 	reset_zynpots();
-	reset_rv112s();
+	init_rv112s();
 
 	ads1115_nodes[0] = init_ads1115(RV112_ADS1115_BASE_PIN_1, RV112_ADS1115_I2C_ADDRESS_1, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
 	ads1115_nodes[1] = init_ads1115(RV112_ADS1115_BASE_PIN_2, RV112_ADS1115_I2C_ADDRESS_2, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
@@ -131,6 +131,11 @@ void init_zynpots() {
 	for (i=0;i<4;i++) {
 		setup_zynpot(i,ZYNPOT_RV112,i);
 	}
+}
+
+void end_zynpots() {
+	end_rv112s();
+	reset_zynpots();
 }
 
 //-----------------------------------------------------------------------------
@@ -150,7 +155,7 @@ int init_zyncontrol() {
 }
 
 int end_zyncontrol() {
-	reset_zynpots();
+	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
 	lm4811_end();

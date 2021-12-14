@@ -72,6 +72,8 @@ typedef struct rv112_st {
 	int16_t lastdv;
 	int32_t valraw;
 	int32_t max_valraw;
+	void *dvbuf;
+	int32_t dvavg;
 } rv112_t;
 rv112_t rv112s[MAX_NUM_RV112];
 
@@ -84,7 +86,11 @@ extern "C" {
 // RV112's zynpot API
 //-----------------------------------------------------------------------------
 
-void reset_rv112s();
+#define DVBUF_SIZE 200
+
+void init_rv112s();
+void end_rv112s();
+
 int get_num_rv112s();
 
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv);
