@@ -335,6 +335,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	#endif
 	zcdr->last_encoded=encoded;
 
+	int32_t value;
 	if (zcdr->step==0) {
 		//Get time interval from last tick
 		struct timespec ts;
@@ -360,35 +361,35 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		if (dsval<1) dsval=1;
 		else if (dsval>2*ZYNCODER_TICKS_PER_RETENT) dsval=2*ZYNCODER_TICKS_PER_RETENT;
 
-		int value=-1;
+		int32_t sv;
 		if (up) {
-			if (zcdr->max_value-zcdr->subvalue>=dsval) zcdr->subvalue=(zcdr->subvalue+dsval);
-			else zcdr->subvalue=zcdr->max_value;
-			value=zcdr->subvalue/ZYNCODER_TICKS_PER_RETENT;
+			sv = zcdr->subvalue + dsval;
+			if (sv > zcdr->max_value) sv = zcdr->max_value;
 		}
 		else if (down) {
-			if (zcdr->subvalue>=dsval) zcdr->subvalue=(zcdr->subvalue-dsval);
-			else zcdr->subvalue=0;
-			value=(zcdr->subvalue+ZYNCODER_TICKS_PER_RETENT-1)/ZYNCODER_TICKS_PER_RETENT;
+			sv = zcdr->subvalue - dsval;
+			if (sv < zcdr->min_value) sv = zcdr->min_value;
 		}
-
+		zcdr->subvalue = sv;
+		value = sv / ZYNCODER_TICKS_PER_RETENT;
 		zcdr->tsus=tsus;
-		if (value>=0 && zcdr->value!=value) {
-			//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
-			zcdr->value=value;
-			zcdr->value_flag = 1;
-			send_zynpot(zcdr->zpot_i);
-		}
+		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
 	else {
-		unsigned int last_value=zcdr->value;
-		if (zcdr->value>zcdr->max_value) zcdr->value=zcdr->max_value;
-		if (zcdr->max_value-zcdr->value>=zcdr->step && up) zcdr->value+=zcdr->step;
-		else if (zcdr->value>=zcdr->step && down) zcdr->value-=zcdr->step;
-		if (last_value!=zcdr->value) {
-			zcdr->value_flag = 1;
-			send_zynpot(zcdr->zpot_i);
+		if (up) {
+			value = zcdr->value + zcdr->step;
+			if (value>zcdr->max_value) value=zcdr->max_value;
 		}
+		else if (down) {
+			value = zcdr->value - zcdr->step;
+			if (value<zcdr->min_value) value=zcdr->min_value;
+		}
+	}
+
+	if (zcdr->value!=value) {
+		zcdr->value=value;
+		zcdr->value_flag = 1;
+		send_zynpot(zcdr->zpot_i);
 	}
 }
 
@@ -460,7 +461,7 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 		zcdr->value = value;
 		zcdr->subvalue = ZYNCODER_TICKS_PER_RETENT * value;
 		zcdr->min_value = ZYNCODER_TICKS_PER_RETENT * min_value;
-		zcdr->max_value = ZYNCODER_TICKS_PER_RETENT * max_value;
+		zcdr->max_value = ZYNCODER_TICKS_PER_RETENT * (max_value + 1) - 1;
 	} else {
 		zcdr->value = value;
 		zcdr->subvalue = 0;
@@ -496,10 +497,12 @@ int set_value_zyncoder(uint8_t i, int32_t v) {
 	if (zcdr->step==0) {
 		v*=ZYNCODER_TICKS_PER_RETENT;
 		if (v>zcdr->max_value) zcdr->subvalue=zcdr->max_value;
+		else if (v<zcdr->min_value) zcdr->subvalue=zcdr->min_value;
 		else zcdr->subvalue=v;
 		zcdr->value=zcdr->subvalue/ZYNCODER_TICKS_PER_RETENT;
 	} else {
 		if (v>zcdr->max_value) zcdr->value=zcdr->max_value;
+		else if (v<zcdr->min_value) zcdr->value=zcdr->max_value;
 		else zcdr->value=v;
 	}
 	//zcdr->value_flag = 1;
