@@ -103,6 +103,15 @@ int get_num_zynswitches() {
 	return n;
 }
 
+int get_last_zynswitch_index() {
+	int i;
+	int li = 0;
+	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
+		if (zynswitches[i].enabled!=0) li = i;
+	}
+	return li;
+}
+
 void update_zynswitch(uint8_t i, uint8_t status) {
 	zynswitch_t *zsw = zynswitches + i;
 
@@ -110,9 +119,6 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	zsw->status=status;
 
 	//printf("SWITCH ISR %d => STATUS=%d\n",i,status);
-
-	// NOTE: It's called before software debouncing!!
-	send_zynswitch_midi(zsw, status);
 
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -123,12 +129,17 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 		if (zsw->tsus>0) {
 			unsigned int dtus=tsus-zsw->tsus;
 			zsw->tsus=0;
-			//Ignore spurious ticks
+			//Ignore spurious clicks (SW debouncing)
 			if (dtus<1000) return;
 			//printf("Debounced Switch %d\n",i);
 			zsw->dtus=dtus;
 		}
-	} else zsw->tsus=tsus;
+	} else {
+		// Save push timestamp
+		zsw->tsus=tsus;
+		// Send MIDI when pushed => no SW debouncing!!
+		send_zynswitch_midi(zsw, status);
+	}
 }
 
 int setup_zynswitch(uint8_t i, uint8_t pin) {

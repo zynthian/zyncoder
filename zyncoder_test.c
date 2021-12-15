@@ -52,19 +52,23 @@ int main() {
 	}
 	#endif	
 
+	int last_zynswitch_index = get_last_zynswitch_index();
 	int num_zynswitches = get_num_zynswitches();
 	int num_zynpots = get_num_zynpots();
-	
+
+	//Configure zynpots
+	for (i=0; i<num_zynpots; i++) {
+		setup_rangescale_zynpot(i, 0, 100, 50, 0);
+	}
+	//setup_rangescale_zynpot(0, 0, 100, 50, 1);
+
 	printf("Testing switches & rotaries...\n");
 	while(1) {
 		i=0;
-		while (i>=0) {
-			i = get_next_pending_zynswitch(i);
-			if (i>=0) {
-				int dtus = get_zynswitch(i,2000000);
-				if (dtus>0) fprintf(stdout, "SW-%d = %d\n", i, dtus);
-				i++;
-			}
+		while (i <= last_zynswitch_index) {
+			int dtus = get_zynswitch(i, 2000000);
+			if (dtus>0) fprintf(stdout, "SW-%d = %d\n", i, dtus);
+			i++;
 		}
 		for (i=0;i<num_zynpots;i++) {
 			if (get_value_flag_zynpot(i)) {

@@ -86,7 +86,7 @@ extern "C" {
 // RV112's zynpot API
 //-----------------------------------------------------------------------------
 
-#define DVBUF_SIZE 200
+#define DVBUF_SIZE 10
 
 void init_rv112s();
 void end_rv112s();

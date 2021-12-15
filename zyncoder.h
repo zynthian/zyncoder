@@ -73,6 +73,7 @@ zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 
 void reset_zynswitches();
 int get_num_zynswitches();
+int get_last_zynswitch_index();
 
 int setup_zynswitch(uint8_t i, uint8_t pin); 
 int setup_zynswitch_midi(uint8_t i, midi_event_type midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val);
