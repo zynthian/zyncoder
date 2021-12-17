@@ -51,6 +51,7 @@ void init_rv112s() {
 	boost::circular_buffer<int32_t> *dvbuf;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
+		rv112s[i].inv = 0;
 		rv112s[i].value = 0;
 		rv112s[i].value_flag = 0;
 		rv112s[i].zpot_i = -1;
@@ -66,6 +67,7 @@ void end_rv112s() {
 	int i;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
+		rv112s[i].inv = 0;
 		rv112s[i].value = 0;
 		rv112s[i].value_flag = 0;
 		rv112s[i].zpot_i = -1;
@@ -108,6 +110,7 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 	rv112s[i].value = 0;
 	rv112s[i].value_flag = 0;
 	rv112s[i].step = 1;
+	rv112s[i].inv = 0;
 	rv112s[i].min_value = 0;
 	rv112s[i].max_value = 127;
 	rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW;
@@ -121,9 +124,19 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 		printf("ZynCore->setup_rangescale_rv112(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	if (min_value>=max_value) {
+	if (min_value==max_value) {
 		printf("ZynCore->setup_rangescale_rv112(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
 		return 0;
+	}
+
+	if (min_value>max_value) {
+		int32_t swapv = min_value;
+		min_value = max_value;
+		max_value = swapv;
+		rv112s[i].inv = 1;
+	}
+	else {
+		rv112s[i].inv = 0;
 	}
 
 	if (value>max_value) value = max_value;
@@ -303,7 +316,8 @@ void * poll_rv112(void *arg) {
 						else if (rv112s[i].dvavg < 2000) rv112s[i].lastdv /= 4;
 						else if (rv112s[i].dvavg < 4000) rv112s[i].lastdv /= 2;
 					}
-					vr = rv112s[i].valraw + rv112s[i].lastdv;
+					if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
+					else vr = rv112s[i].valraw + rv112s[i].lastdv;
 					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw-1;
 					else if (vr<0) vr = 0;
 					if (vr!=rv112s[i].valraw) {

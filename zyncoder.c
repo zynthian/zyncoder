@@ -305,6 +305,7 @@ void reset_zyncoders() {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled = 0;
+		zyncoders[i].inv = 0;
 		zyncoders[i].value = 0;
 		zyncoders[i].value_flag = 0;
  		zyncoders[i].zpot_i = -1;
@@ -327,11 +328,13 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 
 	uint8_t encoded = (msb << 1) | lsb;
 	uint8_t sum = (zcdr->last_encoded << 2) | encoded;
-	uint8_t up=(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011);
-	uint8_t down=0;
-	if (!up) down=(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000);
+	int spin;
+	if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) spin = 1;
+	else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) spin = -1;
+	else spin = 0;
+	if (zcdr->inv) spin = -spin;
 	#ifdef DEBUG
-	printf("zyncoder %2d - %08d\t%08d\t%d\t%d\n", i, int_to_int(encoded), int_to_int(sum), up, down);
+	//printf("zyncoder %2d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
 	#endif
 	zcdr->last_encoded=encoded;
 
@@ -362,11 +365,11 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		else if (dsval>2*ZYNCODER_TICKS_PER_RETENT) dsval=2*ZYNCODER_TICKS_PER_RETENT;
 
 		int32_t sv;
-		if (up) {
+		if (spin>0) {
 			sv = zcdr->subvalue + dsval;
 			if (sv > zcdr->max_value) sv = zcdr->max_value;
 		}
-		else if (down) {
+		else if (spin<0) {
 			sv = zcdr->subvalue - dsval;
 			if (sv < zcdr->min_value) sv = zcdr->min_value;
 		}
@@ -376,11 +379,11 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
 	else {
-		if (up) {
+		if (spin>0) {
 			value = zcdr->value + zcdr->step;
 			if (value>zcdr->max_value) value=zcdr->max_value;
 		}
-		else if (down) {
+		else if (spin<0) {
 			value = zcdr->value - zcdr->step;
 			if (value<zcdr->min_value) value=zcdr->min_value;
 		}
@@ -401,6 +404,7 @@ int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b) {
 	zyncoder_t *zcdr = zyncoders + i;
 
 	//setup_rangescale_zyncoder(i,0,127,64,0);
+	zcdr->inv = 0;
 	zcdr->step = 1;
 	zcdr->value = 0;
 	zcdr->subvalue = 0;
@@ -446,12 +450,22 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 		printf("ZynCore->setup_rangescale_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	if (min_value>=max_value) {
+	if (min_value==max_value) {
 		printf("ZynCore->setup_rangescale_zyncoder(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
 		return 0;
 	}
 
 	zyncoder_t *zcdr = zyncoders + i;
+
+	if (min_value>max_value) {
+		int32_t swapv = min_value;
+		min_value = max_value;
+		max_value = swapv;
+		zcdr->inv = 1;
+	}
+	else {
+		zcdr->inv = 0;
+	}
 
 	if (value>max_value) value = max_value;
 	else if (value<min_value) value = min_value;

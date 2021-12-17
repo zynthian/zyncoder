@@ -95,6 +95,7 @@ typedef struct zyncoder_st {
 	int32_t min_value;
 	int32_t max_value;
 	int32_t step;
+	uint8_t inv;
 	int32_t value;
 	uint8_t value_flag;
 	int8_t zpot_i;
