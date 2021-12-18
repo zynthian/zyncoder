@@ -166,7 +166,7 @@ void init_zynpots() {
 	int i;
 	printf("Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
 	for (i=0;i<NUM_ZYNPOTS;i++) {
-		if (zyncoder_pins_a[i]>0 && zyncoder_pins_b[i]>0) {
+		if (zyncoder_pins_a[i]>-1 && zyncoder_pins_b[i]>-1) {
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
 		}
