@@ -117,10 +117,9 @@ void parse_envar2intarr(const char *envar_name, int *result, int limit) {
 		int i=0;
 		strcpy(envar_cpy, envar_ptr);
 		char *token = strtok_r(envar_cpy, ",", &save_ptr);
-		result[i++] = atoi(token);
 		while (token!=NULL && i<limit) {
-			token = strtok_r(NULL, ",", &save_ptr);
 			result[i++] = atoi(token);
+			token = strtok_r(NULL, ",", &save_ptr);
 		}
 	}
 }
