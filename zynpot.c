@@ -1,13 +1,13 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: Zynpot, wrapper library for rotaries
- * 
+ *
  * Library for interfacing rotaries of several types
- * 
+ *
  * Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -114,6 +114,7 @@ int set_value_zynpot(uint8_t i, int32_t v, int send) {
 		return 0;
 	}
 	zynpots[i].set_value(zynpots[i].i, v);
+	zynpots[i].data->value_flag=1;
 	if (send) send_zynpot(i);
 	return 1;
 }
