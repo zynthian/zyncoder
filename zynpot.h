@@ -85,6 +85,7 @@ int setup_rangescale_zynpot(uint8_t i, int32_t min_value, int32_t max_value, int
 int32_t get_value_zynpot(uint8_t i);
 uint8_t get_value_flag_zynpot(uint8_t i);
 int set_value_zynpot(uint8_t i, int32_t v, int send);
+int set_value_noflag_zynpot(uint8_t i, int32_t v);
 
 //-----------------------------------------------------------------------------
 // Zynpot MIDI & OSC API

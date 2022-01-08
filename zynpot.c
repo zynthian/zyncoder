@@ -114,9 +114,17 @@ int set_value_zynpot(uint8_t i, int32_t v, int send) {
 		return 0;
 	}
 	zynpots[i].set_value(zynpots[i].i, v);
-	// It breaks dummy encoders!
-	//zynpots[i].data->value_flag=1;
+	zynpots[i].data->value_flag=1;
 	if (send) send_zynpot(i);
+	return 1;
+}
+
+int set_value_noflag_zynpot(uint8_t i, int32_t v) {
+	if (i>=MAX_NUM_ZYNPOTS || zynpots[i].type==ZYNPOT_NONE) {
+		printf("ZynCore->_set_value_zynpot(%d, %d): Invalid index!\n", i, v);
+		return 0;
+	}
+	zynpots[i].set_value(zynpots[i].i, v);
 	return 1;
 }
 
