@@ -114,7 +114,8 @@ int set_value_zynpot(uint8_t i, int32_t v, int send) {
 		return 0;
 	}
 	zynpots[i].set_value(zynpots[i].i, v);
-	zynpots[i].data->value_flag=1;
+	// It breaks dummy encoders!
+	//zynpots[i].data->value_flag=1;
 	if (send) send_zynpot(i);
 	return 1;
 }
