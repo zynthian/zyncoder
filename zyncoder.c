@@ -392,7 +392,9 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	if (zcdr->value!=value) {
 		zcdr->value=value;
 		zcdr->value_flag = 1;
-		send_zynpot(zcdr->zpot_i);
+		if (zcdr->zpot_i>0) {
+			send_zynpot(zcdr->zpot_i);
+		}
 	}
 }
 
@@ -482,6 +484,7 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 		zcdr->min_value = min_value;
 		zcdr->max_value = max_value;
 	}
+	zcdr->value_flag = 0;
 }
 
 int32_t get_value_zyncoder(uint8_t i) {
@@ -754,7 +757,11 @@ void zyncoder_mcp23017_update(uint8_t i) {
 	} else {
 		printf("ZynCore: zyncoder_mcp23017_update(%d) => pins (%d, %d) out of range or in different bank!\n", i, bit_a, bit_b);
 	}
-	update_zyncoder(i, (uint8_t)bitRead(reg, bit_a), (uint8_t)bitRead(reg, bit_b));
+	uint8_t state_a = bitRead(reg, bit_a);
+	uint8_t state_b = bitRead(reg, bit_b);
+	update_zyncoder(i, state_a, state_b);
+	zcdr->pin_a_last_state = state_a;
+	zcdr->pin_b_last_state = state_b;
 }
 
 // ISR for handling the mcp23017 interrupts
@@ -798,9 +805,7 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 			// if either bit is different
 			if ((state_a != zcdr->pin_a_last_state) ||
 			    (state_b != zcdr->pin_b_last_state)) {
-				// call the update function
 				update_zyncoder(i, state_a, state_b);
-				// update the last state
 				zcdr->pin_a_last_state = state_a;
 				zcdr->pin_b_last_state = state_b;
 			}

@@ -151,6 +151,8 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 	else rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW * step;
 	rv112s[i].valraw = (rv112s[i].max_valraw - 1) * (value - min_value) / (1 + max_value - min_value);
 
+	rv112s[i].value_flag = 0;
+
 	return 1;
 }
 
@@ -326,7 +328,9 @@ void * poll_rv112(void *arg) {
 						if (v!=rv112s[i].value) {
 							rv112s[i].value = v;
 							rv112s[i].value_flag = 1;
-							send_zynpot(rv112s[i].zpot_i);
+							if (rv112s[i].zpot_i>0) {
+								send_zynpot(rv112s[i].zpot_i);
+							}
 							//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
 						}
 					}
