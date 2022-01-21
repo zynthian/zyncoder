@@ -138,6 +138,28 @@ void refresh_zynaptik_cvouts();
 #define REFRESH_ZYNAPTIK_CVOUTS_US 40000
 
 //-----------------------------------------------------------------------------
+// GATE-OUT: Set Digital Outputs from MIDI Notes
+//-----------------------------------------------------------------------------
+
+#define MAX_NUM_ZYNGATEOUTS 16
+
+struct zyngateout_st {
+	uint8_t enabled;
+
+	int midi_evt;
+	uint8_t midi_chan;
+	uint8_t midi_num;
+
+	uint16_t midi_event_temp;
+	uint16_t midi_event_mask;
+};
+struct zyngateout_st zyngateouts[MAX_NUM_ZYNGATEOUTS];
+
+void setup_zynaptik_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void disable_zynaptik_gateout(uint8_t i);
+void zynaptik_midi_to_gateout(jack_midi_event_t *ev);
+
+//-----------------------------------------------------------------------------
 // Zynaptik Library Initialization
 //-----------------------------------------------------------------------------
 

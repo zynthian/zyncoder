@@ -40,6 +40,7 @@ int end_zynmidirouter();
 
 typedef enum midi_event_type_enum {
 	//Router-internal pseudo-message codes
+	GATE_OUT_EVENT=-6,
 	CVGATE_OUT_EVENT=-5,
 	CVGATE_IN_EVENT=-4,
 	SWAP_EVENT=-3,

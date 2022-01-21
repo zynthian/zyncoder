@@ -100,6 +100,7 @@ int zynmaster_jack_process(jack_nframes_t nframes, void *arg) {
 	while (jack_midi_event_get(&ev, input_port_buffer, i++)==0) {
 		#ifdef ZYNAPTIK_CONFIG
 		zynaptik_midi_to_cvout(&ev);
+		zynaptik_midi_to_gateout(&ev);
 		#endif
 		
 		if (jack_midi_event_write(output_port_buffer, ev.time, ev.buffer, ev.size)!=0) {
