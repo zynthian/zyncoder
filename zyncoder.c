@@ -605,7 +605,7 @@ void update_expanded_zynswitches() {
 		//printf("POLLING SWITCH %d (%d) => %d\n",i,zsw->pin,status);
 		if (status==zsw->status) continue;
 		zsw->status=status;
-		send_zynswitch_midi(zynswitch, status);
+		send_zynswitch_midi(zsw, status);
 		//printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
 		if (zsw->status==1) {
 			if (zsw->tsus>0) {
