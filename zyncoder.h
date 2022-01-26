@@ -61,6 +61,7 @@ pthread_t init_poll_zynswitches();
 typedef struct zynswitch_st {
 	uint8_t enabled;
 	uint8_t pin;
+	uint8_t push;
 	unsigned long tsus;
 	unsigned int dtus;
 	// note that this status is like the pin_[ab]_last_state for the zyncoders

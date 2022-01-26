@@ -136,6 +136,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 		}
 	} else {
 		// Save push timestamp
+		zsw->push=1;
 		zsw->tsus=tsus;
 		// Send MIDI when pushed => no SW debouncing!!
 		send_zynswitch_midi(zsw, status);
@@ -151,6 +152,7 @@ int setup_zynswitch(uint8_t i, uint8_t pin) {
 	zynswitch_t *zsw = zynswitches + i;
 	zsw->enabled = 1;
 	zsw->pin = pin;
+	zsw->push=0;
 	zsw->tsus = 0;
 	zsw->dtus = 0;
 	zsw->status = 0;
@@ -217,15 +219,20 @@ unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
 			return dtus;
 		}
 	}
-	return 0;
+	return -1;
 }
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore->get_zynswitch_dtus(%d, ...): Invalid index!\n", i);
+		printf("ZynCore->get_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	return get_zynswitch_dtus(i, long_dtus);
+	if (zynswitches[i].push) {
+		zynswitches[i].push = 0;
+		return 0;
+	} else  {
+		return get_zynswitch_dtus(i, long_dtus);
+	}
 }
 
 int get_next_pending_zynswitch(uint8_t i) {
