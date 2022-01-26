@@ -146,7 +146,7 @@ void init_zynswitches() {
 	#endif
 
 	int i;
-	printf("Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
+	printf("ZynCore: Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	for (i=0;i<NUM_ZYNSWITCHES;i++) {
 		if (zynswitch_pins[i]>0) {
 			setup_zynswitch(i, zynswitch_pins[i]);
@@ -163,7 +163,7 @@ void init_zynpots() {
 	reset_zyncoders();
 
 	int i;
-	printf("Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
+	printf("ZynCore: Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
 	for (i=0;i<NUM_ZYNPOTS;i++) {
 		if (zyncoder_pins_a[i]>-1 && zyncoder_pins_b[i]>-1) {
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
