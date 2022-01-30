@@ -328,7 +328,7 @@ void * poll_rv112(void *arg) {
 						if (v!=rv112s[i].value) {
 							rv112s[i].value = v;
 							rv112s[i].value_flag = 1;
-							if (rv112s[i].zpot_i>0) {
+							if (rv112s[i].zpot_i>=0) {
 								send_zynpot(rv112s[i].zpot_i);
 							}
 							//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);

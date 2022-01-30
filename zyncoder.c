@@ -403,7 +403,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	if (zcdr->value!=value) {
 		zcdr->value=value;
 		zcdr->value_flag = 1;
-		if (zcdr->zpot_i>0) {
+		if (zcdr->zpot_i>=0) {
 			send_zynpot(zcdr->zpot_i);
 		}
 	}
