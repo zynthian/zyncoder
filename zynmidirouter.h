@@ -208,8 +208,60 @@ void reset_midi_filter_cc_swap();
 
 #define JACK_MIDI_BUFFER_SIZE 4096
 
+#define ZMOP_CH0 0
+#define ZMOP_CH1 1
+#define ZMOP_CH2 2
+#define ZMOP_CH3 3
+#define ZMOP_CH4 4
+#define ZMOP_CH5 5
+#define ZMOP_CH6 6
+#define ZMOP_CH7 7
+#define ZMOP_CH8 8
+#define ZMOP_CH9 9
+#define ZMOP_CH10 10
+#define ZMOP_CH11 11
+#define ZMOP_CH12 12
+#define ZMOP_CH13 13
+#define ZMOP_CH14 14
+#define ZMOP_CH15 15
+#define ZMOP_MAIN 16
+#define ZMOP_MIDI 17
+#define ZMOP_NET 18
+#define ZMOP_STEP 19
+#define ZMOP_CTRL 20
+#define MAX_NUM_ZMOPS 21
+#define NUM_ZMOP_CHAINS 16
+
+#define ZMIP_DEV0 0
+#define ZMIP_DEV1 1
+#define ZMIP_DEV2 2
+#define ZMIP_DEV3 3
+#define ZMIP_DEV4 4
+#define ZMIP_DEV5 5
+#define ZMIP_DEV6 6
+#define ZMIP_DEV7 7
+#define ZMIP_DEV8 8
+#define ZMIP_DEV9 9
+#define ZMIP_DEV10 10
+#define ZMIP_DEV11 11
+#define ZMIP_DEV12 12
+#define ZMIP_DEV13 13
+#define ZMIP_DEV14 14
+#define ZMIP_DEV15 15
+#define ZMIP_NET 16
+#define ZMIP_SEQ 17
+#define ZMIP_STEP 18
+#define ZMIP_CTRL 19
+#define ZMIP_FAKE_INT 20
+#define ZMIP_FAKE_UI 21
+#define ZMIP_FAKE_CTRL_FB 22
+#define MAX_NUM_ZMIPS 23
+#define NUM_ZMIP_DEVS 16
+
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_TUNING 2
+
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_ZYNCODER 2
@@ -219,79 +271,6 @@ void reset_midi_filter_cc_swap();
 #define FLAG_ZMIP_NOTERANGE 32
 #define FLAG_ZMIP_ACTIVE_CHAN 64
 
-#define ZMOP_MAIN 0
-#define ZMOP_MIDI 1
-#define ZMOP_NET 2
-#define ZMOP_CH0 3
-#define ZMOP_CH1 4
-#define ZMOP_CH2 5
-#define ZMOP_CH3 6
-#define ZMOP_CH4 7
-#define ZMOP_CH5 8
-#define ZMOP_CH6 9
-#define ZMOP_CH7 10
-#define ZMOP_CH8 11
-#define ZMOP_CH9 12
-#define ZMOP_CH10 13
-#define ZMOP_CH11 14
-#define ZMOP_CH12 15
-#define ZMOP_CH13 16
-#define ZMOP_CH14 17
-#define ZMOP_CH15 18
-#define ZMOP_STEP 19
-#define ZMOP_CTRL 20
-#define MAX_NUM_ZMOPS 21
-/*
-#define ZMOP_DEV0 21
-#define ZMOP_DEV1 22
-#define ZMOP_DEV2 23
-#define ZMOP_DEV3 24
-#define ZMOP_DEV4 25
-#define ZMOP_DEV5 26
-#define ZMOP_DEV6 27
-#define ZMOP_DEV7 28
-#define ZMOP_DEV8 29
-#define ZMOP_DEV9 30
-#define ZMOP_DEV10 31
-#define ZMOP_DEV11 32
-#define ZMOP_DEV12 33
-#define ZMOP_DEV13 34
-#define ZMOP_DEV14 35
-#define ZMOP_DEV15 36
-#define MAX_NUM_ZMOPS 37
-*/
-
-#define ZMIP_MAIN 0
-#define ZMIP_NET 1
-#define ZMIP_SEQ 2
-#define ZMIP_STEP 3
-#define ZMIP_CTRL 4
-#define ZMIP_FAKE_INT 5
-#define ZMIP_FAKE_UI 6
-#define ZMIP_FAKE_CTRL_FB 7
-#define MAX_NUM_ZMIPS 8
-/*
-#define ZMIP_DEV0 8
-#define ZMIP_DEV1 9
-#define ZMIP_DEV2 10
-#define ZMIP_DEV3 11
-#define ZMIP_DEV4 12
-#define ZMIP_DEV5 13
-#define ZMIP_DEV6 14
-#define ZMIP_DEV7 15
-#define ZMIP_DEV8 16
-#define ZMIP_DEV9 17
-#define ZMIP_DEV10 18
-#define ZMIP_DEV11 19
-#define ZMIP_DEV12 20
-#define ZMIP_DEV13 21
-#define ZMIP_DEV14 22
-#define ZMIP_DEV15 23
-#define MAX_NUM_ZMIPS 24
-*/
-
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
-
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE|FLAG_ZMIP_ACTIVE_CHAN)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_ACTIVE_CHAN)
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
@@ -299,7 +278,7 @@ void reset_midi_filter_cc_swap();
 
 struct zmop_st {
 	jack_port_t *jport;
-	int midi_channel;
+	int midi_chans[16];
 	int route_from_zmips[MAX_NUM_ZMIPS];
 	int event_counter[MAX_NUM_ZMIPS];
 	uint32_t flags;
@@ -307,12 +286,17 @@ struct zmop_st {
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
-int zmop_init(int iz, char *name, int ch, uint32_t flags);
+int zmop_init(int iz, char *name, int midi_chan, uint32_t flags);
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
-int zmop_chan_set_flag_droppc(int iz, uint8_t flag);
-int zmop_chan_get_flag_droppc(int ch);
+int zmop_chain_set_flag_droppc(int iz, uint8_t flag);
+int zmop_chain_get_flag_droppc(int ch);
+int zmop_reset_midi_chans(int iz);
+int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to);
+int zmop_get_midi_chan(int iz, int midi_chan);
+int zmop_reset_route_from(int iz);
 int zmop_set_route_from(int izmop, int izmip, int route);
+int zmop_get_route_from(int izmop, int izmip);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
 
@@ -408,6 +392,7 @@ int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_program_change(uint8_t chan, uint8_t num);
+int write_zynmidi_ccontrol_switch(uint8_t chan, uint8_t num);
 
 
 //-----------------------------------------------------------------------------

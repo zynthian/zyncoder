@@ -183,7 +183,7 @@ int set_value_rv112(uint8_t i, int32_t v) {
 	else if (v<rv112s[i].min_value) v = rv112s[i].min_value;
 	if (rv112s[i].value!=v) {
 		rv112s[i].value = v;
-		rv112s[i].valraw = (rv112s[i].max_valraw-1) * (rv112s[i].value - rv112s[i].min_value) / (1 + rv112s[i].max_value - rv112s[i].min_value);
+		rv112s[i].valraw = (rv112s[i].max_valraw - 1) * (rv112s[i].value - rv112s[i].min_value) / (1 + rv112s[i].max_value - rv112s[i].min_value);
 		//rv112s[i].value_flag = 1;
 	}
 	return 1;
@@ -320,11 +320,11 @@ void * poll_rv112(void *arg) {
 					}
 					if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
 					else vr = rv112s[i].valraw + rv112s[i].lastdv;
-					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw-1;
+					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw - 1;
 					else if (vr<0) vr = 0;
 					if (vr!=rv112s[i].valraw) {
 						rv112s[i].valraw = vr;
-						v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / rv112s[i].max_valraw;
+						v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / (rv112s[i].max_valraw - 1);
 						if (v!=rv112s[i].value) {
 							rv112s[i].value = v;
 							rv112s[i].value_flag = 1;
