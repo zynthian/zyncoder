@@ -40,6 +40,7 @@ int end_zynmidirouter();
 
 typedef enum midi_event_type_enum {
 	//Router-internal pseudo-message codes
+	CTRL_SWITCH_EVENT=-7,
 	GATE_OUT_EVENT=-6,
 	CVGATE_OUT_EVENT=-5,
 	CVGATE_IN_EVENT=-4,
@@ -392,7 +393,5 @@ int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_program_change(uint8_t chan, uint8_t num);
-int write_zynmidi_ccontrol_switch(uint8_t chan, uint8_t num);
-
 
 //-----------------------------------------------------------------------------

@@ -324,7 +324,7 @@ void * poll_rv112(void *arg) {
 					else if (vr<0) vr = 0;
 					if (vr!=rv112s[i].valraw) {
 						rv112s[i].valraw = vr;
-						v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / (rv112s[i].max_valraw - 1);
+						v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / rv112s[i].max_valraw;
 						if (v!=rv112s[i].value) {
 							rv112s[i].value = v;
 							rv112s[i].value_flag = 1;

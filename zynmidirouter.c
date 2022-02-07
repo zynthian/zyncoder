@@ -1984,13 +1984,4 @@ int write_zynmidi_program_change(uint8_t chan, uint8_t num) {
 	return write_zynmidi(ev);
 }
 
-int write_zynmidi_ccontrol_switch(uint8_t chan, uint8_t num) {
-	uint8_t val;
-	uint8_t last_val = midi_filter.last_ctrl_val[chan][num];
-	if (last_val>=64) val = 0;
-	else val = 127;
-	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
-	return write_zynmidi(ev);
-}
-
 //-----------------------------------------------------------------------------

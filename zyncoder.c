@@ -257,6 +257,19 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 		//printf("ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
 	}
+	else if (zsw->midi_event.type==CTRL_SWITCH_EVENT) {
+		uint8_t val;
+		uint8_t last_val = midi_filter.last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
+		if (last_val>=64) val = 0;
+		else val = 127;
+		//Send MIDI event to engines and ouput (ZMOPS)
+		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+		//Update zyncoders
+		midi_event_zynpot(zsw->midi_event.chan, zsw->midi_event.num, val);
+		//Send MIDI event to UI
+		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+		//printf("ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
+	}
 	else if (zsw->midi_event.type==NOTE_ON) {
 		if (status==0) {
 			//Send MIDI event to engines and ouput (ZMOPS)
