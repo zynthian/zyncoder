@@ -477,8 +477,8 @@ int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, i
 		return 0;
 	}
 	if (min_value==max_value) {
-		printf("ZynCore->setup_rangescale_zyncoder(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
-		return 0;
+		//printf("ZynCore->setup_rangescale_zyncoder(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
+		//return 0;
 	}
 
 	zyncoder_t *zcdr = zyncoders + i;
