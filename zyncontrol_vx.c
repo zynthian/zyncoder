@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <mcp23008.h>
 
 #include "zynpot.h"
 #include "zyncoder.h"

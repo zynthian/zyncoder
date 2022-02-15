@@ -665,7 +665,6 @@ pthread_t init_poll_zynswitches() {
 // MCP23017 initialization & ISR
 //-----------------------------------------------------------------------------
 
-#ifndef MCP23008_ENCODERS
 struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
 	uint8_t reg;
 
@@ -853,6 +852,5 @@ void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, u
 		}
 	}
 }
-#endif
 
 //-----------------------------------------------------------------------------
