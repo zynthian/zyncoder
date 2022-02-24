@@ -350,29 +350,43 @@ int get_num_zyncoders() {
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	zyncoder_t *zcdr = zyncoders + i;
 
+	//Software Debouncing =>
+	//Get time interval from last tick
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	unsigned int dtus=tsus-zcdr->tsus;
+	//printf("ZYNCODER ISR %d => %u\n",i,dtus);
+	//Ignore spurious ticks
+	if (dtus<1000) {
+		#ifdef DEBUG
+		printf("zyncoder %d => Dropped Step (bouncing: %u)\n",i,dtus);
+		#endif
+		return;
+	}
+	//printf("ZYNCODER DEBOUNCED ISR %d => %u\n",i,dtus);
+
+	//Calculate rotation direction => Quadrature Encoder Algorithm
+	int spin = 0;
 	uint8_t encoded = (msb << 1) | lsb;
 	uint8_t sum = (zcdr->last_encoded << 2) | encoded;
-	int spin;
+	zcdr->last_encoded = encoded;
 	if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) spin = 1;
 	else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) spin = -1;
-	else spin = 0;
+	else {
+		#ifdef DEBUG
+		printf("zyncoder %d => Dropped Step (invalid quadrature sequence: %08d)\n",i,int_to_int(sum));
+		#endif
+		return;
+	}
 	if (zcdr->inv) spin = -spin;
 	#ifdef DEBUG
-	//printf("zyncoder %2d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
+	printf("zyncoder %d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
 	#endif
-	zcdr->last_encoded=encoded;
 
 	int32_t value;
+	//Adaptative Step Size
 	if (zcdr->step==0) {
-		//Get time interval from last tick
-		struct timespec ts;
-		unsigned long int tsus;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
-		unsigned int dtus=tsus-zcdr->tsus;
-		//printf("ZYNCODER ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
-		//Ignore spurious ticks
-		if (dtus<1000) return;
 		//printf("ZYNCODER DEBOUNCED ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
 		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
 		int j;
@@ -402,6 +416,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		zcdr->tsus=tsus;
 		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
+	//Fixed Step Size
 	else {
 		if (spin>0) {
 			value = zcdr->value + zcdr->step;
