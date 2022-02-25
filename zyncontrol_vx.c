@@ -43,29 +43,22 @@
 // GPIO Expander
 //-----------------------------------------------------------------------------
 
-#if defined(HAVE_WIRINGPI_LIB)
-	#if defined(MCP23017_ENCODERS)
-		// pins 100-115 are located on the MCP23017
-		#define MCP23017_BASE_PIN 100
-		// define default I2C Address for MCP23017
-		#if !defined(MCP23017_I2C_ADDRESS)
-			#define MCP23017_I2C_ADDRESS 0x20
-		#endif
-		// define default interrupt pins for the MCP23017
-		#if !defined(MCP23017_INTA_PIN)
-			#define MCP23017_INTA_PIN 27
-		#endif
-		#if !defined(MCP23017_INTB_PIN)
-			#define MCP23017_INTB_PIN 25
-		#endif
-
-	#elif defined(MCP23008_ENCODERS)
-		// pins 100-107 are located on the MCP23008
-		#define MCP23008_BASE_PIN 100
-		#define MCP23008_I2C_ADDRESS 0x20
+#if defined(MCP23017_ENCODERS)
+	// pins 100-115 are located on the MCP23017
+	#define MCP23017_BASE_PIN 100
+	// default I2C Address for MCP23017
+	#if !defined(MCP23017_I2C_ADDRESS)
+		#define MCP23017_I2C_ADDRESS 0x20
 	#endif
-
-#else
+	// default interrupt pins for the MCP23017
+	#if !defined(MCP23017_INTA_PIN)
+		#define MCP23017_INTA_PIN 27
+	#endif
+	#if !defined(MCP23017_INTB_PIN)
+		#define MCP23017_INTB_PIN 25
+	#endif
+#elif defined(MCP23008_ENCODERS)
+	// pins 100-107 are located on the MCP23008
 	#define MCP23008_BASE_PIN 100
 	#define MCP23008_I2C_ADDRESS 0x20
 #endif
@@ -73,20 +66,22 @@
 
 #if defined(MCP23017_ENCODERS)
 
-// WiringPi node struct for direct access to the mcp23017
-struct wiringPiNodeStruct *zyncoder_mcp23017_node;
-
 // two ISR routines for the two banks
-void zyncoder_mcp23017_bankA_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node, MCP23017_BASE_PIN, 0);
+void zynmcp23017_ISR_bankA() {
+	zynmcp23017_ISR(0, 0);
 }
-void zyncoder_mcp23017_bankB_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node, MCP23017_BASE_PIN, 1);
+void zynmcp23017_ISR_bankB() {
+	zynmcp23017_ISR(0, 1);
 }
-void (*zyncoder_mcp23017_bank_ISRs[2]) = {
-	zyncoder_mcp23017_bankA_ISR,
-	zyncoder_mcp23017_bankB_ISR
+void (*zynmcp23017_ISRs[2]) = {
+	zynmcp23017_ISR_bankA,
+	zynmcp23017_ISR_bankB
 };
+
+void init_zynmcp23017s() {
+	reset_zynmcp23017s();
+	setup_zynmcp23017(0, MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zynmcp23017_ISRs);
+}
 
 #endif
 
@@ -139,9 +134,7 @@ void get_wiring_config() {
 void init_zynswitches() {
 	reset_zynswitches();
 
-	#if defined(MCP23017_ENCODERS)
-	zyncoder_mcp23017_node = init_mcp23017(MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zyncoder_mcp23017_bank_ISRs);
-	#elif defined(MCP23008_ENCODERS)   
+	#if defined(MCP23008_ENCODERS)   
 	mcp23008Setup(MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
 	init_poll_zynswitches();
 	#endif
@@ -180,6 +173,9 @@ void init_zynpots() {
 int init_zyncontrol() {
 	wiringPiSetup();
 	get_wiring_config();
+	#if defined(MCP23017_ENCODERS)
+		init_zynmcp23017s();
+	#endif
 	init_zynswitches();
 	init_zynpots();
 	#ifdef ZYNAPTIK_CONFIG
@@ -201,6 +197,9 @@ int end_zyncontrol() {
 	reset_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
+	#if defined(MCP23017_ENCODERS)
+		reset_zynmcp23017s();
+	#endif
 	return 1;
 }
 

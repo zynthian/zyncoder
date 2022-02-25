@@ -26,28 +26,16 @@
  */
 
 #include <lo/lo.h>
-#include <wiringPi.h>
+
+#if defined(HAVE_WIRINGPI_LIB)
+	#include <wiringPi.h>
+	#include "zynmcp23017.h"
+	#include "zynmcp23008.h"
+#else
+	#include "wiringPiEmu.h"
+#endif
 
 #include "zynmidirouter.h"
-
-//-----------------------------------------------------------------------------
-// MCP23017 stuff
-//-----------------------------------------------------------------------------
-
-struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2]));
-
-// ISR routine for zynswitches & zyncoders
-void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank);
-
-//-----------------------------------------------------------------------------
-// MCP23008 stuff
-//-----------------------------------------------------------------------------
-#ifdef MCP23008_ENCODERS
-
-//Switches Polling Thread (should be avoided!)
-pthread_t init_poll_zynswitches();
-
-#endif
 
 //-----------------------------------------------------------------------------
 // Zynswitch data & functions
@@ -57,11 +45,10 @@ pthread_t init_poll_zynswitches();
 
 typedef struct zynswitch_st {
 	uint8_t enabled;
-	uint8_t pin;
+	uint16_t pin;
 	uint8_t push;
 	unsigned long tsus;
 	unsigned int dtus;
-	// note that this status is like the pin_[ab]_last_state for the zyncoders
 	uint8_t status;
 
 	midi_event_t midi_event;
@@ -73,11 +60,14 @@ void reset_zynswitches();
 int get_num_zynswitches();
 int get_last_zynswitch_index();
 
-int setup_zynswitch(uint8_t i, uint8_t pin); 
+int setup_zynswitch(uint8_t i, uint16_t pin); 
 int setup_zynswitch_midi(uint8_t i, midi_event_type midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val);
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 int get_next_pending_zynswitch(uint8_t i);
+
+void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status);
+void update_zynswitch(uint8_t i, uint8_t status);
 
 //-----------------------------------------------------------------------------
 // Zyncoder data (Incremental Rotary Encoders)
@@ -99,12 +89,9 @@ typedef struct zyncoder_st {
 	int8_t zpot_i;
 
 	// Next fields are zyncoder-specific
-	uint8_t pin_a;
-	uint8_t pin_b;
+	uint16_t pin_a;
+	uint16_t pin_b;
 	
-	uint8_t pin_a_last_state;
-	uint8_t pin_b_last_state;
-
 	unsigned int subvalue;
 	unsigned int last_encoded;
 	unsigned long tsus;
@@ -119,11 +106,13 @@ zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
 void reset_zyncoders();
 int get_num_zyncoders();
 
-int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b);
+int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b);
 int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
 int32_t get_value_zyncoder(uint8_t i);
 uint8_t get_value_flag_zyncoder(uint8_t i);
 int set_value_zyncoder(uint8_t i, int32_t v);
+
+void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb);
 
 //-----------------------------------------------------------------------------

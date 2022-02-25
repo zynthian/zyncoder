@@ -41,18 +41,15 @@
 #define MCP23017_1_INTA_PIN 21
 #define MCP23017_1_INTB_PIN 22
 
-struct wiringPiNodeStruct *zyncoder_mcp23017_node_1;
-
-// ISR routines for each chip/bank
-void zyncoder_mcp23017_1_bankA_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node_1, MCP23017_1_BASE_PIN, 0);
+void zynmcp23017_ISR_bankA_1() {
+	zynmcp23017_ISR(0, 0);
 }
-void zyncoder_mcp23017_1_bankB_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node_1, MCP23017_1_BASE_PIN, 1);
+void zynmcp23017_ISR_bankB_1() {
+	zynmcp23017_ISR(0, 1);
 }
-void (*zyncoder_mcp23017_1_bank_ISRs[2]) = {
-	zyncoder_mcp23017_1_bankA_ISR,
-	zyncoder_mcp23017_1_bankB_ISR
+void (*zynmcp23017_ISRs_1[2]) = {
+	zynmcp23017_ISR_bankA_1,
+	zynmcp23017_ISR_bankB_1
 };
 
 //-----------------------------------------------------------------------------
@@ -70,19 +67,26 @@ void (*zyncoder_mcp23017_1_bank_ISRs[2]) = {
 	#define MCP23017_2_INTB_PIN 2
 #endif
 
-struct wiringPiNodeStruct *zyncoder_mcp23017_node_2;
-
-// ISR routines for each chip/bank
-void zyncoder_mcp23017_2_bankA_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node_2, MCP23017_2_BASE_PIN, 0);
+void zynmcp23017_ISR_bankA_2() {
+	zynmcp23017_ISR(1, 0);
 }
-void zyncoder_mcp23017_2_bankB_ISR() {
-	zyncoder_mcp23017_ISR(zyncoder_mcp23017_node_2, MCP23017_2_BASE_PIN, 1);
+void zynmcp23017_ISR_bankB_2() {
+	zynmcp23017_ISR(1, 1);
 }
-void (*zyncoder_mcp23017_2_bank_ISRs[2])={
-	zyncoder_mcp23017_2_bankA_ISR,
-	zyncoder_mcp23017_2_bankB_ISR
+void (*zynmcp23017_ISRs_2[2]) = {
+	zynmcp23017_ISR_bankA_2,
+	zynmcp23017_ISR_bankB_2
 };
+
+//-----------------------------------------------------------------------------
+// 2 x zynmcp23017
+//-----------------------------------------------------------------------------
+
+void init_zynmcp23017s() {
+	reset_zynmcp23017s();
+	setup_zynmcp23017(0, MCP23017_1_BASE_PIN, MCP23017_1_I2C_ADDRESS, MCP23017_1_INTA_PIN, MCP23017_1_INTB_PIN, zynmcp23017_ISRs_1);
+	setup_zynmcp23017(1, MCP23017_2_BASE_PIN, MCP23017_2_I2C_ADDRESS, MCP23017_2_INTA_PIN, MCP23017_2_INTB_PIN, zynmcp23017_ISRs_2);
+}
 
 //-----------------------------------------------------------------------------
 // 30 x ZynSwitches (16 on MCP23017_1, 14 on MCP23017_2)
@@ -90,10 +94,6 @@ void (*zyncoder_mcp23017_2_bank_ISRs[2])={
 
 void init_zynswitches() {
 	reset_zynswitches();
-
-	zyncoder_mcp23017_node_1 = init_mcp23017(MCP23017_1_BASE_PIN, MCP23017_1_I2C_ADDRESS, MCP23017_1_INTA_PIN, MCP23017_1_INTB_PIN, zyncoder_mcp23017_1_bank_ISRs);
-	zyncoder_mcp23017_node_2 = init_mcp23017(MCP23017_2_BASE_PIN, MCP23017_2_I2C_ADDRESS, MCP23017_2_INTA_PIN, MCP23017_2_INTB_PIN, zyncoder_mcp23017_2_bank_ISRs);
-
 	int i;
 	printf("ZynCore: Setting-up 30 x Zynswitches...\n");
 	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i);
@@ -149,6 +149,7 @@ uint8_t get_hpvol_max() { return lm4811_get_volume_max(); }
 int init_zyncontrol() {
 	wiringPiSetup();
 	lm4811_init();
+	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
 	return 1;
@@ -158,6 +159,7 @@ int end_zyncontrol() {
 	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
+	reset_zynmcp23017s();
 	lm4811_end();
 	return 1;
 }

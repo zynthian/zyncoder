@@ -36,27 +36,12 @@
 
 //#define DEBUG
 
-#if defined(HAVE_WIRINGPI_LIB)
-	#include <wiringPi.h>
-	#include <wiringPiI2C.h>
-	#include <mcp23017.h>
-	#include <mcp23x0817.h>
-	#include <mcp23008.h>
-#else
-	#include "wiringPiEmu.h"
-#endif
-
 #ifdef ZYNAPTIK_CONFIG
 	#include "zynaptik.h"
 #endif
 
 #include "zynpot.h"
 #include "zyncoder.h"
-
-#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-#define bitSet(value, bit) ((value) |= (1UL << (bit)))
-#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
-#define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
 
 //-----------------------------------------------------------------------------
 // Function headers
@@ -68,9 +53,6 @@ void zynswitch_rbpi_ISR(uint8_t i);
 void (*zynswitch_rbpi_ISRs[]);
 void zyncoder_rbpi_ISR(uint8_t i);
 void (*zyncoder_rbpi_ISRs[]);
-
-void zynswitch_mcp23017_update(uint8_t i);
-void zyncoder_mcp23017_update(uint8_t i);
 
 //-----------------------------------------------------------------------------
 // Helper functions
@@ -143,15 +125,14 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	}
 }
 
-int setup_zynswitch(uint8_t i, uint8_t pin) {
+int setup_zynswitch(uint8_t i, uint16_t pin) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
 		printf("ZynCore->setup_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 	
 	zynswitch_t *zsw = zynswitches + i;
-	zsw->enabled = 1;
-	zsw->pin = pin;
+	zsw->enabled = 0;
 	zsw->push=0;
 	zsw->tsus = 0;
 	zsw->dtus = 0;
@@ -163,12 +144,36 @@ int setup_zynswitch(uint8_t i, uint8_t pin) {
 
 		// RBPi GPIO pin
 		if (pin<100) {
+			zsw->enabled = 1;
+			zsw->pin = pin;
 			wiringPiISR(pin,INT_EDGE_BOTH, zynswitch_rbpi_ISRs[i]);
 			zynswitch_rbpi_ISR(i);
 		} 
 		// MCP23017 pin
 		else if (pin>=100) {
-			zynswitch_mcp23017_update(i);
+			#if defined(MCP23008_ENCODERS)
+				zsw->pin = pin;
+				zsw->enabled = 1;
+			#elif defined(MCP23017_ENCODERS)
+				uint8_t j = pin2index_zynmcp23017(pin);
+				if (j>=0) {
+					uint8_t bit = pin - zynmcp23017s[j].base_pin;
+					if (bit<16) {
+						zsw->pin = pin;
+						zsw->enabled = 1;
+						setup_pin_action_zynmcp23017(pin, ZYNSWITCH_PIN_ACTION, i);
+						zynswitch_update_zynmcp23017(i);
+					}
+					else {
+						printf("ZynCore->setup_zynswitch(%d, %d): Pin out of range!\n",i, pin);
+						return 0;
+					}
+				}
+				else {
+					printf("ZynCore->setup_zynswitch(%d, %d): Pin is not a MPC23017 pin!\n",i, pin);
+					return 0;
+				}
+			#endif
 		}
 	}
 
@@ -350,29 +355,54 @@ int get_num_zyncoders() {
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	zyncoder_t *zcdr = zyncoders + i;
 
+	//Software Debouncing =>
+	//Get time interval from last tick
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
+	unsigned int dtus=tsus-zcdr->tsus;
+	//printf("ZYNCODER ISR %d => %u\n",i,dtus);
+	//Ignore spurious ticks
+	if (dtus<1000) {
+		#ifdef DEBUG
+		printf("zyncoder %d => Dropped Step (bouncing: %u)\n",i,dtus);
+		#endif
+		return;
+	}
+	//printf("ZYNCODER DEBOUNCED ISR %d => %u\n",i,dtus);
+
+	//Calculate rotation direction => Quadrature Encoder Algorithm
+	int spin;
 	uint8_t encoded = (msb << 1) | lsb;
 	uint8_t sum = (zcdr->last_encoded << 2) | encoded;
-	int spin;
-	if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) spin = 1;
-	else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) spin = -1;
-	else spin = 0;
+	zcdr->last_encoded = encoded;
+	switch(sum) {
+		case 0b1101:
+		case 0b0100:
+		case 0b0010:
+		case 0b1011:
+			spin = 1;
+			break;
+		case 0b1110:
+		case 0b0111:
+		case 0b0001:
+		case 0b1000:
+			spin = -1;
+			break;
+		default:
+			#ifdef DEBUG
+			printf("zyncoder %d => Dropped Step (invalid quadrature sequence: %08d)\n",i,int_to_int(sum));
+			#endif
+			return;
+	}
 	if (zcdr->inv) spin = -spin;
 	#ifdef DEBUG
-	//printf("zyncoder %2d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
+	printf("zyncoder %d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
 	#endif
-	zcdr->last_encoded=encoded;
 
 	int32_t value;
+	//Adaptative Step Size
 	if (zcdr->step==0) {
-		//Get time interval from last tick
-		struct timespec ts;
-		unsigned long int tsus;
-		clock_gettime(CLOCK_MONOTONIC, &ts);
-		tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
-		unsigned int dtus=tsus-zcdr->tsus;
-		//printf("ZYNCODER ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
-		//Ignore spurious ticks
-		if (dtus<1000) return;
 		//printf("ZYNCODER DEBOUNCED ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
 		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
 		int j;
@@ -402,6 +432,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		zcdr->tsus=tsus;
 		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
+	//Fixed Step Size
 	else {
 		if (spin>0) {
 			value = zcdr->value + zcdr->step;
@@ -422,7 +453,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	}
 }
 
-int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b) {
+int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	if (i>=MAX_NUM_ZYNCODERS) {
 		printf("ZynCore->setup_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
@@ -430,45 +461,84 @@ int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b) {
 	zyncoder_t *zcdr = zyncoders + i;
 
 	//setup_rangescale_zyncoder(i,0,127,64,0);
+	zcdr->enabled = 0;
 	zcdr->inv = 0;
 	zcdr->step = 1;
 	zcdr->value = 0;
 	zcdr->subvalue = 0;
 	zcdr->min_value = 0;
 	zcdr->max_value = 127;
+	zcdr->last_encoded = 0;
+	zcdr->tsus = 0;
 
-	if (zcdr->enabled==0 || zcdr->pin_a!=pin_a || zcdr->pin_b!=pin_b) {
-		zcdr->enabled = 1;
-		zcdr->pin_a = pin_a;
-		zcdr->pin_b = pin_b;
-		zcdr->last_encoded = 0;
-		zcdr->tsus = 0;
-
-		if (zcdr->pin_a!=zcdr->pin_b) {
+	if (pin_a!=pin_b) {
+		// RBPi GPIO pins
+		if (pin_a<100 && pin_b<100) {
 			pinMode(pin_a, INPUT);
 			pinMode(pin_b, INPUT);
 			pullUpDnControl(pin_a, PUD_UP);
 			pullUpDnControl(pin_b, PUD_UP);
-
-			// RBPi GPIO pins
-			if (zcdr->pin_a<100 && zcdr->pin_b<100) {
-				wiringPiISR(pin_a,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
-				wiringPiISR(pin_b,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
-				zyncoder_rbpi_ISR(i);
-			} 
-			// MCP23017 pins
-			else if (zcdr->pin_a>=100 && zcdr->pin_b>=100) {
-				zyncoder_mcp23017_update(i);
-			}
-			// Can't configure mixed pins!
-			else {
-				zcdr->enabled = 0;
-				printf("ZynCore: Can't configure zyncoder with mixed pins!\n");
-				return 0;
-			}
+			zcdr->pin_a = pin_a;
+			zcdr->pin_b = pin_b;
+			zcdr->enabled = 1;
+			wiringPiISR(pin_a,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
+			wiringPiISR(pin_b,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
+			zyncoder_rbpi_ISR(i);
+			return 1;
+		} 
+		// MCP23017 pins
+		else if (pin_a>=100 && pin_b>=100) {
+			#if defined(MCP23017_ENCODERS)
+				uint8_t j = pin2index_zynmcp23017(pin_a);
+				uint8_t k = pin2index_zynmcp23017(pin_b);
+				if (j>=0 && k>=0 && j==k) {
+					uint8_t bit_a = pin_a - zynmcp23017s[j].base_pin;
+					uint8_t bit_b = pin_b - zynmcp23017s[k].base_pin;
+					if (bit_a<16 && bit_b<16) {
+						uint8_t bank_a, bank_b;
+						if (bit_a<8) bank_a=0;
+						else bank_a=1;
+						if (bit_b<8) bank_b=0;
+						else bank_b=1;
+						if (bank_a == bank_b) {
+							pinMode(pin_a, INPUT);
+							pinMode(pin_b, INPUT);
+							pullUpDnControl(pin_a, PUD_UP);
+							pullUpDnControl(pin_b, PUD_UP);
+							zcdr->pin_a = pin_a;
+							zcdr->pin_b = pin_b;
+							zcdr->enabled = 1;
+							setup_pin_action_zynmcp23017(pin_a, ZYNCODER_PIN_ACTION, i);
+							setup_pin_action_zynmcp23017(pin_b, ZYNCODER_PIN_ACTION, i);
+							zyncoder_update_zynmcp23017(i);
+							return 1;
+						}
+						else {
+							printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different banks!\n", i, pin_a, pin_b);
+							return 0;
+						}
+					}
+					else {
+						printf("ZynCore->setup_zyncoder(%d, %d, %d): Pin numbers out of range!\n", i, pin_a, pin_b);
+						return 0;
+					}
+				}
+				else {
+					printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different MCP23017!\n", i, pin_a, pin_b);
+					return 0;
+				}
+			#endif
+		}
+		else {
+			printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with mixed pins (RBPi & MCP230XX)!\n", i, pin_a, pin_b);
+			return 0;
 		}
 	}
-	return 1;
+	else {
+		printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder on a single pin!\n", i, pin_a, pin_b);
+		return 0;
+	}
+	return 0;
 }
 
 int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step) {
@@ -599,258 +669,5 @@ void (*zyncoder_rbpi_ISRs[8])={
 	zyncoder_rbpi_ISR_2,
 	zyncoder_rbpi_ISR_3,
 };
-
-//-----------------------------------------------------------------------------
-// MCP23008 Polling (only switches)
-//-----------------------------------------------------------------------------
-
-#ifdef MCP23008_ENCODERS
-
-//Switch Polling interval
-#define POLL_ZYNSWITCHES_US 10000
-
-//Update NON-ISR switches (expanded GPIO with MCP23008 without INT => legacy V1's 2in1 module only!)
-void update_expanded_zynswitches() {
-	struct timespec ts;
-	unsigned long int tsus;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
-
-	int i;
-	uint8_t status;
-	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
-		zynswitch_t *zsw = zynswitches + i;
-		if (!zsw->enabled || zsw->pin<100) continue;
-		status=digitalRead(zsw->pin);
-		//printf("POLLING SWITCH %d (%d) => %d\n",i,zsw->pin,status);
-		if (status==zsw->status) continue;
-		zsw->status=status;
-		send_zynswitch_midi(zsw, status);
-		//printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
-		if (zsw->status==1) {
-			if (zsw->tsus>0) {
-				unsigned int dtus=tsus-zsw->tsus;
-				zsw->tsus=0;
-				//Ignore spurious ticks
-				if (dtus<1000) return;
-				//printf("Debounced Switch %d\n",i);
-				zsw->dtus=dtus;
-			}
-		} else zsw->tsus=tsus;
-	}
-}
-
-void * poll_zynswitches(void *arg) {
-	while (1) {
-		update_expanded_zynswitches();
-		usleep(POLL_ZYNSWITCHES_US);
-	}
-	return NULL;
-}
-
-pthread_t init_poll_zynswitches() {
-	pthread_t tid;
-	int err=pthread_create(&tid, NULL, &poll_zynswitches, NULL);
-	if (err != 0) {
-		printf("ZynCore: Can't create zynswitches poll thread :[%s]", strerror(err));
-		return 0;
-	} else {
-		printf("ZynCore: Zynswitches poll thread created successfully\n");
-		return tid;
-	}
-}
-#endif
-
-//-----------------------------------------------------------------------------
-// MCP23017 initialization & ISR
-//-----------------------------------------------------------------------------
-
-struct wiringPiNodeStruct * init_mcp23017(int base_pin, uint8_t i2c_address, uint8_t inta_pin, uint8_t intb_pin, void (*isrs[2])) {
-	uint8_t reg;
-
-	mcp23017Setup(base_pin, i2c_address);
-
-	// get the node corresponding to our mcp23017 so we can do direct writes
-	struct wiringPiNodeStruct * mcp23017_node = wiringPiFindNode(base_pin);
-
-	// setup all the pins on the banks as inputs and disable pullups on
-	// the zyncoder input
-	reg = 0xff;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRB, reg);
-
-	// enable pullups on the unused pins (high two bits on each bank)
-	reg = 0xff;
-	//reg = 0xc0;
-	//reg = 0x60;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUB, reg);
-
-	// disable polarity inversion
-	reg = 0;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLB, reg);
-
-	// disable the comparison to DEFVAL register
-	reg = 0;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONB, reg);
-
-	// configure the interrupt behavior for bank A
-	uint8_t ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCON);
-	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
-	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
-	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCON, ioconf_value);
-
-	// configure the interrupt behavior for bank B
-	ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCONB);
-	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
-	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
-	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCONB, ioconf_value);
-
-	// finally, enable the interrupt pins for banks a and b
-	// enable interrupts on all pins
-	reg = 0xff;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENB, reg);
-
-	// pi ISRs for the 23017
-	// bank A
-	wiringPiISR(inta_pin, INT_EDGE_RISING, isrs[0]);
-	// bank B
-	wiringPiISR(intb_pin, INT_EDGE_RISING, isrs[1]);
-
-	//Read data for first time ...
-	wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
-	wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOB);
-
-	#ifdef DEBUG
-	printf("ZynCore: MCP23017 at I2C %x initialized in base-pin %d: INTA %d, INTB %d\n", i2c_address, base_pin, inta_pin, intb_pin);
-	#endif
-
-	return mcp23017_node;
-}
-
-void zynswitch_mcp23017_update(uint8_t i) {
-	if (i>=MAX_NUM_ZYNSWITCHES) return;
-	zynswitch_t *zsw = zynswitches + i;
-	if (zsw->enabled==0) return;
-
-	uint8_t base_pin = (zsw->pin / 100) * 100;
-	struct wiringPiNodeStruct * wpns = wiringPiFindNode(base_pin);
-
-	uint8_t bit = zsw->pin % 100;
-	uint8_t reg;
-	// Bank A
-	if (bit<8) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOA);
-	// Bank B
-	} else if (bit<16) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOB);
-		bit-=8;
-	// Pin out of range!!
-	} else {
-		printf("ZynCore: zynswitch_mcp23017_update(%d) => pin %d out of range!\n", i, bit);
-	}
-	update_zynswitch(i, (uint8_t)bitRead(reg, bit));
-}
-
-void zyncoder_mcp23017_update(uint8_t i) {
-	if (i>=MAX_NUM_ZYNSWITCHES) return;
-	zyncoder_t *zcdr = zyncoders + i;
-	if (zcdr->enabled==0) return;
-	
-	uint8_t base_pin = (zcdr->pin_a / 100) * 100;
-	struct wiringPiNodeStruct * wpns = wiringPiFindNode(base_pin);
-
-	uint8_t bit_a = zcdr->pin_a % 100;
-	uint8_t bit_b = zcdr->pin_b % 100;
-	uint8_t reg;
-	// Bank A
-	if (bit_a<8 && bit_b<8) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOA);
-	// Bank B
-	} else if (bit_a<16 && bit_b<16) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOB);
-		bit_a-=8;
-		bit_b-=8;
-	// Pin out of range!!
-	} else {
-		printf("ZynCore: zyncoder_mcp23017_update(%d) => pins (%d, %d) out of range or in different bank!\n", i, bit_a, bit_b);
-	}
-	uint8_t state_a = bitRead(reg, bit_a);
-	uint8_t state_b = bitRead(reg, bit_b);
-	update_zyncoder(i, state_a, state_b);
-	zcdr->pin_a_last_state = state_a;
-	zcdr->pin_b_last_state = state_b;
-}
-
-// ISR for handling the mcp23017 interrupts
-void zyncoder_mcp23017_ISR(struct wiringPiNodeStruct *wpns, uint16_t base_pin, uint8_t bank) {
-	// the interrupt has gone off for a pin change on the mcp23017
-	// read the appropriate bank and compare pin states to last
-	// on a change, call the update function as appropriate
-	int i;
-	uint8_t reg;
-	uint8_t pin_min, pin_max;
-
-	#ifdef DEBUG
-	printf("zyncoder_mcp23017_ISR() => %d, %d\n", base_pin, bank);
-	#endif
-
-	if (bank == 0) {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOA);
-		//reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPA);
-		pin_min = base_pin;
-	} else {
-		reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_GPIOB);
-		//reg = wiringPiI2CReadReg8(wpns->fd, MCP23x17_INTCAPB);
-		pin_min = base_pin + 8;
-	}
-	pin_max = pin_min + 7;
-
-	// search all encoders and switches for a pin in the bank's range
-	// if the last state != current state then this pin has changed
-	// call the update function
-	for (i=0; i<MAX_NUM_ZYNCODERS; i++) {
-		zyncoder_t *zcdr = zyncoders + i;
-		if (zcdr->enabled==0) continue;
-
-		// if either pin is in the range
-		if ((zcdr->pin_a >= pin_min && zcdr->pin_a <= pin_max) ||
-		    (zcdr->pin_b >= pin_min && zcdr->pin_b <= pin_max)) {
-			uint8_t bit_a = zcdr->pin_a - pin_min;
-			uint8_t bit_b = zcdr->pin_b - pin_min;
-			uint8_t state_a = bitRead(reg, bit_a);
-			uint8_t state_b = bitRead(reg, bit_b);
-			// if either bit is different
-			if ((state_a != zcdr->pin_a_last_state) ||
-			    (state_b != zcdr->pin_b_last_state)) {
-				update_zyncoder(i, state_a, state_b);
-				zcdr->pin_a_last_state = state_a;
-				zcdr->pin_b_last_state = state_b;
-			}
-		}
-	}
-	for (i=0; i<MAX_NUM_ZYNSWITCHES; i++) {
-		zynswitch_t *zsw = zynswitches + i;
-		if (zsw->enabled == 0) continue;
-
-		// check the pin range
-		if (zsw->pin >= pin_min && zsw->pin <= pin_max) {
-			uint8_t bit = zsw->pin - pin_min;
-			uint8_t state = bitRead(reg, bit);
-			#ifdef DEBUG
-			printf("MCP23017 Zynswitch %d => %d\n",i,state);
-			#endif
-			if (state != zsw->status) {
-				update_zynswitch(i, state);
-				// note that the update function updates status with state
-			}
-		}
-	}
-}
 
 //-----------------------------------------------------------------------------
