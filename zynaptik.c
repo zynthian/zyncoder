@@ -48,15 +48,12 @@
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
 
-// wiringpi node structure for direct access to the mcp23017
-struct wiringPiNodeStruct *zynaptik_mcp23017_node;
-
 // two ISR routines for the two banks
 void zynaptik_mcp23017_bankA_ISR() {
-	zyncoder_mcp23017_ISR(zynaptik_mcp23017_node, ZYNAPTIK_MCP23017_BASE_PIN, 0);
+	zynmcp23017_ISR(1, 0);
 }
 void zynaptik_mcp23017_bankB_ISR() {
-	zyncoder_mcp23017_ISR(zynaptik_mcp23017_node, ZYNAPTIK_MCP23017_BASE_PIN, 1);
+	zynmcp23017_ISR(1, 1);
 }
 void (*zynaptik_mcp23017_bank_ISRs[2])={
 	zynaptik_mcp23017_bankA_ISR,
@@ -357,7 +354,7 @@ int init_zynaptik() {
 	k_cvout=DEFAULT_K_CVOUT;
 
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
-		zynaptik_mcp23017_node = init_mcp23017(ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
+		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 		printf("Setting-up %d x Zynaptik Switches...\n", 16);
 		for (i=0;i<16;i++) {
 			setup_zynswitch(16+i, ZYNAPTIK_MCP23017_BASE_PIN+i);
