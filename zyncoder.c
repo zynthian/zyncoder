@@ -100,29 +100,34 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	if (status==zsw->status) return;
 	zsw->status=status;
 
-	//printf("SWITCH ISR %d => STATUS=%d\n",i,status);
-
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
-	if (zsw->status==1) {
-		if (zsw->tsus>0) {
-			unsigned int dtus=tsus-zsw->tsus;
+	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,status,tsus);
+
+	//If pushed ...
+	if (zsw->tsus>0) {
+		unsigned int dtus;
+		dtus=tsus-zsw->tsus;
+
+		//SW debouncing => Ignore spurious clicks
+		if (dtus<1000) return;
+
+		//Release
+		if (zsw->status==1) {
 			zsw->tsus=0;
-			//Ignore spurious clicks (SW debouncing)
-			if (dtus<1000) return;
 			//printf("Debounced Switch %d\n",i);
 			zsw->dtus=dtus;
 		}
-	} else {
-		// Save push timestamp
-		zsw->push=1;
-		zsw->tsus=tsus;
-		// Send MIDI when pushed => no SW debouncing!!
-		send_zynswitch_midi(zsw, status);
 	}
+	//Push
+	else if (zsw->status==0) {
+		zsw->push=1;
+		zsw->tsus=tsus;		// Save push timestamp
+	}
+	//Send MIDI
+	send_zynswitch_midi(zsw, status);
 }
 
 int setup_zynswitch(uint8_t i, uint16_t pin) {
@@ -263,17 +268,19 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		//printf("ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
 	}
 	else if (zsw->midi_event.type==CTRL_SWITCH_EVENT) {
-		uint8_t val;
-		uint8_t last_val = midi_filter.last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
-		if (last_val>=64) val = 0;
-		else val = 127;
-		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-		//Update zyncoders
-		midi_event_zynpot(zsw->midi_event.chan, zsw->midi_event.num, val);
-		//Send MIDI event to UI
-		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-		//printf("ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
+		if (status==0) {
+			uint8_t val;
+			uint8_t last_val = midi_filter.last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
+			if (last_val>=64) val = 0;
+			else val = 127;
+			//Send MIDI event to engines and ouput (ZMOPS)
+			internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+			//Update zyncoders
+			midi_event_zynpot(zsw->midi_event.chan, zsw->midi_event.num, val);
+			//Send MIDI event to UI
+			write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+			//printf("ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
+		}
 	}
 	else if (zsw->midi_event.type==NOTE_ON) {
 		if (status==0) {
