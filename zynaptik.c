@@ -357,7 +357,7 @@ int init_zynaptik() {
 		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 		printf("Setting-up %d x Zynaptik Switches...\n", 16);
 		for (i=0;i<16;i++) {
-			setup_zynswitch(16+i, ZYNAPTIK_MCP23017_BASE_PIN+i);
+			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i);
 		}
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
