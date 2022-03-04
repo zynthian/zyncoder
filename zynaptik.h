@@ -141,7 +141,7 @@ void refresh_zynaptik_cvouts();
 // GATE-OUT: Set Digital Outputs from MIDI Notes
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNGATEOUTS 16
+#define MAX_NUM_ZYNGATEOUTS 24
 
 struct zyngateout_st {
 	uint8_t enabled;

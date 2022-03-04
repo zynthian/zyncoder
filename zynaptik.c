@@ -157,27 +157,24 @@ pthread_t init_poll_zynaptik_cvins() {
 //-----------------------------------------------------------------------------
 
 void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
-	zyncvouts[i].midi_evt = midi_evt;
-	zyncvouts[i].midi_chan = midi_chan & 0xF;
-	zyncvouts[i].midi_num = midi_num & 0xF7;
-
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		zyncvouts[i].midi_event_mask=0xEF00;
 		zyncvouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8);
-	}
-	else if (midi_evt==GATE_OUT_EVENT) {
-		zyncvouts[i].midi_event_mask=0xEFF7;
-		zyncvouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0xF7);
 	}
 	else if (midi_evt==PITCH_BENDING || midi_evt==CHAN_PRESS) {
 		zyncvouts[i].midi_event_mask=0xFF00;
 		zyncvouts[i].midi_event_temp=((midi_evt&0xF)<<12) | ((midi_chan&0xF)<<8);
 	}
 	else if (midi_evt==CTRL_CHANGE) {
-		zyncvouts[i].midi_event_mask=0xFFF7;
-		zyncvouts[i].midi_event_temp=((midi_evt&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0xF7);
+		zyncvouts[i].midi_event_mask=0xFF7F;
+		zyncvouts[i].midi_event_temp=((midi_evt&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0x7F);
 	}
-
+	else {
+		return;
+	}
+	zyncvouts[i].midi_evt = midi_evt;
+	zyncvouts[i].midi_chan = midi_chan & 0xF;
+	zyncvouts[i].midi_num = midi_num & 0x7F;
 	zyncvouts[i].val = 0;
 	zyncvouts[i].enabled = 1;
 }
@@ -294,15 +291,16 @@ pthread_t init_refresh_zynaptik_cvouts() {
 //-----------------------------------------------------------------------------
 
 void setup_zynaptik_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
+	if (midi_evt==GATE_OUT_EVENT) {
+		zyngateouts[i].midi_event_mask=0xEF7F;
+		zyngateouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0x7F);
+	}
+	else {
+		return;
+	}
 	zyngateouts[i].midi_evt = midi_evt;
 	zyngateouts[i].midi_chan = midi_chan & 0xF;
-	zyngateouts[i].midi_num = midi_num & 0xF7;
-
-	if (midi_evt==GATE_OUT_EVENT) {
-		zyngateouts[i].midi_event_mask=0xEFF7;
-		zyngateouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0xF7);
-	}
-
+	zyngateouts[i].midi_num = midi_num & 0x7F;
 	zyngateouts[i].enabled = 1;
 }
 
