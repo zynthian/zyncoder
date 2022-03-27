@@ -148,7 +148,10 @@ int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int3
 	rv112s[i].max_value = max_value;
 	
 	if (step==0) rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW;
-	else rv112s[i].max_valraw = RV112_ADS1115_MAX_VALRAW * step;
+	else {
+		if (step>2) step=2;
+		rv112s[i].max_valraw = int32_t(RV112_ADS1115_MAX_VALRAW / step);
+	}
 	rv112s[i].valraw = (rv112s[i].max_valraw - 1) * (value - min_value) / (1 + max_value - min_value);
 
 	rv112s[i].value_flag = 0;
