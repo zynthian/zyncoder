@@ -92,7 +92,7 @@ typedef struct zyncoder_st {
 	uint16_t pin_a;
 	uint16_t pin_b;
 	
-	unsigned int subvalue;
+	int32_t subvalue;
 	unsigned int last_encoded;
 	unsigned long tsus;
 	unsigned int dtus[ZYNCODER_TICKS_PER_RETENT];
