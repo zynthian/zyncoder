@@ -161,6 +161,7 @@ int setup_pin_action_zynmcp23017(uint16_t pin, zynmcp23017_pin_action_t action, 
 	if (j>=0 && j<16) {
 		zynmcp23017s[i].pin_action[j] = action;
 		zynmcp23017s[i].pin_action_num[j] = num;
+		//printf("ZynCore->setup_pin_action_zynmcp23017(%d, %d, %d)\n", pin, action, num);
 	}
 	else {
 		printf("ZynCore->setup_pin_action_zynmcp23017(%d, ...): Pin out of range!\n", pin);
@@ -268,7 +269,8 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint8_t k, bit_a, bit_b;
 	while (rdiff!=0) {
 		if (rdiff & 0x01) {
-			switch(zynmcp23017s[i].pin_action[j]) {
+			//printf("zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
+			switch(zynmcp23017s[i].pin_action[j + pin_offset]) {
 				case ZYNSWITCH_PIN_ACTION:
 					k = zynmcp23017s[i].pin_action_num[j + pin_offset];
 					zynswitch_t *zsw = zynswitches + k;
