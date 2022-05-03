@@ -113,14 +113,28 @@ void init_zynswitches() {
 #define RV112_ADS1115_RATE ADS1115_RATE_475SPS
 
 void init_zynpots() {
+	reset_zyncoders();
 	reset_zynpots();
 	init_rv112s();
 
 	ads1115_nodes[0] = init_ads1115(RV112_ADS1115_BASE_PIN_1, RV112_ADS1115_I2C_ADDRESS_1, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
 	ads1115_nodes[1] = init_ads1115(RV112_ADS1115_BASE_PIN_2, RV112_ADS1115_I2C_ADDRESS_2, RV112_ADS1115_GAIN, RV112_ADS1115_RATE);
 
-	printf("ZynCore: Setting-up 4 x Zynpots (RV112)...\n");
+#if Z2_VERSION>2
+	printf("ZynCore: Setting-up Zynpots => 3 x RV112, 1 x PEC11 ...\n");
+	setup_rv112(0, RV112_ADS1115_BASE_PIN_1, 0);
+	setup_rv112(1, RV112_ADS1115_BASE_PIN_1, 0);
+	setup_rv112(2, RV112_ADS1115_BASE_PIN_2, 0);
+	init_poll_rv112();
+	setup_zyncoder(0, MCP23017_2_BASE_PIN + 14, MCP23017_2_BASE_PIN + 15);
 
+	int i;
+	for (i=0;i<3;i++) {
+		setup_zynpot(i,ZYNPOT_RV112,i);
+	}
+	setup_zynpot(i,ZYNPOT_ZYNCODER,0);
+#else
+	printf("ZynCore: Setting-up Zynpots => 4 x RV112...\n");
 	setup_rv112(0, RV112_ADS1115_BASE_PIN_1, 0);
 	setup_rv112(1, RV112_ADS1115_BASE_PIN_1, 0);
 	setup_rv112(2, RV112_ADS1115_BASE_PIN_2, 0);
@@ -131,6 +145,7 @@ void init_zynpots() {
 	for (i=0;i<4;i++) {
 		setup_zynpot(i,ZYNPOT_RV112,i);
 	}
+#endif
 }
 
 void end_zynpots() {
