@@ -111,6 +111,7 @@ void init_zynswitches() {
 
 #define RV112_ADS1115_GAIN ADS1115_GAIN_VREF_4_096
 #define RV112_ADS1115_RATE ADS1115_RATE_475SPS
+//#define RV112_ADS1115_RATE ADS1115_RATE_860SPS
 
 void init_zynpots() {
 	reset_zyncoders();

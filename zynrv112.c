@@ -300,45 +300,59 @@ int16_t read_rv112(uint8_t i) {
 }
 
 void * poll_rv112(void *arg) {
-	int i;
+	int i = 0;
+	int j = 0;
 	int32_t vr, v;
 	boost::circular_buffer<int32_t> *dvbuf;
 	while (1) {
-		for (i=0;i<MAX_NUM_RV112;i++) {
-			if (rv112s[i].enabled) {
-				rv112s[i].lastdv = read_rv112(i);
-				// Calculate moving average for adaptative speed variation
+		if (rv112s[i].enabled) {
+			rv112s[i].lastdv = read_rv112(i);
+			// Calculate moving average for adaptative speed variation
+			if (rv112s[i].step==0) {
+				dvbuf = (boost::circular_buffer<int32_t> *)rv112s[i].dvbuf;
+				dvbuf->push_back(abs(rv112s[i].lastdv));
+				rv112s[i].dvavg += (*dvbuf)[DVBUF_SIZE-1] - (*dvbuf)[0];
+				//fprintf(stdout, "DVAVG %d = %d\n", i, rv112s[i].dvavg);
+			}
+			if (rv112s[i].lastdv!=0) {
+				// Adaptative speed variation using a moving average 
 				if (rv112s[i].step==0) {
-					dvbuf = (boost::circular_buffer<int32_t> *)rv112s[i].dvbuf;
-					dvbuf->push_back(abs(rv112s[i].lastdv));
-					rv112s[i].dvavg += (*dvbuf)[DVBUF_SIZE-1] - (*dvbuf)[0];
-					//fprintf(stdout, "DVAVG %d = %d\n", i, rv112s[i].dvavg);
+					if (rv112s[i].dvavg < 1000) rv112s[i].lastdv /= 8;
+					else if (rv112s[i].dvavg < 2000) rv112s[i].lastdv /= 4;
+					else if (rv112s[i].dvavg < 4000) rv112s[i].lastdv /= 2;
 				}
-				if (rv112s[i].lastdv!=0) {
-					// Adaptative speed variation using a moving average 
-					if (rv112s[i].step==0) {
-						if (rv112s[i].dvavg < 1000) rv112s[i].lastdv /= 8;
-						else if (rv112s[i].dvavg < 2000) rv112s[i].lastdv /= 4;
-						else if (rv112s[i].dvavg < 4000) rv112s[i].lastdv /= 2;
-					}
-					if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
-					else vr = rv112s[i].valraw + rv112s[i].lastdv;
-					if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw - 1;
-					else if (vr<0) vr = 0;
-					if (vr!=rv112s[i].valraw) {
-						rv112s[i].valraw = vr;
-						v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / rv112s[i].max_valraw;
-						if (v!=rv112s[i].value) {
-							rv112s[i].value = v;
-							rv112s[i].value_flag = 1;
-							if (rv112s[i].zpot_i>=0) {
-								send_zynpot(rv112s[i].zpot_i);
-							}
-							//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
+				if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
+				else vr = rv112s[i].valraw + rv112s[i].lastdv;
+				if (vr>=rv112s[i].max_valraw) vr = rv112s[i].max_valraw - 1;
+				else if (vr<0) vr = 0;
+				if (vr!=rv112s[i].valraw) {
+					//fprintf(stdout, "Vraw(%d) = %d\n", i, vr);
+					rv112s[i].valraw = vr;
+					v = rv112s[i].min_value + vr * (1 + rv112s[i].max_value - rv112s[i].min_value) / rv112s[i].max_valraw;
+					if (v!=rv112s[i].value) {
+						rv112s[i].value = v;
+						rv112s[i].value_flag = 1;
+						if (rv112s[i].zpot_i>=0) {
+							send_zynpot(rv112s[i].zpot_i);
 						}
+						//fprintf(stdout, "V%d = %d\n", i, rv112s[i].value);
 					}
 				}
 			}
+		}
+		// Calc next rotary ...
+		i = (i + 1) % MAX_NUM_RV112;
+		if (j++<13) {
+		// prioritize active rotaries, cycling among them ...	
+			int k = 0;
+			while (k++<MAX_NUM_RV112) {
+				if (rv112s[i].lastdv!=0) break;
+				i = (i + 1) % MAX_NUM_RV112;
+			}
+		}
+		// but force next rotary from time to time ...
+		else {
+			j = 0;
 		}
 	}
 	return NULL;
