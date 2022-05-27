@@ -80,8 +80,6 @@ void update_zynswitch(uint8_t i, uint8_t status);
 
 typedef struct zyncoder_st {
 	uint8_t enabled;
-	int32_t min_value;
-	int32_t max_value;
 	int32_t step;
 	uint8_t inv;
 	int32_t value;
@@ -107,11 +105,13 @@ void reset_zyncoders();
 int get_num_zyncoders();
 
 int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b);
-int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
+int setup_behaviour_zyncoder(uint8_t i, int32_t step, uint8_t inv);
 int32_t get_value_zyncoder(uint8_t i);
-uint8_t get_value_flag_zyncoder(uint8_t i);
-int set_value_zyncoder(uint8_t i, int32_t v);
+
+//-----------------------------------------------------------------------------
+// Zyncoder's specific functions
+//-----------------------------------------------------------------------------
 
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb);
 

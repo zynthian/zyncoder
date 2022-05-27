@@ -58,9 +58,8 @@ int main() {
 
 	//Configure zynpots
 	for (i=0; i<num_zynpots; i++) {
-		setup_rangescale_zynpot(i, 0, 100, 50, 0);
+		setup_behaviour_zynpot(i, 0, 0);
 	}
-	//setup_rangescale_zynpot(0, 0, 100, 50, 1);
 
 	printf("Testing switches & rotaries...\n");
 	while(1) {
@@ -71,11 +70,12 @@ int main() {
 			i++;
 		}
 		for (i=0;i<num_zynpots;i++) {
-			if (get_value_flag_zynpot(i)) {
-				printf("PT-%d = %d\n", i, get_value_zynpot(i));
+			int32_t val = get_value_zynpot(i);
+			if (val!=0) {
+				printf("PT-%d = %d\n", i, val);
 			}
 		}
-		usleep(5000);
+		usleep(1000);
 	}
 
 	return 0;

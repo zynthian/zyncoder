@@ -1366,12 +1366,6 @@ int jack_process_zmip(int iz, jack_nframes_t nframes) {
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 
-		//Set zyncoder values
-		if (zmip->flags & FLAG_ZMIP_ZYNCODER  && event_type==CTRL_CHANGE && !midi_learning_mode) {
-			midi_event_zynpot(event_chan, event_num, event_val);
-		}
-
-
 		zmip_push_event(iz, &ev);
 	}
 	return 0;

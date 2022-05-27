@@ -48,18 +48,15 @@ struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 
 //#define RV112_ADS1115_NOISE_DIV 32
 #define RV112_ADS1115_NOISE_DIV 8
-#define RV112_ADS1115_MAX_VALRAW 1270
+#define RV112_ADS1115_RAW_DIV 30
 
 #define MAX_NUM_RV112 4
 
 typedef struct rv112_st {
 	uint8_t enabled;
-	int32_t min_value;
-	int32_t max_value;
 	int32_t step;
 	uint8_t inv;
 	int32_t value;
-	uint8_t value_flag;
 	int8_t zpot_i;
 
 	// Next fields are RV112-specific
@@ -72,7 +69,6 @@ typedef struct rv112_st {
 	uint8_t curseg;
 	int16_t lastdv;
 	int32_t valraw;
-	int32_t max_valraw;
 	void *dvbuf;
 	int32_t dvavg;
 } rv112_t;
@@ -95,11 +91,9 @@ void end_rv112s();
 int get_num_rv112s();
 
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv);
-int setup_rangescale_rv112(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step);
 
+int setup_behaviour_rv112(uint8_t i, int32_t step, uint8_t inv);
 int32_t get_value_rv112(uint8_t i);
-uint8_t get_value_flag_rv112(uint8_t i);
-int set_value_rv112(uint8_t i, int32_t v);
 
 //-----------------------------------------------------------------------------
 // RV112 specific functions

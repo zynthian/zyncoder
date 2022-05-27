@@ -261,8 +261,6 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		else val=0;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-		//Update zyncoders
-		midi_event_zynpot(zsw->midi_event.chan, zsw->midi_event.num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 		//printf("ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
@@ -275,8 +273,6 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 			else val = 127;
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-			//Update zyncoders
-			midi_event_zynpot(zsw->midi_event.chan, zsw->midi_event.num, val);
 			//Send MIDI event to UI
 			write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 			//printf("ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
@@ -343,7 +339,7 @@ void reset_zyncoders() {
 		zyncoders[i].enabled = 0;
 		zyncoders[i].inv = 0;
 		zyncoders[i].value = 0;
-		zyncoders[i].value_flag = 0;
+		zyncoders[i].subvalue = 0;
  		zyncoders[i].zpot_i = -1;
 		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++)
 			zyncoders[i].dtus[j] = 0;
@@ -407,7 +403,6 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	printf("zyncoder %d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
 	#endif
 
-	int32_t value;
 	//Adaptative Step Size
 	if (zcdr->step==0) {
 		//printf("ZYNCODER DEBOUNCED ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
@@ -421,42 +416,29 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			zcdr->dtus[j]=zcdr->dtus[j+1];
 		zcdr->dtus[j]=dtus;
 		//Calculate step value
-		int32_t dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
+		int32_t dsval=20000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
 		if (dsval<1) dsval=1;
-		else if (dsval>2*ZYNCODER_TICKS_PER_RETENT) dsval=2*ZYNCODER_TICKS_PER_RETENT;
+		else if (dsval>8*ZYNCODER_TICKS_PER_RETENT) dsval=8*ZYNCODER_TICKS_PER_RETENT;
 
-		int32_t sv;
 		if (spin>0) {
-			sv = zcdr->subvalue + dsval;
-			if (sv > zcdr->max_value) sv = zcdr->max_value;
+			zcdr->subvalue += dsval;
 		}
 		else if (spin<0) {
-			sv = zcdr->subvalue - dsval;
-			if (sv < zcdr->min_value) sv = zcdr->min_value;
+			zcdr->subvalue -= dsval;
 		}
-		zcdr->subvalue = sv;
-		value = sv / ZYNCODER_TICKS_PER_RETENT;
+		zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
 		zcdr->tsus=tsus;
 		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
 	//Fixed Step Size
 	else {
 		if (spin>0) {
-			value = zcdr->value + zcdr->step;
-			if (value>zcdr->max_value) value=zcdr->max_value;
+			zcdr->subvalue += zcdr->step;
 		}
 		else if (spin<0) {
-			value = zcdr->value - zcdr->step;
-			if (value<zcdr->min_value) value=zcdr->min_value;
+			zcdr->subvalue -= zcdr->step;
 		}
-	}
-
-	if (zcdr->value!=value) {
-		zcdr->value=value;
-		zcdr->value_flag = 1;
-		if (zcdr->zpot_i>=0) {
-			send_zynpot(zcdr->zpot_i);
-		}
+		zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
 	}
 }
 
@@ -473,8 +455,6 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	zcdr->step = 1;
 	zcdr->value = 0;
 	zcdr->subvalue = 0;
-	zcdr->min_value = 0;
-	zcdr->max_value = 127;
 	zcdr->last_encoded = 0;
 	zcdr->tsus = 0;
 
@@ -548,44 +528,15 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	return 0;
 }
 
-int setup_rangescale_zyncoder(uint8_t i, int32_t min_value, int32_t max_value, int32_t value, int32_t step) {
+int setup_behaviour_zyncoder(uint8_t i, int32_t step, uint8_t inv) {
 	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
-		printf("ZynCore->setup_rangescale_zyncoder(%d, ...): Invalid index!\n", i);
+		printf("ZynCore->setup_behaviour_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	if (min_value==max_value) {
-		//printf("ZynCore->setup_rangescale_zyncoder(%d, %d, %d, ...): Invalid range!\n", i, min_value, max_value);
-		//return 0;
-	}
 
-	zyncoder_t *zcdr = zyncoders + i;
-
-	if (min_value>max_value) {
-		int32_t swapv = min_value;
-		min_value = max_value;
-		max_value = swapv;
-		zcdr->inv = 1;
-	}
-	else {
-		zcdr->inv = 0;
-	}
-
-	if (value>max_value) value = max_value;
-	else if (value<min_value) value = min_value;
-
-	zcdr->step = step;
-	if (step==0) {
-		zcdr->value = value;
-		zcdr->subvalue = ZYNCODER_TICKS_PER_RETENT * value;
-		zcdr->min_value = ZYNCODER_TICKS_PER_RETENT * min_value;
-		zcdr->max_value = ZYNCODER_TICKS_PER_RETENT * (max_value + 1) - 1;
-	} else {
-		zcdr->value = value;
-		zcdr->subvalue = 0;
-		zcdr->min_value = min_value;
-		zcdr->max_value = max_value;
-	}
-	zcdr->value_flag = 0;
+	zyncoders[i].step = step;
+	zyncoders[i].value = 0;
+	zyncoders[i].subvalue = 0;
 }
 
 int32_t get_value_zyncoder(uint8_t i) {
@@ -593,38 +544,12 @@ int32_t get_value_zyncoder(uint8_t i) {
 		printf("ZynCore->get_value_zyncoder(%d): Invalid index!\n", i);
 		return 0;
 	}
-	zyncoders[i].value_flag = 0;
-	return zyncoders[i].value;
-}
-
-uint8_t get_value_flag_zyncoder(uint8_t i) {
-	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
-		printf("ZynCore->get_value_flag_zyncoder(%d): Invalid index!\n", i);
-		return 0;
+	int32_t res = zyncoders[i].value;
+	if (res!=0) {
+		zyncoders[i].subvalue = 0;
+		zyncoders[i].value = 0;
 	}
-	return zyncoders[i].value_flag;
-}
-
-int set_value_zyncoder(uint8_t i, int32_t v) {
-	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
-		printf("ZynCore->set_value_zyncoder(%d, ...): Invalid index!\n", i);
-		return 0;
-	}
-	zyncoder_t *zcdr = zyncoders + i;
-
-	if (zcdr->step==0) {
-		v*=ZYNCODER_TICKS_PER_RETENT;
-		if (v>zcdr->max_value) zcdr->subvalue=zcdr->max_value;
-		else if (v<zcdr->min_value) zcdr->subvalue=zcdr->min_value;
-		else zcdr->subvalue=v;
-		zcdr->value=zcdr->subvalue/ZYNCODER_TICKS_PER_RETENT;
-	} else {
-		if (v>zcdr->max_value) zcdr->value=zcdr->max_value;
-		else if (v<zcdr->min_value) zcdr->value=zcdr->max_value;
-		else zcdr->value=v;
-	}
-	//zcdr->value_flag = 1;
-	return 1;
+	return res;
 }
 
 
