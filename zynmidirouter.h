@@ -194,6 +194,7 @@ void set_midi_filter_system_events(int mfse);
 //MIDI Learning Mode
 int midi_learning_mode;
 void set_midi_learning_mode(int mlm);
+int get_midi_learning_mode();
 
 //MIDI Filter Swap Mapping
 int get_mf_arrow_from(uint8_t chan, uint8_t num, mf_arrow_t *arrow);
