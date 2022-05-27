@@ -416,9 +416,9 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			zcdr->dtus[j]=zcdr->dtus[j+1];
 		zcdr->dtus[j]=dtus;
 		//Calculate step value
-		int32_t dsval=20000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
+		int32_t dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
 		if (dsval<1) dsval=1;
-		else if (dsval>8*ZYNCODER_TICKS_PER_RETENT) dsval=8*ZYNCODER_TICKS_PER_RETENT;
+		else if (dsval>4*ZYNCODER_TICKS_PER_RETENT) dsval=4*ZYNCODER_TICKS_PER_RETENT;
 
 		if (spin>0) {
 			zcdr->subvalue += dsval;

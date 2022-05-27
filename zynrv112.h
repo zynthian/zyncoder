@@ -48,7 +48,7 @@ struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 
 //#define RV112_ADS1115_NOISE_DIV 32
 #define RV112_ADS1115_NOISE_DIV 8
-#define RV112_ADS1115_RAW_DIV 30
+#define RV112_ADS1115_RAW_DIV 20
 
 #define MAX_NUM_RV112 4
 
