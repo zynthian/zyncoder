@@ -468,6 +468,10 @@ void set_midi_learning_mode(int mlm) {
 	midi_learning_mode=mlm;
 }
 
+int get_midi_learning_mode() {
+	return midi_learning_mode;
+}
+
 //-----------------------------------------------------------------------------
 // Swap CC mapping => GRAPH THEORY
 //-----------------------------------------------------------------------------
