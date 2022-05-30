@@ -54,6 +54,8 @@ void (*zynswitch_rbpi_ISRs[]);
 void zyncoder_rbpi_ISR(uint8_t i);
 void (*zyncoder_rbpi_ISRs[]);
 
+extern void (*zynpot_cb)(int8_t, int32_t);
+
 //-----------------------------------------------------------------------------
 // Helper functions
 //-----------------------------------------------------------------------------
@@ -426,7 +428,6 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		else if (spin<0) {
 			zcdr->subvalue -= dsval;
 		}
-		zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
 		zcdr->tsus=tsus;
 		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
 	} 
@@ -438,7 +439,16 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 		else if (spin<0) {
 			zcdr->subvalue -= zcdr->step;
 		}
-		zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
+	}
+
+	//Calculate value
+	zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
+
+	//Call CB function
+	if (zcdr->value!=0 && zynpot_cb) {
+		zynpot_cb(zcdr->zpot_i, zcdr->value);
+		zcdr->subvalue = 0;
+		zcdr->value = 0;
 	}
 }
 

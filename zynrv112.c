@@ -43,6 +43,10 @@
 #include "zynrv112.h"
 
 //-----------------------------------------------------------------------------
+
+extern void (*zynpot_cb)(int8_t, int32_t);
+
+//-----------------------------------------------------------------------------
 // RV112's zynpot API
 //-----------------------------------------------------------------------------
 
@@ -272,10 +276,16 @@ void * poll_rv112(void *arg) {
 				if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
 				else vr = rv112s[i].valraw + rv112s[i].lastdv;
 
+				// calculate value & call CB function
 				if (vr!=rv112s[i].valraw) {
 					rv112s[i].valraw = vr;
 					rv112s[i].value = vr / RV112_ADS1115_RAW_DIV;
-					//fprintf(stdout, "RV112(%d): Vraw=%d, Value=%d\n", i, vr, rv112s[i].value);
+					if (rv112s[i].value!=0 && zynpot_cb) {
+						//fprintf(stdout, "RV112(%d): Vraw=%d, Value=%d\n", i, vr, rv112s[i].value);
+						zynpot_cb(rv112s[i].zpot_i, rv112s[i].value);
+						rv112s[i].valraw = 0;
+						rv112s[i].value = 0;
+					}
 				}
 			}
 		}

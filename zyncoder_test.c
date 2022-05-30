@@ -33,6 +33,14 @@
 #include "zyncontrol.h"
 
 //-----------------------------------------------------------------------------
+// Callback function
+//-----------------------------------------------------------------------------
+
+void test_zynpot_cb(int8_t i, int32_t val) {
+	printf("PT-%d = %d\n", i, val);
+}
+
+//-----------------------------------------------------------------------------
 // Main function
 //-----------------------------------------------------------------------------
 
@@ -57,6 +65,7 @@ int main() {
 	int num_zynpots = get_num_zynpots();
 
 	//Configure zynpots
+	setup_zynpot_cb(test_zynpot_cb);
 	for (i=0; i<num_zynpots; i++) {
 		setup_behaviour_zynpot(i, 0, 0);
 	}
@@ -69,14 +78,18 @@ int main() {
 			if (dtus>0) fprintf(stdout, "SW-%d = %d\n", i, dtus);
 			i++;
 		}
+		/*
 		for (i=0;i<num_zynpots;i++) {
 			int32_t val = get_value_zynpot(i);
 			if (val!=0) {
 				printf("PT-%d = %d\n", i, val);
 			}
 		}
+		*/
 		usleep(1000);
 	}
 
 	return 0;
 }
+
+
