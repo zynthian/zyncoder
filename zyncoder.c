@@ -339,7 +339,6 @@ void reset_zyncoders() {
 	int i,j;
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled = 0;
-		zyncoders[i].inv = 0;
 		zyncoders[i].value = 0;
 		zyncoders[i].subvalue = 0;
  		zyncoders[i].zpot_i = -1;
@@ -400,7 +399,6 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			#endif
 			return;
 	}
-	if (zcdr->inv) spin = -spin;
 	#ifdef DEBUG
 	printf("zyncoder %d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
 	#endif
@@ -461,7 +459,6 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 
 	//setup_rangescale_zyncoder(i,0,127,64,0);
 	zcdr->enabled = 0;
-	zcdr->inv = 0;
 	zcdr->step = 1;
 	zcdr->value = 0;
 	zcdr->subvalue = 0;
@@ -538,12 +535,11 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	return 0;
 }
 
-int setup_behaviour_zyncoder(uint8_t i, int32_t step, uint8_t inv) {
+int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
 		printf("ZynCore->setup_behaviour_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-
 	zyncoders[i].step = step;
 	zyncoders[i].value = 0;
 	zyncoders[i].subvalue = 0;

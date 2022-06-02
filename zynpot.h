@@ -38,7 +38,6 @@
 typedef struct zynpot_data_st {
 	uint8_t enabled;
 	int32_t step;
-	uint8_t inv;
 	int32_t value;
 	int8_t zpot_i;
 } zynpot_data_t;
@@ -50,7 +49,7 @@ typedef struct zynpot_st {
 	zynpot_data_t *data;
 
 	// Function pointers
-	int (*setup_behaviour)(uint8_t, int32_t, uint8_t);
+	int (*setup_behaviour)(uint8_t, int32_t);
 	int32_t (*get_value)(uint8_t);
 } zynpot_t;
 zynpot_t zynpots[MAX_NUM_ZYNPOTS];
@@ -71,7 +70,7 @@ void setup_zynpot_cb(void (*cbfunc)(int8_t, int32_t));
 
 int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii);
 
-int setup_behaviour_zynpot(uint8_t i, int32_t step, uint8_t inv);
+int setup_behaviour_zynpot(uint8_t i, int32_t step);
 int32_t get_value_zynpot(uint8_t i);
 
 

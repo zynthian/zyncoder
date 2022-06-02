@@ -67,7 +67,7 @@ int main() {
 	//Configure zynpots
 	setup_zynpot_cb(test_zynpot_cb);
 	for (i=0; i<num_zynpots; i++) {
-		setup_behaviour_zynpot(i, 0, 0);
+		setup_behaviour_zynpot(i, 0);
 	}
 
 	printf("Testing switches & rotaries...\n");

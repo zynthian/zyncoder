@@ -55,7 +55,6 @@ void init_rv112s() {
 	boost::circular_buffer<int32_t> *dvbuf;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
-		rv112s[i].inv = 0;
 		rv112s[i].value = 0;
 		rv112s[i].zpot_i = -1;
 		rv112s[i].lastdv = 0;
@@ -70,7 +69,6 @@ void end_rv112s() {
 	int i;
 	for (i=0;i<MAX_NUM_RV112;i++) {
 		rv112s[i].enabled = 0;
-		rv112s[i].inv = 0;
 		rv112s[i].value = 0;
 		rv112s[i].zpot_i = -1;
 		rv112s[i].lastdv = 0;
@@ -90,7 +88,7 @@ int get_num_rv112s() {
 	return n;
 }
 
-int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
+int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins) {
 	if (i > MAX_NUM_RV112) {
 		printf("ZynCore->setup_rv112(%d): Invalid index!\n", i);
 		return 0;
@@ -98,7 +96,7 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 
 	uint8_t pos = (i % 2) * 2;
 	rv112s[i].base_pin = base_pin;
-	if (inv==0) {
+	if (reversed_pins==0) {
 		rv112s[i].pinA = base_pin + pos + 1;
 		rv112s[i].pinB = base_pin + pos;
 	} else {
@@ -111,20 +109,18 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv) {
 	rv112s[i].lastdv = 0;
 	rv112s[i].value = 0;
 	rv112s[i].step = 1;
-	rv112s[i].inv = 0;
 	rv112s[i].valraw = 0;
 	rv112s[i].enabled = 1;
 	return 1;
 }
 
-int setup_behaviour_rv112(uint8_t i, int32_t step, uint8_t inv) {
+int setup_behaviour_rv112(uint8_t i, int32_t step) {
 	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
 		printf("ZynCore->setup_step_rv112(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
 	rv112s[i].step = step;
-	rv112s[i].inv = inv;
 	rv112s[i].valraw = 0;
 	rv112s[i].value = 0;
 
@@ -273,8 +269,7 @@ void * poll_rv112(void *arg) {
 					else if (rv112s[i].dvavg < 2000) rv112s[i].lastdv /= 4;
 					else if (rv112s[i].dvavg < 4000) rv112s[i].lastdv /= 2;
 				}
-				if (rv112s[i].inv) vr = rv112s[i].valraw - rv112s[i].lastdv;
-				else vr = rv112s[i].valraw + rv112s[i].lastdv;
+				vr = rv112s[i].valraw + rv112s[i].lastdv;
 
 				// calculate value & call CB function
 				if (vr!=rv112s[i].valraw) {

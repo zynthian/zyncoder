@@ -55,7 +55,6 @@ struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 typedef struct rv112_st {
 	uint8_t enabled;
 	int32_t step;
-	uint8_t inv;
 	int32_t value;
 	int8_t zpot_i;
 
@@ -90,9 +89,9 @@ void end_rv112s();
 
 int get_num_rv112s();
 
-int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t inv);
+int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins);
 
-int setup_behaviour_rv112(uint8_t i, int32_t step, uint8_t inv);
+int setup_behaviour_rv112(uint8_t i, int32_t step);
 int32_t get_value_rv112(uint8_t i);
 
 //-----------------------------------------------------------------------------
