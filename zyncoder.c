@@ -66,6 +66,9 @@ unsigned int int_to_int(unsigned int k) {
 }
 #endif
 
+// Table of valid encoder states
+static const uint8_t valid_quadrant_states[] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+
 //-----------------------------------------------------------------------------
 // Zynswitch functions
 //-----------------------------------------------------------------------------
@@ -340,10 +343,10 @@ void reset_zyncoders() {
 	for (i=0;i<MAX_NUM_ZYNCODERS;i++) {
 		zyncoders[i].enabled = 0;
 		zyncoders[i].value = 0;
-		zyncoders[i].subvalue = 0;
  		zyncoders[i].zpot_i = -1;
-		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++)
-			zyncoders[i].dtus[j] = 0;
+ 		zyncoders[i].short_history = 0;
+ 		zyncoders[i].long_history = 0;
+		zyncoders[i].tsms = 0;
 	}
 }
 
@@ -359,94 +362,53 @@ int get_num_zyncoders() {
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	zyncoder_t *zcdr = zyncoders + i;
 
-	//Software Debouncing =>
-	//Get time interval from last tick
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
-	unsigned int dtus=tsus-zcdr->tsus;
-	//printf("ZYNCODER ISR %d => %u\n",i,dtus);
-	//Ignore spurious ticks
-	if (dtus<1000) {
-		#ifdef DEBUG
-		printf("zyncoder %d => Dropped Step (bouncing: %u)\n",i,dtus);
-		#endif
-		return;
-	}
-	//printf("ZYNCODER DEBOUNCED ISR %d => %u\n",i,dtus);
-
-	//Calculate rotation direction => Quadrature Encoder Algorithm
-	int spin;
-	uint8_t encoded = (msb << 1) | lsb;
-	uint8_t sum = (zcdr->last_encoded << 2) | encoded;
-	zcdr->last_encoded = encoded;
-	switch(sum) {
-		case 0b1101:
-		case 0b0100:
-		case 0b0010:
-		case 0b1011:
-			spin = 1;
-			break;
-		case 0b1110:
-		case 0b0111:
-		case 0b0001:
-		case 0b1000:
-			spin = -1;
-			break;
-		default:
-			#ifdef DEBUG
-			printf("zyncoder %d => Dropped Step (invalid quadrature sequence: %08d)\n",i,int_to_int(sum));
-			#endif
+	// step == 0 so use software filter algorithm and speed based scaling
+	// Shift last read state to top of short history
+	zcdr->short_history <<= 2;
+	// Add current state to bottom of short history
+	if (!msb)
+		zcdr->short_history |= 0x02;
+	if (!lsb)
+		zcdr->short_history |= 0x01;
+	zcdr->short_history &= 0x0f; // Mask short history to 4 bits
+	// Look up in table for valid transition from previous to current state
+	if (valid_quadrant_states[zcdr->short_history]) {
+		// Shift previous valid transition and store this transition in long history
+		zcdr->long_history <<= 4;
+		zcdr->long_history |= zcdr->short_history;
+		int8_t dval = 0;
+		if (zcdr->long_history == 0xd4) {
+			// Last transition in CW direction before rest detent
+			dval = 1;
+		}
+		else if (zcdr->long_history == 0xe8) {
+			// Last transition in CCW direction before rest detent
+			dval = -1;
+		} else {
+			// Not at rest detent so ignore - if want finer resolution could count every quadrant of detent, not just rest detent
 			return;
-	}
-	#ifdef DEBUG
-	printf("zyncoder %d - %08d\t%08d\t%d\n", i, int_to_int(encoded), int_to_int(sum), spin);
-	#endif
-
-	//Adaptative Step Size
-	if (zcdr->step==0) {
-		//printf("ZYNCODER DEBOUNCED ISR %d => SUBVALUE=%d (%u)\n",i,zcdr->subvalue,dtus);
-		//Calculate average dtus for the last ZYNCODER_TICKS_PER_RETENT ticks
-		int j;
-		unsigned int dtus_avg=dtus;
-		for (j=0;j<ZYNCODER_TICKS_PER_RETENT;j++) dtus_avg+=zcdr->dtus[j];
-		dtus_avg/=(ZYNCODER_TICKS_PER_RETENT+1);
-		//Add last dtus to fifo array
-		for (j=0;j<ZYNCODER_TICKS_PER_RETENT-1;j++)
-			zcdr->dtus[j]=zcdr->dtus[j+1];
-		zcdr->dtus[j]=dtus;
-		//Calculate step value
-		int32_t dsval=10000*ZYNCODER_TICKS_PER_RETENT/dtus_avg;
-		if (dsval<1) dsval=1;
-		else if (dsval>4*ZYNCODER_TICKS_PER_RETENT) dsval=4*ZYNCODER_TICKS_PER_RETENT;
-
-		if (spin>0) {
-			zcdr->subvalue += dsval;
 		}
-		else if (spin<0) {
-			zcdr->subvalue -= dsval;
+		if (zcdr->step) {
+			dval *= zcdr->step;
+		} else {
+			//Get time interval from last tick
+			struct timespec ts;
+			uint64_t tsms;
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			tsms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+			int64_t dtms = tsms - zcdr->tsms; // milliseconds since last encoder change
+			// Rotation acceleration
+			if (dtms < 100)
+				dval *= (((100 - dtms) / 10) + 1);
+			zcdr->tsms = tsms;
 		}
-		zcdr->tsus=tsus;
-		//printf("DTUS=%d, %d (%d)\n",dtus_avg,value,dsval);
-	} 
-	//Fixed Step Size
-	else {
-		if (spin>0) {
-			zcdr->subvalue += zcdr->step;
-		}
-		else if (spin<0) {
-			zcdr->subvalue -= zcdr->step;
-		}
-	}
+		zcdr->value += dval;
 
-	//Calculate value
-	zcdr->value = zcdr->subvalue / ZYNCODER_TICKS_PER_RETENT;
-
-	//Call CB function
-	if (zcdr->value!=0 && zynpot_cb) {
-		zynpot_cb(zcdr->zpot_i, zcdr->value);
-		zcdr->subvalue = 0;
-		zcdr->value = 0;
+		//Call CB function
+		if (zynpot_cb) {
+			zynpot_cb(zcdr->zpot_i, zcdr->value);
+			zcdr->value = 0;
+		}
 	}
 }
 
@@ -461,9 +423,9 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	zcdr->enabled = 0;
 	zcdr->step = 1;
 	zcdr->value = 0;
-	zcdr->subvalue = 0;
-	zcdr->last_encoded = 0;
-	zcdr->tsus = 0;
+	zcdr->tsms = 0;
+	zcdr->short_history = 0;
+	zcdr->long_history = 0;
 
 	if (pin_a!=pin_b) {
 		// RBPi GPIO pins
@@ -542,7 +504,9 @@ int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 	}
 	zyncoders[i].step = step;
 	zyncoders[i].value = 0;
-	zyncoders[i].subvalue = 0;
+	zyncoders[i].tsms = 0;
+	zyncoders[i].short_history = 0;
+	zyncoders[i].long_history = 0;
 }
 
 int32_t get_value_zyncoder(uint8_t i) {
@@ -552,7 +516,6 @@ int32_t get_value_zyncoder(uint8_t i) {
 	}
 	int32_t res = zyncoders[i].value;
 	if (res!=0) {
-		zyncoders[i].subvalue = 0;
 		zyncoders[i].value = 0;
 	}
 	return res;

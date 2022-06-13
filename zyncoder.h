@@ -47,7 +47,7 @@ typedef struct zynswitch_st {
 	uint8_t enabled;
 	uint16_t pin;
 	uint8_t push;
-	unsigned long tsus;
+	uint64_t tsus;
 	unsigned int dtus;
 	uint8_t status;
 
@@ -79,21 +79,20 @@ void update_zynswitch(uint8_t i, uint8_t status);
 #define ZYNCODER_TICKS_PER_RETENT 4
 
 typedef struct zyncoder_st {
-	uint8_t enabled;
-	int32_t step;
-	int32_t value;
-	uint8_t value_flag;
-	int8_t zpot_i;
+	uint8_t enabled;			// 1 to enable encoder
+	int32_t step;				// Size of change in value for each detent of encoder
+	int32_t value;				// Current encdoder value
+	int8_t zpot_i;				// Zynpot index assigned to this encoder
 
 	// Next fields are zyncoder-specific
-	uint16_t pin_a;
-	uint16_t pin_b;
-	
-	int32_t subvalue;
-	unsigned int last_encoded;
-	unsigned long tsus;
-	unsigned int dtus[ZYNCODER_TICKS_PER_RETENT];
+	uint16_t pin_a;				// Data GPI
+	uint16_t pin_b;				// Clock GPI
+	uint8_t short_history;      // Quadrant encoder algorithm last two valid states (4 bits)
+	uint8_t long_history;       // Quadrant encoder algorithm last four valid states (8 bits)
+
+	uint64_t tsms;				// Absolute time of last encoder change in milliseconds
 } zyncoder_t;
+
 zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
 
 //-----------------------------------------------------------------------------
