@@ -278,11 +278,21 @@ void reset_midi_filter_cc_swap();
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
+jack_midi_event_t ZMIP_NET_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_SEQ_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_STEP_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_CTRL_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_FAKE_INT_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_FAKE_UI_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_FAKE_CTRL_FB_EVENTS[JACK_MIDI_BUFFER_SIZE];
+jack_midi_event_t ZMIP_DEV_EVENTS[NUM_ZMIP_DEVS];
+
+// Structure describing a MIDI output
 struct zmop_st {
 	jack_port_t *jport;
+	void * buffer;
 	int midi_chans[16];
 	int route_from_zmips[MAX_NUM_ZMIPS];
-	int event_counter[MAX_NUM_ZMIPS];
 	uint32_t flags;
 	int n_connections;
 };
@@ -301,17 +311,19 @@ int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_get_route_from(int izmop, int izmip);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
+int send_zmip(int izmip, jack_midi_event_t * ev);
 
-
+// Structure describing a MIDI input
 struct zmip_st {
 	jack_port_t *jport;
+	void * buffer;
 	uint32_t flags;
-	jack_midi_event_t events[JACK_MIDI_BUFFER_SIZE];
 	int n_events;
+	jack_midi_event_t * events;
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
 
-int zmip_init(int iz, char *name, uint32_t flags);
+int zmip_init(int iz, char *name, uint32_t flags, jack_midi_event_t * events);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
 int zmip_push_data(int iz, jack_midi_event_t *ev);
@@ -327,6 +339,7 @@ jack_client_t *jack_client;
 int init_jack_midi(char *name);
 int end_jack_midi();
 int jack_process(jack_nframes_t nframes, void *arg);
+void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg);
 
 //-----------------------------------------------------------------------------
 // MIDI Input Events Buffer Management and Send functions
