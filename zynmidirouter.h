@@ -289,12 +289,12 @@ jack_midi_event_t ZMIP_DEV_EVENTS[NUM_ZMIP_DEVS];
 
 // Structure describing a MIDI output
 struct zmop_st {
-	jack_port_t *jport;
-	void * buffer;
-	int midi_chans[16];
-	int route_from_zmips[MAX_NUM_ZMIPS];
-	uint32_t flags;
-	int n_connections;
+	jack_port_t *jport;    // jack midi port
+	void * buffer;         // pointer to jack midi output buffer
+	int midi_chans[16];    // MIDI channel translation map (-1 to disable a MIDI channel)
+	int route_from_zmips[MAX_NUM_ZMIPS]; // Flags indicating which inputs to route to this output
+	uint32_t flags;        // Bitwise flags influencing output behaviour
+	int n_connections;     // Quantity of jack connections
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
@@ -311,15 +311,15 @@ int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_get_route_from(int izmop, int izmip);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
-int send_zmip(int izmip, jack_midi_event_t * ev);
+void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop); // Add event to MIDI output
 
 // Structure describing a MIDI input
 struct zmip_st {
-	jack_port_t *jport;
-	void * buffer;
-	uint32_t flags;
-	int n_events;
-	jack_midi_event_t * events;
+	jack_port_t *jport; // jack midi port
+	void * buffer;      // Pointer to the jack midi buffer 
+	uint32_t flags;     // Bitwise flags influencing input behaviour
+	int n_events;		// Quantity of events in event queue (not used)
+	jack_midi_event_t * events; // Event queue (only use first entry)
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
 
