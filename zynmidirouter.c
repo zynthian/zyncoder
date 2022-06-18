@@ -1032,11 +1032,17 @@ void populate_zmip_event(int izmip, jack_nframes_t nframes) {
 }
 
 //-----------------------------------------------------
-// Pre-process ZynMidi Input Ports (zmips)
-// Populating jack MIDI output buffers
+// Jack Process
 //-----------------------------------------------------
 
-int jack_process_zmip(jack_nframes_t nframes) {
+int jack_process(jack_nframes_t nframes, void *arg) {
+
+	// Initialise zomps (MIDI output structures)
+	for (int i = 0; i < ZMIP_FAKE_INT; ++i) {
+		zmops[i].buffer = jack_port_get_buffer(zmops[i].jport, nframes);
+		if (zmops[i].buffer)
+			jack_midi_clear_buffer(zmops[i].buffer);
+	}
 
 	// Initialise input structure for each MIDI input
 	for (int i = 0; i < MAX_NUM_ZMIPS; ++i) {
@@ -1432,33 +1438,6 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 		//else {printf("Sent microtune"); for(int i=0; i<xev.size; ++i) printf(" %02X", xev.buffer[i]); printf(" to output %d\n", izmop);}
 }
 
-//-----------------------------------------------------
-// Jack Process
-//-----------------------------------------------------
-
-int jack_process(jack_nframes_t nframes, void *arg) {
-	//---------------------------------
-	// Clear Output Port Data Buffers
-	//---------------------------------
-
-	// Initialise zomps (MIDI output structures)
-	for (int i = 0; i < ZMIP_FAKE_INT; ++i) {
-		zmops[i].buffer = jack_port_get_buffer(zmops[i].jport, nframes);
-		if (zmops[i].buffer)
-			jack_midi_clear_buffer(zmops[i].buffer);
-	}
-	//---------------------------------
-	// Process MIDI Input
-	// actually performs everything so maybe just move here?
-	//---------------------------------
-	if (jack_process_zmip(nframes) < 0) {
-		printf("jack_process_zmip failed\n");
-		return -1;
-	}
-	//fprintf(stderr, "ZynMidiRouter: ZMIP processed\n");
-
-	return 0;
-}
 
 void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg) {
 	//---------------------------------
@@ -1805,8 +1784,15 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb) {
 
 int init_zynmidi_buffer() {
 	zynmidi_buffer = jack_ringbuffer_create(ZYNMIDI_BUFFER_SIZE);
-	if(zynmidi_buffer)
+	if(zynmidi_buffer) {
+		fprintf(stderr, "ZynMidiRouter: Error creating zynmidi ring-buffer.\n");
 		return 1;
+	}
+	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
+	if (jack_ringbuffer_mlock(jack_ring_ui_buffer)) {
+		fprintf(stderr, "ZynMidiRouter: Error locking memory for zynmidi ring-buffer.\n");
+		return 1;
+	}
 	return 0;
 }
 
