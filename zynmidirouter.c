@@ -312,7 +312,7 @@ void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans) {
 		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
 		return;
 	}
-	midi_filter.noterange[chan].halftone_trans=ht_trans;
+	midi_filter.noterange[chan].halftone_trans = ht_trans;
 }
 
 uint8_t get_midi_filter_note_low(uint8_t chan) {
@@ -453,7 +453,7 @@ void set_midi_filter_cc_ignore(uint8_t chan_from, uint8_t cc_from) {
 
 //TODO: It doesn't take into account if chan_from!=chan_to
 uint8_t get_midi_filter_cc_map(uint8_t chan_from, uint8_t cc_from) {
-	midi_event_t *ev=get_midi_filter_event_map(CTRL_CHANGE, chan_from, cc_from);
+	midi_event_t *ev = get_midi_filter_event_map(CTRL_CHANGE, chan_from, cc_from);
 	return ev->num;
 }
 
