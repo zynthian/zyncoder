@@ -159,7 +159,7 @@ void set_midi_filter_tuning_freq(double freq) {
 		midi_filter.tuning_pitchbend = -1;
 		// Clear pitchbend already applied
 		for (int i = 0; i < 16; ++i)
-			ui_send_pitchbend_change(i, 0x0064); //!@todo Ideally reset only playing channels to current pitchbend offset
+			ui_send_pitchbend_change(i, 0x2000); //!@todo Ideally reset only playing channels to current pitchbend offset
 	} else {
 		double pb = 6 * log((double)freq / 440.0) / log(2.0);
 		if (pb < 1.0 && pb > -1.0) {
