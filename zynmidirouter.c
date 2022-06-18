@@ -40,15 +40,27 @@
 
 
 int init_zynmidirouter() {
-	if (!init_zynmidi_buffer()) return 0;
-	if (!init_midi_router()) return 0;
-	if (!init_jack_midi("ZynMidiRouter")) return 0;
+	if (!init_zynmidi_buffer())
+		return 0;
+	if (!init_midi_router()) {
+		end_zynmidi_buffer();
+		return 0;
+	}
+	if (!init_jack_midi("ZynMidiRouter")) {
+		end_midi_router();
+		end_zynmidi_buffer();
+		return 0;
+	}
 	return 1;
 }
 
 int end_zynmidirouter() {
-	if (!end_midi_router()) return 0;
-	if (!end_jack_midi()) return 0;
+	if (!end_midi_router())
+		return 0;
+	if (!end_jack_midi())
+		return 0;
+	if (!end_zynmidi_buffer())
+		return 0;
 	return 1;
 }
 
@@ -706,8 +718,10 @@ int zmop_init(int iz, char *name, int midi_chan, uint32_t flags) {
 	//Listen midi_chan, don't translate.
 	//Channel -1 means "all channels"
 	for (i = 0; i < 16; i++) {
-		if (midi_chan<0 || i == midi_chan) zmops[iz].midi_chans[i] = i;
-		else zmops[iz].midi_chans[i] = -1;
+		if (midi_chan<0 || i == midi_chan)
+			zmops[iz].midi_chans[i] = i;
+		else
+			zmops[iz].midi_chans[i] = -1;
 	}
 	//Reset routes
 	for (i = 0; i < MAX_NUM_ZMIPS; i++)
@@ -738,8 +752,10 @@ int zmop_chain_set_flag_droppc(int ch, uint8_t flag) {
 		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
 		return 0;
 	}
-	if (flag) zmops[ZMOP_CH0 + ch].flags |= (uint32_t)FLAG_ZMOP_DROPPC;
-	else zmops[ZMOP_CH0 + ch].flags &= ~(uint32_t)FLAG_ZMOP_DROPPC;
+	if (flag)
+		zmops[ZMOP_CH0 + ch].flags |= (uint32_t)FLAG_ZMOP_DROPPC;
+	else
+		zmops[ZMOP_CH0 + ch].flags &= ~(uint32_t)FLAG_ZMOP_DROPPC;
 	//fprintf(stderr, "ZynMidiRouter: ZMOPS flags for chain (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
 	return 1;
 }
@@ -1003,14 +1019,12 @@ void populate_zmip_event(int izmip, jack_nframes_t nframes) {
 		if (jack_ringbuffer_read_space(zmip->buffer) >= 3) {
 			jack_ringbuffer_read(zmip->buffer, zmip->event.buffer, 3);
 			zmip->event.time = nframes - 1;
-		}
-		else {
+		} else {
 			zmip->event.time = 0xFFFFFFFF;
 		}
-	}
-	else {
+	} else {
 		if (jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
-			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF have been processed
+			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF are ignored
 	}
 }
 
@@ -1068,8 +1082,7 @@ int jack_process_zmip(jack_nframes_t nframes) {
 				goto event_processed;
 			event_type = ev->buffer[0];
 			event_chan = 0;
-		}
-		else {
+		} else {
 			event_type = ev->buffer[0] >> 4;
 			event_chan = ev->buffer[0] & 0xF;
 		}
@@ -1078,24 +1091,20 @@ int jack_process_zmip(jack_nframes_t nframes) {
 		if (event_type == PITCH_BENDING) {
 			event_num = 0;
 			event_val = ev->buffer[2] & 0x7F; //!@todo handle 14-bit pitchbend
-		}
-		else if (event_type == CHAN_PRESS) {
+		} else if (event_type == CHAN_PRESS) {
 			event_num = 0;
 			event_val = ev->buffer[1] & 0x7F;
-		}
-		else if (ev->size == 3) {
+		} else if (ev->size == 3) {
 			event_num = ev->buffer[1] & 0x7F;
 			event_val = ev->buffer[2] & 0x7F;
-		}
-		else if (ev->size == 2) {
+		} else if (ev->size == 2) {
 			event_num = ev->buffer[1] & 0x7F;
 			event_val = 0;
-		}
-		else {
+		} else {
 			event_num=event_val = 0;
 		}
 
-		// Zynthian "master channel"
+		// Active channel (stage mode)
 		if ((current_zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0 
 				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
 			//Active Channel => When set, move all channel events to active_chan
@@ -1111,17 +1120,15 @@ int jack_process_zmip(jack_nframes_t nframes) {
 							//internal_send_note_off(j, event_num, event_val);
 						}
 					}
-				}
-				// Manage sustain pedal across active_channel changes, excluding cloned channels
-				else if (event_type == CTRL_CHANGE && event_num == 64) {
+				} else if (event_type == CTRL_CHANGE && event_num == 64) {
+					// Manage sustain pedal across active_channel changes, excluding cloned channels
 					for (j = 0; j < 16; j++) {
 						if (j != destiny_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[destiny_chan][j].enabled) {
 							internal_send_ccontrol_change(j, 64, event_val);
 						}
 					}
-				}
-				// Re-send sustain pedal on new active_channel if it was pressed before change
-				else if (event_type == NOTE_ON && event_val > 0) {
+				} else if (event_type == NOTE_ON && event_val > 0) {
+					// Re-send sustain pedal on new active_channel if it was pressed before change
 					for (j = 0; j < 16; j++) {
 						if (j != destiny_chan && midi_filter.last_ctrl_val[j][64] > midi_filter.last_ctrl_val[destiny_chan][64]) {
 							internal_send_ccontrol_change(destiny_chan, 64, midi_filter.last_ctrl_val[j][64]);
@@ -1195,9 +1202,8 @@ int jack_process_zmip(jack_nframes_t nframes) {
 				if (midi_filter.ctrl_relmode_count[event_chan][event_num] > 1) {
 					midi_filter.ctrl_mode[event_chan][event_num] = 0;
 					//printf("Changing Back to Absolute Mode ...\n");
-				}
-				// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
-				else if (event_val == 64) {
+				} else if (event_val == 64) {
+					// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
 					if (midi_filter.ctrl_relmode_count[event_chan][event_num] == 1) {
 						midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
 						goto event_processed;
@@ -1205,8 +1211,7 @@ int jack_process_zmip(jack_nframes_t nframes) {
 						midi_filter.ctrl_mode[event_chan][event_num] = 0;
 						//printf("Changing Back to Absolute Mode ...\n");
 					}
-				}
-				else {
+				} else {
 					int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
 					int16_t new_val = last_val + (int16_t)event_val - 64;
 					if (new_val > 127) new_val = 127;
@@ -1239,13 +1244,15 @@ int jack_process_zmip(jack_nframes_t nframes) {
 			//	goto event_processed;
 			//}
 		} else if ((current_zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {
-			//Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
+		
+		// Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
+		
 			int discard_note = 0;
 			int note = ev->buffer[1];
-			//Note-range
+			// Note-range
 			if (note < midi_filter.noterange[event_chan].note_low || note > midi_filter.noterange[event_chan].note_high)
 				discard_note = 1;
-			//Transpose
+			// Transpose
 			if (!discard_note) {
 				note += 12 * midi_filter.noterange[event_chan].octave_trans;
 				note += midi_filter.noterange[event_chan].halftone_trans;
@@ -1330,20 +1337,16 @@ int jack_process_zmip(jack_nframes_t nframes) {
 					if (event_type == PITCH_BENDING) {
 						event_num = 0;
 						event_val = ev->buffer[2] & 0x7F;
-					}
-					else if (event_type == CHAN_PRESS) {
+					} else if (event_type == CHAN_PRESS) {
 						event_num = 0;
 						event_val = ev->buffer[1] & 0x7F;
-					}
-					else if (ev->size == 3) {
+					} else if (ev->size == 3) {
 						event_num = ev->buffer[1] & 0x7F;
 						event_val = ev->buffer[2] & 0x7F;
-					}
-					else if (ev->size == 2) {
+					} else if (ev->size == 2) {
 						event_num = ev->buffer[1] & 0x7F;
 						event_val = 0;
-					}
-					else {
+					} else {
 						event_num=event_val = 0;
 					}
 
@@ -1357,7 +1360,7 @@ int jack_process_zmip(jack_nframes_t nframes) {
 
 		// Mark event as processed by setting its time beyond searchable range then get next event
 		event_processed:
-		current_zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
+		//current_zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
 		populate_zmip_event(izmip, nframes);
 	}
 	return 0;
@@ -1482,8 +1485,7 @@ int write_internal_midi_event(uint8_t *event_buffer) {
 			fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
-	}
-	else {
+	} else {
 		fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: FULL\n");
 		return 0;
 	}
@@ -1494,15 +1496,13 @@ int write_internal_midi_event(uint8_t *event_buffer) {
 		uint8_t num = event_buffer[1];
 		uint8_t val = event_buffer[2];
 		midi_filter.last_ctrl_val[chan][num] = val;
-	}
-	//Set note state
-	else if (event_buffer[0] & (NOTE_ON << 4)) {
+	} else if (event_buffer[0] & (NOTE_ON << 4)) {
+		//Set note state
 		uint8_t chan=event_buffer[0] & 0x0F;
 		uint8_t num=event_buffer[1];
 		uint8_t val=event_buffer[2];
 		midi_filter.last_ctrl_val[chan][num] = val;
-	}
-	else if (event_buffer[0] & (NOTE_OFF << 4)) {
+	} else if (event_buffer[0] & (NOTE_OFF << 4)) {
 		uint8_t chan=event_buffer[0] & 0x0F;
 		uint8_t num=event_buffer[1];
 		midi_filter.last_ctrl_val[chan][num] = 0;
@@ -1608,8 +1608,7 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 			fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
-	}
-	else {
+	} else {
 		fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: FULL\n");
 		return 0;
 	}
@@ -1620,15 +1619,13 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 		uint8_t num=event_buffer[1];
 		uint8_t val=event_buffer[2];
 		midi_filter.last_ctrl_val[chan][num] = val;
-	}
-	//Set note state
-	else if (event_buffer[0] & (NOTE_ON << 4)) {
+	} else if (event_buffer[0] & (NOTE_ON << 4)) {
+		//Set note state
 		uint8_t chan=event_buffer[0] & 0x0F;
 		uint8_t num=event_buffer[1];
 		uint8_t val=event_buffer[2];
 		midi_filter.last_ctrl_val[chan][num] = val;
-	}
-	else if (event_buffer[0] & (NOTE_OFF << 4)) {
+	} else if (event_buffer[0] & (NOTE_OFF << 4)) {
 		uint8_t chan=event_buffer[0] & 0x0F;
 		uint8_t num=event_buffer[1];
 		midi_filter.last_ctrl_val[chan][num] = 0;
@@ -1739,8 +1736,7 @@ int write_ctrlfb_midi_event(uint8_t *event_buffer) {
 			fprintf(stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: INCOMPLETE\n");
 			return 0;
 		}
-	}
-	else {
+	} else {
 		fprintf(stderr, "ZynMidiRouter: Error writing controller feedback ring-buffer: FULL\n");
 		return 0;
 	}
@@ -1804,35 +1800,31 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb) {
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
-uint32_t zynmidi_buffer[ZYNMIDI_BUFFER_SIZE];
-int zynmidi_buffer_read;
-int zynmidi_buffer_write;
-
 int init_zynmidi_buffer() {
-	int i;
-	for (i = 0; i < ZYNMIDI_BUFFER_SIZE; i++)
-		zynmidi_buffer[i] = 0;
-	zynmidi_buffer_read = zynmidi_buffer_write = 0;
+	zynmidi_buffer = jack_ringbuffer_create(ZYNMIDI_BUFFER_SIZE);
+	if(zynmidi_buffer)
+		return 1;
+	return 0;
+}
+
+int end_zynmidi_buffer() {
+	jack_ringbuffer_free(zynmidi_buffer);
 	return 1;
 }
 
 int write_zynmidi(uint32_t ev) {
-	int nptr=zynmidi_buffer_write+1;
-	if (nptr >= ZYNMIDI_BUFFER_SIZE)
-		nptr = 0;
-	if (nptr == zynmidi_buffer_read)
+	if (jack_ringbuffer_write_space(zynmidi_buffer) < 4)
 		return 0;
-	zynmidi_buffer[zynmidi_buffer_write] = ev;
-	zynmidi_buffer_write = nptr;
+	if (jack_ringbuffer_write(zynmidi_buffer, (uint8_t*)&ev, 4) != 4)
+		return 0;
 	return 1;
 }
 
 uint32_t read_zynmidi() {
-	if (zynmidi_buffer_read == zynmidi_buffer_write)
+	if (jack_ringbuffer_read_space(zynmidi_buffer) < 4)
 		return 0;
-	uint32_t ev = zynmidi_buffer[zynmidi_buffer_read++];
-	if (zynmidi_buffer_read >= ZYNMIDI_BUFFER_SIZE)
-		zynmidi_buffer_read = 0;
+	uint32_t ev;
+	jack_ringbuffer_read(zynmidi_buffer, (uint8_t*)&ev, 4);
 	return ev;
 }
 

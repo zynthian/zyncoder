@@ -286,7 +286,7 @@ struct zmop_st {
 	int midi_chans[16];    // MIDI channel translation map (-1 to disable a MIDI channel)
 	int route_from_zmips[MAX_NUM_ZMIPS]; // Flags indicating which inputs to route to this output
 	uint32_t flags;        // Bitwise flags influencing output behaviour
-	int n_connections;     // Quantity of jack connections
+	int n_connections;     // Quantity of jack connections (used for optimisation)
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
@@ -341,7 +341,7 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 // MIDI Input Events Buffer Management and Send functions
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 1024
+#define ZYNMIDI_BUFFER_SIZE 4096
 
 //-----------------------------------------------------
 // MIDI Internal Input <= internal (zyncoder)
@@ -395,7 +395,9 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
+jack_ringbuffer_t * zynmidi_buffer;
 int init_zynmidi_buffer();
+int end_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
