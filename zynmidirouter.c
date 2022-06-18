@@ -207,7 +207,7 @@ void reset_midi_filter_clone(uint8_t chan_from) {
 	for (j = 0; j < 16; j++) {
 		midi_filter.clone[chan_from][j].enabled = 0;
 		memset(midi_filter.clone[chan_from][j].cc, 0, 128);
-		for (k=0; k<sizeof(default_cc_to_clone); k++) {
+		for (k = 0; k < sizeof(default_cc_to_clone); k++) {
 			midi_filter.clone[chan_from][j].cc[default_cc_to_clone[k] & 0x7F] = 1;
 		}
 	}
@@ -1318,41 +1318,39 @@ int jack_process_zmip(jack_nframes_t nframes) {
 
 				// Check for next "clone_to" channel ...
 				for (int clone_to_chan = 0; clone_to_chan < 16; ++clone_to_chan) {
-					if (midi_filter.clone[clone_from_chan][clone_to_chan].enabled ||
-						event_type == CTRL_CHANGE && midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]) {
-						// Clone from last event...
+					if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type == CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))
+						continue;
 
-						ev->buffer[0] = (ev->buffer[0] & 0xF0) | clone_to_chan;
+					// Clone from last event...
+					ev->buffer[0] = (ev->buffer[0] & 0xF0) | clone_to_chan;
 
-						event_type = ev->buffer[0] >> 4;
+					event_type = ev->buffer[0] >> 4;
 
-						//Get event details depending of event type & size
-						if (event_type == PITCH_BENDING) {
-							event_num = 0;
-							event_val = ev->buffer[2] & 0x7F;
-						}
-						else if (event_type == CHAN_PRESS) {
-							event_num = 0;
-							event_val = ev->buffer[1] & 0x7F;
-						}
-						else if (ev->size == 3) {
-							event_num = ev->buffer[1] & 0x7F;
-							event_val = ev->buffer[2] & 0x7F;
-						}
-						else if (ev->size == 2) {
-							event_num = ev->buffer[1] & 0x7F;
-							event_val = 0;
-						}
-						else {
-							event_num=event_val = 0;
-						}
-
-						//loggin.debug("CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
-
-						// Add cloned event to MIDI outputs
-						zomp_push_event(zmops + clone_to_chan, ev, izmop);
-						printf("Cloned to %d\n", clone_to_chan);
+					//Get event details depending of event type & size
+					if (event_type == PITCH_BENDING) {
+						event_num = 0;
+						event_val = ev->buffer[2] & 0x7F;
 					}
+					else if (event_type == CHAN_PRESS) {
+						event_num = 0;
+						event_val = ev->buffer[1] & 0x7F;
+					}
+					else if (ev->size == 3) {
+						event_num = ev->buffer[1] & 0x7F;
+						event_val = ev->buffer[2] & 0x7F;
+					}
+					else if (ev->size == 2) {
+						event_num = ev->buffer[1] & 0x7F;
+						event_val = 0;
+					}
+					else {
+						event_num=event_val = 0;
+					}
+
+					//loggin.debug("CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
+
+					// Add cloned event to MIDI outputs
+					zomp_push_event(zmops + clone_to_chan, ev, izmop);
 				}
 			}
 		}
@@ -1419,7 +1417,7 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 	// Add core event to output
 	if (jack_midi_event_write(zmop->buffer, ev->time, ev->buffer, ev->size))
 		fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
-	else {printf("Sent"); for(int i=0; i<ev->size;++i) printf(" %02X", ev->buffer[i]); printf(" to output %d\n", izmop);}
+	//else {printf("Sent"); for(int i=0; i<ev->size;++i) printf(" %02X", ev->buffer[i]); printf(" to output %d\n", izmop);}
 
 	// Add tuning event to output
 	if (xev.size > 0)
