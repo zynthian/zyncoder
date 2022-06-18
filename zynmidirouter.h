@@ -278,14 +278,6 @@ void reset_midi_filter_cc_swap();
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
-jack_midi_event_t ZMIP_NET_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_SEQ_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_STEP_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_CTRL_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_FAKE_INT_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_FAKE_UI_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_FAKE_CTRL_FB_EVENTS[JACK_MIDI_BUFFER_SIZE];
-jack_midi_event_t ZMIP_DEV_EVENTS[NUM_ZMIP_DEVS];
 
 // Structure describing a MIDI output
 struct zmop_st {
@@ -318,17 +310,21 @@ struct zmip_st {
 	jack_port_t *jport; // jack midi port
 	void * buffer;      // Pointer to the jack midi buffer 
 	uint32_t flags;     // Bitwise flags influencing input behaviour
-	int n_events;		// Quantity of events in event queue (not used)
-	jack_midi_event_t * events; // Event queue (only use first entry)
+	uint32_t next_event; // Index of the next event to be processed
+	jack_midi_event_t event; // Event currently being processed
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
 
-int zmip_init(int iz, char *name, uint32_t flags, jack_midi_event_t * events);
+uint8_t int_buffer[3]; // Buffer for processing internal MIDI events
+uint8_t ui_buffer[3]; // Buffer for processing ui MIDI events
+uint8_t ctrlfb_buffer[3]; // Buffer for processing ctrl fb MIDI events
+
+int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
-int zmip_push_data(int iz, jack_midi_event_t *ev);
-int zmip_clear_events(int iz);
-int zmips_clear_events();
+//int zmip_push_data(int iz, jack_midi_event_t *ev);
+//int zmip_clear_events(int iz);
+//int zmips_clear_events();
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
