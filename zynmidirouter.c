@@ -55,9 +55,9 @@ int init_zynmidirouter() {
 }
 
 int end_zynmidirouter() {
-	if (!end_midi_router())
-		return 0;
 	if (!end_jack_midi())
+		return 0;
+	if (!end_midi_router())
 		return 0;
 	if (!end_zynmidi_buffer())
 		return 0;
@@ -69,7 +69,7 @@ int end_zynmidirouter() {
 //-----------------------------------------------------------------------------
 
 int init_midi_router() {
-	int i,j,k;
+	int i, j, k;
 
 	midi_filter.master_chan =- 1;
 	midi_filter.active_chan = -1;
@@ -1005,6 +1005,9 @@ int end_jack_midi() {
 	if (jack_client_close(jack_client)) {
 		fprintf(stderr, "ZynMidiRouter: Error closing jack client.\n");
 	}
+	jack_ringbuffer_free(jack_ring_internal_buffer);
+	jack_ringbuffer_free(jack_ring_ui_buffer);
+	jack_ringbuffer_free(jack_ring_ctrlfb_buffer);
 	return 1;
 }
 
