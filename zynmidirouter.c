@@ -1130,36 +1130,35 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0 
 				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
 			//Active Channel => When set, move all channel events to active_chan
-			int destiny_chan = midi_filter.active_chan;
+			event_chan = midi_filter.active_chan;
 
 			if (midi_filter.last_active_chan >= 0) { 
 				// Release pressed notes across active channel changes, excluding cloned channels
-				//!@todo Releasing notes across active channel changes is currently disabled but still using CPU cycles!!!
 				if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
 					for (j = 0; j < 16; j++) {
-						if (j != destiny_chan && midi_filter.note_state[j][event_num] > 0 && !midi_filter.clone[destiny_chan][j].enabled) {
-							destiny_chan = j;
-							//internal_send_note_off(j, event_num, event_val);
+						if (j != midi_filter.active_chan && midi_filter.note_state[j][event_num] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
+							event_chan = j; // Found corresponding note-on for this note-off event on another channel
+							break;
 						}
 					}
 				} else if (event_type == CTRL_CHANGE && event_num == 64) {
 					// Manage sustain pedal across active_channel changes, excluding cloned channels
 					for (j = 0; j < 16; j++) {
-						if (j != destiny_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[destiny_chan][j].enabled) {
+						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
 							internal_send_ccontrol_change(j, 64, event_val);
 						}
 					}
 				} else if (event_type == NOTE_ON && event_val > 0) {
 					// Re-send sustain pedal on new active_channel if it was pressed before change
 					for (j = 0; j < 16; j++) {
-						if (j != destiny_chan && midi_filter.last_ctrl_val[j][64] > midi_filter.last_ctrl_val[destiny_chan][64]) {
-							internal_send_ccontrol_change(destiny_chan, 64, midi_filter.last_ctrl_val[j][64]);
+						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > midi_filter.last_ctrl_val[midi_filter.active_chan][64]) {
+							internal_send_ccontrol_change(midi_filter.active_chan, 64, midi_filter.last_ctrl_val[j][64]);
+							break;
 						}
 					}
 				}
 			}
-			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (destiny_chan & 0x0F);
-			event_chan = destiny_chan;
+			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
 		}
 
 		//if (ev->buffer[0] != 0xfe)
