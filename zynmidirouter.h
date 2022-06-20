@@ -311,7 +311,7 @@ struct zmip_st {
 	void * buffer;      // Pointer to the jack midi buffer 
 	uint32_t flags;     // Bitwise flags influencing input behaviour
 	uint32_t event_count; // Quantity of events in input event queue (not fake queues)
-	uint32_t next_event; // Index of the next event to be processed
+	uint32_t next_event; // Index of the next event to be processed (not face queues)
 	jack_midi_event_t event; // Event currently being processed
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];

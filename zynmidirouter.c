@@ -1025,21 +1025,20 @@ int end_jack_midi() {
 
 // Populate zmip event with next event from its input queue / buffer
 // izmip: Index of zmip
-// nframes: Quantity of frames in jack process
 // returns: Pointer to zmip structure
-void populate_zmip_event(int izmip, jack_nframes_t nframes) {
-	struct zmip_st * zmip = zmips + izmip;
-	if (izmip > ZMIP_CTRL) {
-		// Fake MIDI queues used for internal data transfer using jack ringbuffer
+void populate_zmip_event(struct zmip_st * zmip) {
+	if (zmip->jport) {
+		// Jack input buffer used for jack input ports
+		if (zmip->next_event >= zmip->event_count || jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
+			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF are ignored
+	} else {
+		// Jack ringbuffer used for virtual MIDI queues
 		if (jack_ringbuffer_read_space(zmip->buffer) >= 3) {
 			jack_ringbuffer_read(zmip->buffer, zmip->event.buffer, 3);
-			zmip->event.time = nframes - 1;
+			zmip->event.time = 0; // Put internal events at start of buffer (it is arbitary so begining is as good as anywhere)
 		} else {
 			zmip->event.time = 0xFFFFFFFF;
 		}
-	} else {
-		if (zmip->next_event >= zmip->event_count || jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
-			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF are ignored
 	}
 }
 
@@ -1050,7 +1049,7 @@ void populate_zmip_event(int izmip, jack_nframes_t nframes) {
 int jack_process(jack_nframes_t nframes, void *arg) {
 
 	// Initialise zomps (MIDI output structures)
-	for (int i = 0; i < ZMIP_FAKE_INT; ++i) {
+	for (int i = 0; i < MAX_NUM_ZMOPS; ++i) {
 		zmops[i].buffer = jack_port_get_buffer(zmops[i].jport, nframes);
 		if (zmops[i].buffer)
 			jack_midi_clear_buffer(zmops[i].buffer);
@@ -1062,9 +1061,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		if (zmip->jport) {
 			zmip->buffer = jack_port_get_buffer(zmip->jport, nframes);
 			zmip->event_count = jack_midi_get_event_count(zmip->buffer);
+			zmip->next_event = 0;
 		}
-		zmip->next_event = 0;
-		populate_zmip_event(i, nframes);
+		populate_zmip_event(zmip);
 	}
 
 	uint8_t event_type;
@@ -1384,7 +1383,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		// Mark event as processed by setting its time beyond searchable range then get next event
 		event_processed:
 		//current_zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
-		populate_zmip_event(izmip, nframes);
+		populate_zmip_event(current_zmip);
 	}
 	return 0;
 }
