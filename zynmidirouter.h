@@ -53,7 +53,7 @@ typedef enum midi_event_type_enum {
 	NOTE_ON=0x9,
 	KEY_PRESS=0xA,
 	CTRL_CHANGE=0xB,
-	PITCH_BENDING=0xE,
+	PITCH_BEND=0xE,
 	//Channel 2-bytes-messages
 	PROG_CHANGE=0xC,
 	CHAN_PRESS=0xD,

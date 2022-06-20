@@ -1110,7 +1110,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 
 		// Get event details depending of event type & size
-		if (event_type == PITCH_BENDING) {
+		if (event_type == PITCH_BEND) {
 			event_num = 0;
 			event_val = ev->buffer[2] & 0x7F; //!@todo handle 14-bit pitchbend
 		} else if (event_type == CHAN_PRESS) {
@@ -1172,7 +1172,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 
 		// Event Mapping
-		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BENDING) {
+		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
 			midi_event_t * event_map = &(midi_filter.event_map[event_type & 0x07][event_chan][event_num]);
 			//Ignore event...
 			if (event_map->type == IGNORE_EVENT) {
@@ -1189,7 +1189,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					ev->buffer[1] = event_num;
 					event_val = 0;
 					ev->size=2;
-				} else if (event_map->type == PITCH_BENDING) {
+				} else if (event_map->type == PITCH_BEND) {
 					event_num = 0;
 					ev->buffer[1] = 0;
 					ev->buffer[2] = event_val;
@@ -1299,7 +1299,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			midi_filter.note_state[event_chan][event_num] = 0;
 
 		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, SysEx]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BENDING || event_type >= SYSTEM_EXCLUSIVE)) {
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type >= SYSTEM_EXCLUSIVE)) {
 			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
 		}
 
@@ -1342,7 +1342,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			zomp_push_event(zmop, ev, izmop);
 
 			// Handle cloned events
-			if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BENDING || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
+			if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BEND || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
 				int clone_from_chan = event_chan;
 
 				// Check for next "clone_to" channel ...
@@ -1356,7 +1356,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					event_type = ev->buffer[0] >> 4;
 
 					//Get event details depending of event type & size
-					if (event_type == PITCH_BENDING) {
+					if (event_type == PITCH_BEND) {
 						event_num = 0;
 						event_val = ev->buffer[2] & 0x7F;
 					} else if (event_type == CHAN_PRESS) {
@@ -1405,7 +1405,7 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 	xev.buffer = (jack_midi_data_t *) &xev_buffer;
 
 	// Channel filter & translation
-	if (event_type >= NOTE_OFF && event_type <= PITCH_BENDING) {
+	if (event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
 		if (zmop->midi_chans[event_chan] >= 0) {
 			event_chan = zmop->midi_chans[event_chan] & 0x0F;
 			ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
@@ -1420,12 +1420,12 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 			//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
 			pb = get_tuned_pitchbend(pb);
 			//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
-			xev.buffer[0] = (PITCH_BENDING << 4) | event_chan;
+			xev.buffer[0] = (PITCH_BEND << 4) | event_chan;
 			xev.buffer[1] = pb & 0x7F;
 			xev.buffer[2] = (pb >> 7) & 0x7F;
 			xev.size=3;
 			xev.time = ev->time;
-		} else if (event_type == PITCH_BENDING) {
+		} else if (event_type == PITCH_BEND) {
 			//Get received PB
 			int pb = (ev->buffer[2] << 7) | ev->buffer[1];
 			//Save last received PB value ...
