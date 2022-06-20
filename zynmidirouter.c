@@ -1056,8 +1056,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	}
 
 	// Initialise input structure for each MIDI input
+	struct zmip_st * zmip;
 	for (int i = 0; i < MAX_NUM_ZMIPS; ++i) {
-		struct zmip_st * zmip = zmips + i;
+		zmip = zmips + i;
 		if (zmip->jport) {
 			zmip->buffer = jack_port_get_buffer(zmip->jport, nframes);
 			zmip->event_count = jack_midi_get_event_count(zmip->buffer);
@@ -1078,19 +1079,18 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Find the earliest unprocessed event from all input buffers
 		jack_nframes_t 	event_time = 0xFFFFFFFE; // Time of earliest unprocessed event (processed events have time set to 0xFFFFFFFF)
-		struct zmip_st * current_zmip = NULL;
 		int izmip = -1;
 		for (int i = 0; i < MAX_NUM_ZMIPS; ++i) {
-			struct zmip_st * zmip = zmips + i;
+			zmip = zmips + i;
 			if (zmip->event.time < event_time) {
 				event_time = zmip->event.time;
-				current_zmip = zmip;
 				izmip = i;
 			}
 		}
-		if(!current_zmip)
+		if(izmip < 0)
 			break;
-		jack_midi_event_t * ev = &(current_zmip->event);
+		zmip = zmips + izmip;
+		jack_midi_event_t * ev = &(zmip->event);
 		//printf("Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
 
 		// Ignore Active Sense & SysEx messages
@@ -1127,7 +1127,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 
 		// Active channel (stage mode)
-		if ((current_zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0 
+		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0 
 				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
 			//Active Channel => When set, move all channel events to active_chan
 			int destiny_chan = midi_filter.active_chan;
@@ -1167,12 +1167,12 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event = 0;
-		if ((current_zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && (event_type == CTRL_CHANGE || event_type==NOTE_ON || event_type==NOTE_OFF)) {
+		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && (event_type == CTRL_CHANGE || event_type==NOTE_ON || event_type==NOTE_OFF)) {
 			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
 		}
 
 		// Event Mapping
-		if ((current_zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BENDING) {
+		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BENDING) {
 			midi_event_t * event_map = &(midi_filter.event_map[event_type & 0x07][event_chan][event_num]);
 			//Ignore event...
 			if (event_map->type == IGNORE_EVENT) {
@@ -1205,7 +1205,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		}
 
 		// Capture events for UI: MASTER CHANNEL + Program Change
-		if (current_zmip->flags & FLAG_ZMIP_UI) {
+		if (zmip->flags & FLAG_ZMIP_UI) {
 			if (event_chan == midi_filter.master_chan) {
 				write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 				goto event_processed;
@@ -1262,10 +1262,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			midi_filter.last_ctrl_val[event_chan][event_num] = event_val;
 
 			//Ignore Bank Change events when FLAG_ZMIP_UI
-			//if ((current_zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
+			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	goto event_processed;
 			//}
-		} else if ((current_zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {
+		} else if ((zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {
 		
 		// Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
 		
@@ -1299,7 +1299,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			midi_filter.note_state[event_chan][event_num] = 0;
 
 		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, SysEx]
-		if (!ui_event && (current_zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BENDING || event_type >= SYSTEM_EXCLUSIVE)) {
+		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BENDING || event_type >= SYSTEM_EXCLUSIVE)) {
 			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
 		}
 
@@ -1309,7 +1309,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Swap Mapping
 		//fprintf(stderr, "PRESWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
-		if ((current_zmip->flags & FLAG_ZMIP_FILTER) && event_type == CTRL_CHANGE) {
+		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type == CTRL_CHANGE) {
 			midi_event_t *cc_swap = &(midi_filter.cc_swap[event_chan][event_num]);
 			//fprintf(stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev->buffer[0],ev->buffer[1]);
 			event_chan = cc_swap->chan;
@@ -1342,7 +1342,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			zomp_push_event(zmop, ev, izmop);
 
 			// Handle cloned events
-			if ((current_zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BENDING || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
+			if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BENDING || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
 				int clone_from_chan = event_chan;
 
 				// Check for next "clone_to" channel ...
@@ -1382,8 +1382,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Mark event as processed by setting its time beyond searchable range then get next event
 		event_processed:
-		//current_zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
-		populate_zmip_event(current_zmip);
+		//zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
+		populate_zmip_event(zmip);
 	}
 	return 0;
 }
