@@ -310,6 +310,7 @@ struct zmip_st {
 	jack_port_t *jport; // jack midi port
 	void * buffer;      // Pointer to the jack midi buffer 
 	uint32_t flags;     // Bitwise flags influencing input behaviour
+	uint32_t event_count; // Quantity of events in input event queue (not fake queues)
 	uint32_t next_event; // Index of the next event to be processed
 	jack_midi_event_t event; // Event currently being processed
 };

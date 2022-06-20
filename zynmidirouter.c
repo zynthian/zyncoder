@@ -931,18 +931,30 @@ int init_jack_midi(char *name) {
 
 	//Init Ring-Buffers
 	jack_ring_internal_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
+	if(!jack_ring_internal_buffer) {
+		fprintf(stderr, "ZynMidiRouter: Error creating internal ring-buffer.\n");
+		return 0;
+	}
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_internal_buffer)) {
 		fprintf(stderr, "ZynMidiRouter: Error locking memory for internal ring-buffer.\n");
 		return 0;
 	}
 	jack_ring_ui_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
+	if(!jack_ring_ui_buffer) {
+		fprintf(stderr, "ZynMidiRouter: Error creating UI ring-buffer.\n");
+		return 0;
+	}
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_ui_buffer)) {
 		fprintf(stderr, "ZynMidiRouter: Error locking memory for UI ring-buffer.\n");
 		return 0;
 	}
 	jack_ring_ctrlfb_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);
+	if(!jack_ring_ctrlfb_buffer) {
+		fprintf(stderr, "ZynMidiRouter: Error creating controller feedback ring-buffer.\n");
+		return 0;
+	}
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
 	if (jack_ringbuffer_mlock(jack_ring_ctrlfb_buffer)) {
 		fprintf(stderr, "ZynMidiRouter: Error locking memory for controller feedback ring-buffer.\n");
@@ -1026,7 +1038,7 @@ void populate_zmip_event(int izmip, jack_nframes_t nframes) {
 			zmip->event.time = 0xFFFFFFFF;
 		}
 	} else {
-		if (jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
+		if (zmip->next_event >= zmip->event_count || jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
 			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF are ignored
 	}
 }
@@ -1047,8 +1059,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	// Initialise input structure for each MIDI input
 	for (int i = 0; i < MAX_NUM_ZMIPS; ++i) {
 		struct zmip_st * zmip = zmips + i;
-		if (zmip->jport)
+		if (zmip->jport) {
 			zmip->buffer = jack_port_get_buffer(zmip->jport, nframes);
+			zmip->event_count = jack_midi_get_event_count(zmip->buffer);
+		}
 		zmip->next_event = 0;
 		populate_zmip_event(i, nframes);
 	}
@@ -1784,16 +1798,16 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb) {
 
 int init_zynmidi_buffer() {
 	zynmidi_buffer = jack_ringbuffer_create(ZYNMIDI_BUFFER_SIZE);
-	if(zynmidi_buffer) {
+	if(!zynmidi_buffer) {
 		fprintf(stderr, "ZynMidiRouter: Error creating zynmidi ring-buffer.\n");
-		return 1;
+		return 0;
 	}
 	// lock the buffer into memory, this is *NOT* realtime safe, do it before using the buffer!
-	if (jack_ringbuffer_mlock(jack_ring_ui_buffer)) {
+	if (jack_ringbuffer_mlock(zynmidi_buffer)) {
 		fprintf(stderr, "ZynMidiRouter: Error locking memory for zynmidi ring-buffer.\n");
-		return 1;
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 int end_zynmidi_buffer() {
