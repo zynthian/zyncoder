@@ -1049,6 +1049,7 @@ void populate_zmip_event(struct zmip_st * zmip) {
 int jack_process(jack_nframes_t nframes, void *arg) {
 
 	// Initialise zomps (MIDI output structures)
+	struct zmop_st * zmop;
 	for (int i = 0; i < MAX_NUM_ZMOPS; ++i) {
 		zmops[i].buffer = jack_port_get_buffer(zmops[i].jport, nframes);
 		if (zmops[i].buffer)
@@ -1161,8 +1162,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
 		}
 
-		//if (ev->buffer[0] != 0xfe)
-		//	fprintf(stderr, "MIDI EVENT: %x, %x, %x\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
+		//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
 
 		// Capture events for UI: before filtering => [Control-Change for MIDI learning]
 		ui_event = 0;
@@ -1175,12 +1175,12 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			midi_event_t * event_map = &(midi_filter.event_map[event_type & 0x07][event_chan][event_num]);
 			//Ignore event...
 			if (event_map->type == IGNORE_EVENT) {
-				fprintf(stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
+				//fprintf(stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
 				goto event_processed;
 			}
 			//Map event ...
 			if (event_map->type >= 0) {
-				fprintf(stdout, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
+				//fprintf(stdout, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
 				event_type = event_map->type;
 				event_chan = event_map->chan;
 				ev->buffer[0] = (event_type << 4) | event_chan;
@@ -1199,7 +1199,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					ev->buffer[2] = event_val;
 					ev->size = 3;
 				}
-				//fprintf(stdout, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
+				//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
 			}
 		}
 
@@ -1244,12 +1244,12 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 
 			//Absolute Mode
-			if (midi_filter.ctrl_mode[event_chan][event_num] == 0 && midi_filter.cc_automode ==1) {
+			if (midi_filter.ctrl_mode[event_chan][event_num] == 0 && midi_filter.cc_automode == 1) {
 				if (event_val == 64) {
 					//printf("Tenting Relative Mode ...\n");
 					midi_filter.ctrl_mode[event_chan][event_num] = 1;
 					midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
-					// Here we lost a tick when an absolut knob moves fast and touch val=64,
+					// Here we lost a tick when an absolute knob moves fast and touch val=64,
 					// but if we want auto-detect rel-mode and change softly to it, it's the only way.
 					int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
 					if (abs(last_val - event_val) > 4)
@@ -1264,15 +1264,16 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	goto event_processed;
 			//}
-		} else if ((zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {
-		
-		// Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
-		
+		} else if ((zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
+			// Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
+
 			int discard_note = 0;
 			int note = ev->buffer[1];
+
 			// Note-range
 			if (note < midi_filter.noterange[event_chan].note_low || note > midi_filter.noterange[event_chan].note_high)
 				discard_note = 1;
+
 			// Transpose
 			if (!discard_note) {
 				note += 12 * midi_filter.noterange[event_chan].octave_trans;
@@ -1309,21 +1310,21 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		// Swap Mapping
 		//fprintf(stderr, "PRESWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type == CTRL_CHANGE) {
-			midi_event_t *cc_swap = &(midi_filter.cc_swap[event_chan][event_num]);
+			midi_event_t * cc_swap = &(midi_filter.cc_swap[event_chan][event_num]);
 			//fprintf(stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev->buffer[0],ev->buffer[1]);
 			event_chan = cc_swap->chan;
 			event_num = cc_swap->num;
 			ev->buffer[0] = (event_type << 4) | event_chan;
 			ev->buffer[1] = event_num;
 			ev->buffer[2] = event_val;
-			ev->size=3;
+			ev->size = 3; //!@todo Is it safe to assume we can change the size of the event buffer?
 			//fprintf(stdout, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
 		// Send the processed message to configured output queues
 		for(int izmop = 0; izmop < MAX_NUM_ZMOPS; ++ izmop) {
-			struct zmop_st * zmop = zmops + izmop;
+			zmop = zmops + izmop;
 
 			// Do not send to disconnected outputs
 			if (!zmop->n_connections)
@@ -1379,9 +1380,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 		}
 
-		// Mark event as processed by setting its time beyond searchable range then get next event
 		event_processed:
-		//zmip->event.time = 0xFFFFFFFF; //!@todo Is this needed? We replace the event with next event
+		// After processing (or ignoring) event, get the next event from this input queue and try it all again...
 		populate_zmip_event(zmip);
 	}
 	return 0;
