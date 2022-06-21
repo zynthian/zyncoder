@@ -323,9 +323,6 @@ uint8_t ctrlfb_buffer[3]; // Buffer for processing ctrl fb MIDI events
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
-//int zmip_push_data(int iz, jack_midi_event_t *ev);
-//int zmip_clear_events(int iz);
-//int zmips_clear_events();
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
