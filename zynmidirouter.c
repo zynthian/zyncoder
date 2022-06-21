@@ -1214,7 +1214,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 		}
 
-		// MIDI CC messages => TODO: Clone behaviour?!!
+		// MIDI CC messages
 		if (event_type == CTRL_CHANGE) {
 
 			//Auto Relative-Mode
@@ -1461,11 +1461,6 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 	//fprintf(stderr, "ZynMidiRouter: Num. of connections refreshed\n");
 
 }
-
-
-//-----------------------------------------------------
-// MIDI Internal Input <= Internal (zyncoder, etc.)
-//-----------------------------------------------------
 
 //------------------------------
 // Event Ring-Buffer Management
