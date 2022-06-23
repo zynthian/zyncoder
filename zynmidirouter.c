@@ -1333,6 +1333,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			// Drop "Program Change" from engine zmops
 			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
 				continue;
+			
+			// All engine CC goes via MIDI learn mechanism
+			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_CH15)
+				continue;
 
 			// Only send on configured routes and if not filtered by MIDI channel
 			if (!zmop->route_from_zmips[izmip] || zmop->midi_chans[event_chan] == -1)
