@@ -1334,7 +1334,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
 				continue;
 			
-			// All engine CC goes via MIDI learn mechanism
+			// Drop CC to chains - all engine CC goes via MIDI learn mechanism
 			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_CH15)
 				continue;
 
@@ -1352,6 +1352,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				// Check for next "clone_to" channel ...
 				for (int clone_to_chan = 0; clone_to_chan < 16; ++clone_to_chan) {
 					if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type == CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))
+						continue;
+
+					// Filter output MIDI channel
+					if (zmop->midi_chans[clone_to_chan] == -1)
 						continue;
 
 					// Clone from last event...
@@ -1375,8 +1379,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					} else {
 						event_num=event_val = 0;
 					}
-
-					//loggin.debug("CLONING EVENT %d => %d [0x%x, %d]\n", clone_from_chan, clone_to_chan, event_type, event_num);
 
 					// Add cloned event to MIDI outputs
 					zomp_push_event(zmops + clone_to_chan, ev, izmop);
@@ -1407,12 +1409,10 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 	jack_midi_data_t xev_buffer[3];
 	xev.buffer = (jack_midi_data_t *) &xev_buffer;
 
-	// Channel filter & translation
+	// Channel translation
 	if (event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
-		if (zmop->midi_chans[event_chan] >= 0) {
-			event_chan = zmop->midi_chans[event_chan] & 0x0F;
-			ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
-		}
+		event_chan = zmop->midi_chans[event_chan] & 0x0F;
+		ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
 	}
 	
 	// Fine-Tuning, using pitch-bending messages ...
