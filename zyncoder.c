@@ -398,8 +398,8 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 			tsms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 			int64_t dtms = tsms - zcdr->tsms; // milliseconds since last encoder change
 			// Rotation acceleration
-			if (dtms < 100)
-				dval *= (((100 - dtms) / 10) + 1);
+			if (dtms < 40)
+				dval *= (((40 - dtms) / 10) + 1);
 			zcdr->tsms = tsms;
 		}
 		zcdr->value += dval;
