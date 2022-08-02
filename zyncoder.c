@@ -502,7 +502,11 @@ int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 		printf("ZynCore->setup_behaviour_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
-	zyncoders[i].step = step;
+
+	// Allowed step values for encoders are 0 & 1.
+	if (step==0) zyncoders[i].step = 0;
+	else zyncoders[i].step = 1;
+	
 	zyncoders[i].value = 0;
 	zyncoders[i].tsms = 0;
 	zyncoders[i].short_history = 0;
