@@ -269,6 +269,9 @@ void * poll_rv112(void *arg) {
 					else if (rv112s[i].dvavg < 2000) rv112s[i].lastdv /= 4;
 					else if (rv112s[i].dvavg < 4000) rv112s[i].lastdv /= 2;
 				}
+				else {
+					rv112s[i].lastdv /= (8 * rv112s[i].step);
+				}
 				vr = rv112s[i].valraw + rv112s[i].lastdv;
 
 				// calculate value & call CB function
