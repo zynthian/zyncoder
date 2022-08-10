@@ -1060,6 +1060,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	struct zmip_st * zmip;
 	for (int i = 0; i < MAX_NUM_ZMIPS; ++i) {
 		zmip = zmips + i;
+		if (midi_learning_mode && i == ZMIP_CTRL)
+			continue; // Don't feedback controls when learning
 		if (zmip->jport) {
 			zmip->buffer = jack_port_get_buffer(zmip->jport, nframes);
 			zmip->event_count = jack_midi_get_event_count(zmip->buffer);
