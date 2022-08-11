@@ -1048,7 +1048,7 @@ void populate_zmip_event(struct zmip_st * zmip) {
 
 int jack_process(jack_nframes_t nframes, void *arg) {
 
-	// Initialise zomps (MIDI output structures)
+	// Initialise zmops (MIDI output structures)
 	struct zmop_st * zmop;
 	for (int i = 0; i < MAX_NUM_ZMOPS; ++i) {
 		zmops[i].buffer = jack_port_get_buffer(zmops[i].jport, nframes);
@@ -1320,7 +1320,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				continue;
 
 			// Add processed event to MIDI outputs
-			zomp_push_event(zmop, ev, izmop);
+			zmop_push_event(zmop, ev);
 		}
 
 		// Handle cloned events
@@ -1359,7 +1359,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 
 				// Add cloned event to MIDI outputs
-				zomp_push_event(zmops + clone_to_chan, ev, clone_to_chan);
+				zmop_push_event(zmops + clone_to_chan, ev);
 			}
 		}
 
@@ -1371,10 +1371,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 }
 
 //  Post-process midi message and add to output buffer
-//	zomp: Pointer to the zomp describing the MIDI output
+//	zmop: Pointer to the zmop describing the MIDI output
 //	ev: Pointer to a valid jack midi event
-//	izmop: Index of zmop (only for debug - can be removed)
-void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
+void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	if (!zmop)
 		return;
 
@@ -1443,13 +1442,11 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 	// Add core event to output
 	if (jack_midi_event_write(zmop->buffer, ev->time, ev->buffer, ev->size))
 		fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
-	//else {printf("Sent"); for(int i=0; i<ev->size;++i) printf(" %02X", ev->buffer[i]); printf(" to output %d\n", izmop);}
 
 	// Add tuning event to output
 	if (xev.size > 0)
 		if (jack_midi_event_write(zmop->buffer, xev.time, xev.buffer, ev->size))
 			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
-		//else {printf("Sent microtune"); for(int i=0; i<xev.size; ++i) printf(" %02X", xev.buffer[i]); printf(" to output %d\n", izmop);}
 	
 	if (temp_note_ptr)
 		ev->buffer[1] = *temp_note_ptr;

@@ -304,7 +304,7 @@ int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_get_route_from(int izmop, int izmip);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
-void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop); // Add event to MIDI output
+void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev); // Add event to MIDI output
 
 // Structure describing a MIDI input
 struct zmip_st {
