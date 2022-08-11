@@ -10,7 +10,7 @@ dev0..dev15: For physical MIDI port connections, one per physical port - also To
 net: Connection from MIDI over network protocols, e.g. QmidiNet, jackrtpmidi (not RtMidiOut (TouchOSC))
 seq: For Standard MIDI File (SMF) player
 step: For step sequencer
-ctrl: Control feedback from engines
+ctrl: Control feedback from engines (i.e. setBfree tonewheel faders)
 
 JACK MIDI output ports
 ======================
@@ -42,7 +42,7 @@ The input processing stage performs these processes:
 
 - Drop Active Sense and SysEx messages
 - Transform to active channel (only if active channel enabled)
-- Capture message from UI before further processing (only if MIDI learn enabled)
+- Capture message for UI before further processing (only if MIDI learn enabled)
 - Apply MIDI filter:
   - Drop ignored events
   - Map prog change, channel pressure, pitch bend, CC, etc.
@@ -50,7 +50,7 @@ The input processing stage performs these processes:
 - Process CC for absolute / relative modes
 - Filter note range
 - Transpose
-- Capture message from UI after processing (only if not already captured before processing)
+- Capture message for UI after processing (only if not already captured before processing)
 - Despatch message to UI (if captured)
 - Map CC (swap CC number as defined in input filter)
 
