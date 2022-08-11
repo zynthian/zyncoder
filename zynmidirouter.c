@@ -1076,6 +1076,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	uint8_t event_val;
 	uint32_t ui_event;
 	int j;
+	int discard_note = 0;
+
 
 	// Process MIDI input messages in the order they were received
 	while (1) {
@@ -1266,32 +1268,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//if ((zmip->flags & FLAG_ZMIP_UI) && (event_num==0 || event_num==32)) {
 			//	goto event_processed;
 			//}
-		} else if ((zmip->flags & FLAG_ZMIP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
-			// Note-range & Transpose Note-on/off messages => TODO: Bizarre clone behaviour?
-
-			int discard_note = 0;
-			int note = ev->buffer[1];
-
-			// Note-range
-			if (note < midi_filter.noterange[event_chan].note_low || note > midi_filter.noterange[event_chan].note_high)
-				discard_note = 1;
-
-			// Transpose
-			if (!discard_note) {
-				note += 12 * midi_filter.noterange[event_chan].octave_trans;
-				note += midi_filter.noterange[event_chan].halftone_trans;
-				//If result note is out of range, ignore it ...
-				if (note > 0x7F || note < 0)
-					discard_note = 1;
-				else
-					event_num = ev->buffer[1] = (uint8_t)(note & 0x7F);
-			}
-			if (discard_note) {
-				//If already captured, forward event to UI
-				if (ui_event)
-					write_zynmidi(ui_event);
-				goto event_processed;
-			}
 		}
 
 		// Save note state ...
@@ -1323,9 +1299,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//fprintf(stdout, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
-
 		// Send the processed message to configured output queues
-		for(int izmop = 0; izmop < MAX_NUM_ZMOPS; ++ izmop) {
+		for(int izmop = 0; izmop < MAX_NUM_ZMOPS; ++izmop) {
 			zmop = zmops + izmop;
 
 			// Do not send to disconnected outputs
@@ -1346,45 +1321,45 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Add processed event to MIDI outputs
 			zomp_push_event(zmop, ev, izmop);
+		}
 
-			// Handle cloned events
-			if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BEND || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
-				int clone_from_chan = event_chan;
+		// Handle cloned events
+		if ((zmip->flags & FLAG_ZMIP_CLONE) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == PITCH_BEND || event_type == KEY_PRESS || event_type == CHAN_PRESS || event_type == CTRL_CHANGE)) {
+			int clone_from_chan = event_chan;
 
-				// Check for next "clone_to" channel ...
-				for (int clone_to_chan = 0; clone_to_chan < 16; ++clone_to_chan) {
-					if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type == CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))
-						continue;
+			// Check for next "clone_to" channel ...
+			for (int clone_to_chan = 0; clone_to_chan < 16; ++clone_to_chan) {
+				if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type == CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))
+					continue;
 
-					// Filter output MIDI channel
-					if (zmop->midi_chans[clone_to_chan] == -1)
-						continue;
+				// Filter output MIDI channel
+				if (zmop->midi_chans[clone_to_chan] == -1)
+					continue;
 
-					// Clone from last event...
-					ev->buffer[0] = (ev->buffer[0] & 0xF0) | clone_to_chan;
+				// Clone from last event...
+				ev->buffer[0] = (ev->buffer[0] & 0xF0) | clone_to_chan;
 
-					event_type = ev->buffer[0] >> 4;
+				event_type = ev->buffer[0] >> 4;
 
-					//Get event details depending of event type & size
-					if (event_type == PITCH_BEND) {
-						event_num = 0;
-						event_val = ev->buffer[2] & 0x7F;
-					} else if (event_type == CHAN_PRESS) {
-						event_num = 0;
-						event_val = ev->buffer[1] & 0x7F;
-					} else if (ev->size == 3) {
-						event_num = ev->buffer[1] & 0x7F;
-						event_val = ev->buffer[2] & 0x7F;
-					} else if (ev->size == 2) {
-						event_num = ev->buffer[1] & 0x7F;
-						event_val = 0;
-					} else {
-						event_num=event_val = 0;
-					}
-
-					// Add cloned event to MIDI outputs
-					zomp_push_event(zmops + clone_to_chan, ev, izmop);
+				//Get event details depending of event type & size
+				if (event_type == PITCH_BEND) {
+					event_num = 0;
+					event_val = ev->buffer[2] & 0x7F;
+				} else if (event_type == CHAN_PRESS) {
+					event_num = 0;
+					event_val = ev->buffer[1] & 0x7F;
+				} else if (ev->size == 3) {
+					event_num = ev->buffer[1] & 0x7F;
+					event_val = ev->buffer[2] & 0x7F;
+				} else if (ev->size == 2) {
+					event_num = ev->buffer[1] & 0x7F;
+					event_val = 0;
+				} else {
+					event_num=event_val = 0;
 				}
+
+				// Add cloned event to MIDI outputs
+				zomp_push_event(zmops + clone_to_chan, ev, clone_to_chan);
 			}
 		}
 
@@ -1405,6 +1380,27 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 
 	uint8_t event_type = ev->buffer[0] >> 4;
 	uint8_t event_chan = ev->buffer[0] & 0x0F;
+	uint8_t* temp_note_ptr = 0;
+
+	if ((zmop->flags & FLAG_ZMOP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
+//	if (event_type == NOTE_OFF || event_type == NOTE_ON) {
+		// Note-range & Transpose Note-on/off messages
+		int note = ev->buffer[1];
+
+		// Note-range
+		if (note < midi_filter.noterange[event_chan].note_low || note > midi_filter.noterange[event_chan].note_high)
+			return;
+		// Transpose
+		note += 12 * midi_filter.noterange[event_chan].octave_trans;
+		note += midi_filter.noterange[event_chan].halftone_trans;
+		if (note > 0x7F || note < 0)
+			return; // Note out of range
+
+
+		uint8_t temp_note = ev->buffer[1];
+		temp_note_ptr = &temp_note;
+		ev->buffer[1] = (uint8_t)(note & 0x7F);
+	}
 
 	// Fine-tunning event
 	jack_midi_event_t xev;
@@ -1454,6 +1450,9 @@ void zomp_push_event(struct zmop_st * zmop, jack_midi_event_t * ev, int izmop) {
 		if (jack_midi_event_write(zmop->buffer, xev.time, xev.buffer, ev->size))
 			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
 		//else {printf("Sent microtune"); for(int i=0; i<xev.size; ++i) printf(" %02X", xev.buffer[i]); printf(" to output %d\n", izmop);}
+	
+	if (temp_note_ptr)
+		ev->buffer[1] = *temp_note_ptr;
 }
 
 
