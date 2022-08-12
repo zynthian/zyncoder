@@ -1163,7 +1163,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					}
 				}
 			}
-			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (midi_filter.active_chan & 0x0F);
+			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan & 0x0F);
 		}
 
 		//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
