@@ -76,6 +76,14 @@ typedef enum midi_event_type_enum {
 	END_SYSTEM_EXCLUSIVE=0xF7
 } midi_event_type;
 
+typedef enum ctrl_mode {
+	CTRL_MODE_ABS		= 0, // Absolute immediate
+	CTRL_MODE_ABS_JP	= 1, // Absolute jump prevention
+	CTRL_MODE_REL_1		= 2, // Relative 2's complement
+	CTRL_MODE_REL_2 	= 3, // Relative offset
+	CTRL_MODE_REL_3		= 4, // Relative sign bit
+} midi_ctrl_mode;
+
 typedef struct midi_event_st {
 	midi_event_type type;
 	uint8_t chan;
@@ -312,7 +320,7 @@ struct zmip_st {
 	void * buffer;      // Pointer to the jack midi buffer 
 	uint32_t flags;     // Bitwise flags influencing input behaviour
 	uint32_t event_count; // Quantity of events in input event queue (not fake queues)
-	uint32_t next_event; // Index of the next event to be processed (not face queues)
+	uint32_t next_event; // Index of the next event to be processed (not fake queues)
 	jack_midi_event_t event; // Event currently being processed
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
