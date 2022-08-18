@@ -1,0 +1,67 @@
+zynmidirouter description
+=========================
+
+zynmidirouter is a core module. It provides routing, filtering and translation of MIDI messages.
+
+JACK MIDI input ports
+=====================
+
+dev0..dev15: For physical MIDI port connections, one per physical port - also TouchOSC
+net: Connection from MIDI over network protocols, e.g. QmidiNet, jackrtpmidi (not RtMidiOut (TouchOSC))
+seq: For Standard MIDI File (SMF) player
+step: For step sequencer
+ctrl: Control feedback from engines (i.e. setBfree tonewheel faders)
+
+JACK MIDI output ports
+======================
+ch0..ch15: Connection to each chain
+main: MIDI recorder, engines not in chains 
+midi: Hardware MIDI outputs + ZynMaster (MIDI/CV+Gate)
+net: MIDI over network protocols, e.g. QmidiNet, rtpmidi
+ctrl: MIDI outputs configured as feedback ports
+step: Connection to step sequencer
+
+Virtual MIDI inputs
+===================
+int: Internal MIDI messages
+ui: Messages triggered by user interface
+ctrl_fb:
+
+Virtual MIDI outputs
+====================
+zynmidi: Messages targetted at user interface (zyngui reads this queue)
+
+Note: Virtual input and output queues are normalised and limited to 3 byte messages. They are not scheduled within the jack frame. All messages are despatched at start of frame.
+
+Input processing
+================
+
+Each MIDI message received on a device input (mostly physical / external) is processed in the order they are received. Messages from virtual sources are processed and despatched first. After each mesage is processed it is routed to the appropriate outputs and duplicated as necessary based on rules such as channel cloning.
+
+The input processing stage performs these processes:
+
+- Drop Active Sense and SysEx messages
+- Transform to active channel (only if active channel enabled)
+- Capture message for UI before further processing (only if MIDI learn enabled)
+- Apply MIDI filter:
+  - Drop ignored events
+  - Map prog change, channel pressure, pitch bend, CC, etc.
+- Capture message for "Master Channel"
+- Process CC for absolute / relative modes
+- Filter note range
+- Transpose
+- Capture message for UI after processing (only if not already captured before processing)
+- Despatch message to UI (if captured)
+- Map CC (swap CC number as defined in input filter)
+
+Output processing
+=================
+
+After each MIDI event is processed by the input filtering and translation stage it is sent to the outputs defined by configuration rules. The following processing is applied to each output:
+
+- Filter on MIDI channel
+- Filter on source / destination (routing)
+- Addition of pitchbend message if fine tuning enabled (currently a global configuration but could be per output)
+- Translate MIDI channel
+- Clone to additional outputs as configured
+

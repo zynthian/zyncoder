@@ -53,7 +53,7 @@ typedef enum midi_event_type_enum {
 	NOTE_ON=0x9,
 	KEY_PRESS=0xA,
 	CTRL_CHANGE=0xB,
-	PITCH_BENDING=0xE,
+	PITCH_BEND=0xE,
 	//Channel 2-bytes-messages
 	PROG_CHANGE=0xC,
 	CHAN_PRESS=0xD,
@@ -262,8 +262,9 @@ void reset_midi_filter_cc_swap();
 
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_TUNING 2
+#define FLAG_ZMOP_NOTERANGE 32
 
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING)
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE)
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_ZYNCODER 2
@@ -278,13 +279,15 @@ void reset_midi_filter_cc_swap();
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
+
+// Structure describing a MIDI output
 struct zmop_st {
-	jack_port_t *jport;
-	int midi_chans[16];
-	int route_from_zmips[MAX_NUM_ZMIPS];
-	int event_counter[MAX_NUM_ZMIPS];
-	uint32_t flags;
-	int n_connections;
+	jack_port_t *jport;    // jack midi port
+	void * buffer;         // pointer to jack midi output buffer
+	int midi_chans[16];    // MIDI channel translation map (-1 to disable a MIDI channel)
+	int route_from_zmips[MAX_NUM_ZMIPS]; // Flags indicating which inputs to route to this output
+	uint32_t flags;        // Bitwise flags influencing output behaviour
+	int n_connections;     // Quantity of jack connections (used for optimisation)
 };
 struct zmop_st zmops[MAX_NUM_ZMOPS];
 
@@ -301,22 +304,26 @@ int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_get_route_from(int izmop, int izmip);
 int zmop_reset_event_counters(int iz);
 jack_midi_event_t *zmop_pop_event(int izmop, int *izmip);
+void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev); // Add event to MIDI output
 
-
+// Structure describing a MIDI input
 struct zmip_st {
-	jack_port_t *jport;
-	uint32_t flags;
-	jack_midi_event_t events[JACK_MIDI_BUFFER_SIZE];
-	int n_events;
+	jack_port_t *jport; // jack midi port
+	void * buffer;      // Pointer to the jack midi buffer 
+	uint32_t flags;     // Bitwise flags influencing input behaviour
+	uint32_t event_count; // Quantity of events in input event queue (not fake queues)
+	uint32_t next_event; // Index of the next event to be processed (not face queues)
+	jack_midi_event_t event; // Event currently being processed
 };
 struct zmip_st zmips[MAX_NUM_ZMIPS];
+
+uint8_t int_buffer[3]; // Buffer for processing internal MIDI events
+uint8_t ui_buffer[3]; // Buffer for processing ui MIDI events
+uint8_t ctrlfb_buffer[3]; // Buffer for processing ctrl fb MIDI events
 
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
-int zmip_push_data(int iz, jack_midi_event_t *ev);
-int zmip_clear_events(int iz);
-int zmips_clear_events();
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
@@ -327,12 +334,13 @@ jack_client_t *jack_client;
 int init_jack_midi(char *name);
 int end_jack_midi();
 int jack_process(jack_nframes_t nframes, void *arg);
+void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg);
 
 //-----------------------------------------------------------------------------
 // MIDI Input Events Buffer Management and Send functions
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 1024
+#define ZYNMIDI_BUFFER_SIZE 4096
 
 //-----------------------------------------------------
 // MIDI Internal Input <= internal (zyncoder)
@@ -386,7 +394,9 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
+jack_ringbuffer_t * zynmidi_buffer;
 int init_zynmidi_buffer();
+int end_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
