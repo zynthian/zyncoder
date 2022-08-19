@@ -111,7 +111,7 @@ int init_midi_router() {
 			midi_filter.cc_swap[i][j].num = j;
 		}
 	}
-	memset(midi_filter.ctrl_mode, 0, 16 * 128);
+	memset(midi_filter.ctrl_mode, CTRL_MODE_ABS, 16 * 128);
 	memset(midi_filter.ctrl_relmode_count, 0, 16 * 128);
 	memset(midi_filter.last_ctrl_val, 0, 16 * 128);
 	memset(midi_filter.note_state, 0, 16 * 128);
@@ -145,6 +145,11 @@ void set_midi_active_chan(int chan) {
 	if (chan != midi_filter.active_chan) {
 		midi_filter.last_active_chan = midi_filter.active_chan;
 		midi_filter.active_chan = chan;
+		// Resend sustain if required
+		if (midi_filter.last_ctrl_val[chan][64] < midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]) {
+			midi_filter.last_ctrl_val[chan][64] = midi_filter.last_ctrl_val[midi_filter.last_active_chan][64];
+			write_zynmidi_ccontrol_change(midi_filter.active_chan, 64, midi_filter.last_ctrl_val[chan][64]);
+		}
 	}
 }
 
@@ -587,7 +592,7 @@ int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to
 	//Check validity of new CC Arrow
 	//---------------------------------------------------------------------------
 	//No CTRL_CHANGE arrow from same origin
-	if (arrow_from.type ==CTRL_CHANGE) {
+	if (arrow_from.type == CTRL_CHANGE) {
 		fprintf(stderr, "ZynMidiRouter: MIDI filter CC set swap-map => Origin already has a CTRL_CHANGE map!\n");
 		return 0;
 	}
@@ -718,7 +723,7 @@ int zmop_init(int iz, char *name, int midi_chan, uint32_t flags) {
 	//Listen midi_chan, don't translate.
 	//Channel -1 means "all channels"
 	for (i = 0; i < 16; i++) {
-		if (midi_chan<0 || i == midi_chan)
+		if (midi_chan < 0 || i == midi_chan)
 			zmops[iz].midi_chans[i] = i;
 		else
 			zmops[iz].midi_chans[i] = -1;
@@ -1078,10 +1083,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	int j;
 	int discard_note = 0;
 
-
 	// Process MIDI input messages in the order they were received
 	while (1) {
-
 		// Find the earliest unprocessed event from all input buffers
 		jack_nframes_t 	event_time = 0xFFFFFFFE; // Time of earliest unprocessed event (processed events have time set to 0xFFFFFFFF)
 		int izmip = -1;
@@ -1100,7 +1103,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Ignore Active Sense & SysEx messages
 		if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE)
-			goto event_processed; //!@todo Handle SysEx and Active Sense
+			goto event_processed; //!@todo Handle Active Sense and SysEx
 
 		// Get event type & chan
 		if (ev->buffer[0] >= SYSTEM_EXCLUSIVE) {
@@ -1142,7 +1145,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
 					for (j = 0; j < 16; j++) {
 						if (j != midi_filter.active_chan && midi_filter.note_state[j][event_num] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
-							event_chan = j; // Found corresponding note-on for this note-off event on another channel
+							// Found corresponding note-on for this note-off event on another, non-cloned channel
+							event_chan = j;
 							break;
 						}
 					}
@@ -1150,15 +1154,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					// Manage sustain pedal across active_channel changes, excluding cloned channels
 					for (j = 0; j < 16; j++) {
 						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
-							internal_send_ccontrol_change(j, 64, event_val);
-						}
-					}
-				} else if (event_type == NOTE_ON && event_val > 0) {
-					// Re-send sustain pedal on new active_channel if it was pressed before change
-					for (j = 0; j < 16; j++) {
-						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > midi_filter.last_ctrl_val[midi_filter.active_chan][64]) {
-							internal_send_ccontrol_change(midi_filter.active_chan, 64, midi_filter.last_ctrl_val[j][64]);
-							break;
+							// Found a sustain pedal asserted on another, non-cloned channel
+							write_zynmidi_ccontrol_change(j, 64, event_val);
+							midi_filter.last_ctrl_val[j][64] = event_val;
 						}
 					}
 				}
@@ -1222,42 +1220,44 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		if (event_type == CTRL_CHANGE) {
 
 			//Auto Relative-Mode
-			if (midi_filter.ctrl_mode[event_chan][event_num] == 1) {
-				// Change to absolute mode
-				if (midi_filter.ctrl_relmode_count[event_chan][event_num] > 1) {
-					midi_filter.ctrl_mode[event_chan][event_num] = 0;
-					//printf("Changing Back to Absolute Mode ...\n");
-				} else if (event_val == 64) {
-					// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
-					if (midi_filter.ctrl_relmode_count[event_chan][event_num] == 1) {
-						midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
-						goto event_processed;
-					} else {
-						midi_filter.ctrl_mode[event_chan][event_num] = 0;
+			if (midi_filter.cc_automode == 1) {
+				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_REL_2) {
+					// Change to absolute mode
+					if (midi_filter.ctrl_relmode_count[event_chan][event_num] > 1) {
+						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_ABS;
 						//printf("Changing Back to Absolute Mode ...\n");
+					} else if (event_val == 64) {
+						// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
+						if (midi_filter.ctrl_relmode_count[event_chan][event_num] == 1) {
+							midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
+							goto event_processed;
+						} else {
+							midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_ABS;
+							//printf("Changing Back to Absolute Mode ...\n");
+						}
+					} else {
+						int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
+						int16_t new_val = last_val + (int16_t)event_val - 64;
+						if (new_val > 127) new_val = 127;
+						if (new_val < 0) new_val = 0;
+						ev->buffer[2] = event_val = (uint8_t)new_val;
+						midi_filter.ctrl_relmode_count[event_chan][event_num]++;
+						//printf("Relative Mode! => val=%d\n",new_val);
 					}
-				} else {
-					int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
-					int16_t new_val = last_val + (int16_t)event_val - 64;
-					if (new_val > 127) new_val = 127;
-					if (new_val < 0) new_val = 0;
-					ev->buffer[2] = event_val = (uint8_t)new_val;
-					midi_filter.ctrl_relmode_count[event_chan][event_num]++;
-					//printf("Relative Mode! => val=%d\n",new_val);
 				}
-			}
 
-			//Absolute Mode
-			if (midi_filter.ctrl_mode[event_chan][event_num] == 0 && midi_filter.cc_automode == 1) {
-				if (event_val == 64) {
-					//printf("Tenting Relative Mode ...\n");
-					midi_filter.ctrl_mode[event_chan][event_num] = 1;
-					midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
-					// Here we lost a tick when an absolute knob moves fast and touch val=64,
-					// but if we want auto-detect rel-mode and change softly to it, it's the only way.
-					int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
-					if (abs(last_val - event_val) > 4)
-						goto event_processed;
+				//Absolute Mode
+				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS && midi_filter.cc_automode == 1) {
+					if (event_val == 64) {
+						//printf("Tenting Relative Mode ...\n");
+						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_REL_2;
+						midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
+						// Here we lost a tick when an absolute knob moves fast and touch val=64,
+						// but if we want auto-detect rel-mode and change softly to it, it's the only way.
+						int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
+						if (abs(last_val - event_val) > 4)
+							goto event_processed;
+					}
 				}
 			}
 
@@ -1276,7 +1276,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		else if (event_type == NOTE_OFF)
 			midi_filter.note_state[event_chan][event_num] = 0;
 
-		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, SysEx]
+		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, System]
 		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type >= SYSTEM_EXCLUSIVE)) {
 			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
 		}
@@ -1299,6 +1299,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//fprintf(stdout, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
+
 		// Send the processed message to configured output queues
 		for(int izmop = 0; izmop < MAX_NUM_ZMOPS; ++izmop) {
 			zmop = zmops + izmop;
@@ -1307,16 +1308,20 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (!zmop->n_connections)
 				continue;
 
-			// Drop "Program Change" from engine zmops
+			// Drop "Program Change" if configured in MIDI rules
 			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
 				continue;
 			
-			// Drop CC to chains - all engine CC goes via MIDI learn mechanism
+			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
 			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_CH15)
 				continue;
 
-			// Only send on configured routes and if not filtered by MIDI channel
-			if (!zmop->route_from_zmips[izmip] || zmop->midi_chans[event_chan] == -1)
+			// Only send on configured routes
+			if (!zmop->route_from_zmips[izmip])
+				continue;
+
+			// Do not send if wrong MIDI channel
+			if (zmop->midi_chans[event_chan] != event_chan)
 				continue;
 
 			// Add processed event to MIDI outputs
@@ -1382,20 +1387,20 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	uint8_t* temp_note_ptr = 0;
 
 	if ((zmop->flags & FLAG_ZMOP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
-//	if (event_type == NOTE_OFF || event_type == NOTE_ON) {
 		// Note-range & Transpose Note-on/off messages
 		int note = ev->buffer[1];
 
 		// Note-range
 		if (note < midi_filter.noterange[event_chan].note_low || note > midi_filter.noterange[event_chan].note_high)
 			return;
+
 		// Transpose
 		note += 12 * midi_filter.noterange[event_chan].octave_trans;
 		note += midi_filter.noterange[event_chan].halftone_trans;
 		if (note > 0x7F || note < 0)
-			return; // Note out of range
+			return; // Transposed note out of range
 
-
+		// Store original note from before transpose to restore after sending this event
 		uint8_t temp_note = ev->buffer[1];
 		temp_note_ptr = &temp_note;
 		ev->buffer[1] = (uint8_t)(note & 0x7F);
@@ -1448,6 +1453,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 		if (jack_midi_event_write(zmop->buffer, xev.time, xev.buffer, ev->size))
 			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
 	
+	// Restore the original note from before transpose
 	if (temp_note_ptr)
 		ev->buffer[1] = *temp_note_ptr;
 }
@@ -1481,24 +1487,25 @@ int write_internal_midi_event(uint8_t *event_buffer) {
 		return 0;
 	}
 
-	//Set last CC value
-	if (event_buffer[0] & (CTRL_CHANGE << 4)) {
+/*
+	if ((event_buffer[0] >> 4) & CTRL_CHANGE == CTRL_CHANGE) {
+		// Set last CC value
 		uint8_t chan = event_buffer[0] & 0x0F;
 		uint8_t num = event_buffer[1];
 		uint8_t val = event_buffer[2];
 		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_ON << 4)) {
-		//Set note state
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		uint8_t val=event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_OFF << 4)) {
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		midi_filter.last_ctrl_val[chan][num] = 0;
+	} else if ((event_buffer[0] >> 4) & NOTE_ON == NOTE_ON) {
+		// Set note state
+		uint8_t chan = event_buffer[0] & 0x0F;
+		uint8_t num = event_buffer[1];
+		uint8_t val = event_buffer[2];
+		midi_filter.note_state[chan][num] = val;
+	} else if ((event_buffer[0] >> 4) & NOTE_OFF == NOTE_OFF) {
+		uint8_t chan = event_buffer[0] & 0x0F;
+		uint8_t num = event_buffer[1];
+		midi_filter.note_state[chan][num] = 0;
 	}
-
+*/
 	return 1;
 }
 
@@ -1604,6 +1611,7 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 		return 0;
 	}
 
+	/*
 	//Set last CC value
 	if (event_buffer[0] & (CTRL_CHANGE << 4)) {
 		uint8_t chan=event_buffer[0] & 0x0F;
@@ -1621,6 +1629,7 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 		uint8_t num=event_buffer[1];
 		midi_filter.last_ctrl_val[chan][num] = 0;
 	}
+	*/
 
 	return 1;
 }

@@ -8,9 +8,11 @@ JACK MIDI input ports
 
 dev0..dev15: For physical MIDI port connections, one per physical port - also TouchOSC
 net: Connection from MIDI over network protocols, e.g. QmidiNet, jackrtpmidi (not RtMidiOut (TouchOSC))
+  Q. Why not present all network protocols as dev inputs?
 seq: For Standard MIDI File (SMF) player
 step: For step sequencer
 ctrl: Control feedback from engines (i.e. setBfree tonewheel faders)
+  Q. Why is this required?
 
 JACK MIDI output ports
 ======================
@@ -24,12 +26,15 @@ step: Connection to step sequencer
 Virtual MIDI inputs
 ===================
 int: Internal MIDI messages
+  Q. What are these?
 ui: Messages triggered by user interface
+  Q. Like what?
 ctrl_fb:
+  Q. What is ctrl_fb used for?
 
 Virtual MIDI outputs
 ====================
-zynmidi: Messages targetted at user interface (zyngui reads this queue)
+zynmidi: Messages targetted at user interface and CC learn (zyngui reads this queue. All CC messages going to chains)
 
 Note: Virtual input and output queues are normalised and limited to 3 byte messages. They are not scheduled within the jack frame. All messages are despatched at start of frame.
 
@@ -41,16 +46,21 @@ Each MIDI message received on a device input (mostly physical / external) is pro
 The input processing stage performs these processes:
 
 - Drop Active Sense and SysEx messages
-- Transform to active channel (only if active channel enabled)
-- Capture message for UI before further processing (only if MIDI learn enabled)
-- Apply MIDI filter:
+- Drop system messages if configured (global)
+- Transform to active channel if stage mode enabled (dev, net & smf inputs)
+  Q. Do we want to transform SMF to active channel?
+- Capture CC, Note-on, Note-off message for UI before further processing (only if MIDI learn enabled)
+- Apply MIDI filter according to user configured rules (dev, net, seq):
   - Drop ignored events
   - Map prog change, channel pressure, pitch bend, CC, etc.
-- Capture message for "Master Channel"
+    Q. This maps MIDI channel - does this break stage mode?
+- Send "Master Channel" message to UI (then drop message, master channel messages are only sent to UI)
+- Send program change message to UI
 - Process CC for absolute / relative modes
-- Filter note range
-- Transpose
-- Capture message for UI after processing (only if not already captured before processing)
+  Q. Check this works as expected and implement other modes
+- Store CC value to facilitate change of channel in stage mode
+- Store note on/off value to facilitate change of channel in stage mode and all notes off function
+- Capture message for UI after processing (only if not already captured before processing and: note on/off, CC or system message)
 - Despatch message to UI (if captured)
 - Map CC (swap CC number as defined in input filter)
 
@@ -59,9 +69,22 @@ Output processing
 
 After each MIDI event is processed by the input filtering and translation stage it is sent to the outputs defined by configuration rules. The following processing is applied to each output:
 
-- Filter on MIDI channel
-- Filter on source / destination (routing)
-- Addition of pitchbend message if fine tuning enabled (currently a global configuration but could be per output)
-- Translate MIDI channel
+- Drop message if output is not connected
+- Drop program change message if configured in rule (except from UI)
+- Drop CC targetted at chains unless from internal (fake) source
+- Drop if source / destination route not configured
+- Drop if wrong MIDI channel
+- Send to post-output processing
 - Clone to additional outputs as configured
 
+Post-Output processing
+======================
+
+Before actually sending a message to an output, further processing is performed:
+
+- Filter note range
+- Transpose
+- Filter on MIDI channel
+- Filter on source / destination (routing)
+- Translate MIDI channel
+- Addition of pitchbend message if fine tuning enabled (currently a global configuration but could be per output)
