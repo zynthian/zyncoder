@@ -1316,10 +1316,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_CH15)
 				continue;
 
-			// Drop CC to external outputs from internal sources - allows unlearned CC to reach internal engines
-			if (event_type == CTRL_CHANGE && izmip > ZMIP_CTRL && izmop > ZMOP_CH15)
-				continue;
-
 			// Only send on configured routes
 			if (!zmop->route_from_zmips[izmip])
 				continue;
