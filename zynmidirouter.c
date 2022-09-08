@@ -929,10 +929,11 @@ int init_jack_midi(char *name) {
 		if (!zmop_init(ZMOP_CH0 + i, port_name, i, ZMOP_MAIN_FLAGS)) return 0;
 	}
 	if (!zmop_init(ZMOP_MAIN, "main_out", -1, ZMOP_MAIN_FLAGS)) return 0;
+	if (!zmop_init(ZMOP_MOD, "mod_out", -1, ZMOP_MAIN_FLAGS)) return 0;
 	if (!zmop_init(ZMOP_MIDI, "midi_out", -1, 0)) return 0;
 	if (!zmop_init(ZMOP_NET, "net_out", -1, 0)) return 0;
-	if (!zmop_init(ZMOP_CTRL, "ctrl_out", -1, 0)) return 0;
 	if (!zmop_init(ZMOP_STEP, "step_out", -1, 0)) return 0;
+	if (!zmop_init(ZMOP_CTRL, "ctrl_out", -1, 0)) return 0;
 
 	//Init Ring-Buffers
 	jack_ring_internal_buffer = jack_ringbuffer_create(JACK_MIDI_BUFFER_SIZE);

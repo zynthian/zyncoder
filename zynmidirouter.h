@@ -235,11 +235,12 @@ void reset_midi_filter_cc_swap();
 #define ZMOP_CH14 14
 #define ZMOP_CH15 15
 #define ZMOP_MAIN 16
-#define ZMOP_MIDI 17
-#define ZMOP_NET 18
-#define ZMOP_STEP 19
-#define ZMOP_CTRL 20
-#define MAX_NUM_ZMOPS 21
+#define ZMOP_MOD 17
+#define ZMOP_MIDI 18
+#define ZMOP_NET 19
+#define ZMOP_STEP 20
+#define ZMOP_CTRL 21
+#define MAX_NUM_ZMOPS 22
 #define NUM_ZMOP_CHAINS 16
 
 #define ZMIP_DEV0 0
