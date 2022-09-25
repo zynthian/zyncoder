@@ -98,6 +98,7 @@ void lm4811_init() {
 	digitalWrite(PIN_AMP_CLK,0);
 	usleep(STEP_USECS);
 	lm4811_reset_volume();
+	lm4811_set_volume(10);
 }
 
 void lm4811_end() {
