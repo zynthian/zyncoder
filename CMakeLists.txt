@@ -120,6 +120,8 @@ elseif (("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V1") OR ("$ENV{ZYNTHIAN_WIR
 	message("++ Using wiringPi")
 	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_z2.c lm4811.h lm4811.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
 	target_link_libraries(zyncore wiringPi jack lo)
+	add_executable(lm4811_set_volume lm4811_set_volume.c lm4811.c)
+	target_link_libraries(lm4811_set_volume wiringPi)
 
 elseif (NOT ZYNTHIAN_FORCE_WIRINGPI_EMU AND HAVE_WIRINGPI_LIB)
 	message("++ Using wiringPi")
