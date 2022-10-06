@@ -91,14 +91,6 @@ typedef struct midi_event_st {
 	uint8_t val;
 } midi_event_t;
 
-typedef struct mf_arrow_st {
-	uint8_t chan_from;
-	uint8_t num_from;
-	uint8_t chan_to;
-	uint8_t num_to;
-	midi_event_type type;
-} mf_arrow_t;
-
 typedef struct mf_clone_st {
 	int enabled;
 	uint8_t cc[128];
@@ -119,13 +111,13 @@ typedef struct midi_filter_st {
 	int active_chan;
 	int last_active_chan;
 	int system_events;
-	int cc_automode;
+	int cc_automode;		// This should be enabled/disabled by device (zmip)
 
 	mf_noterange_t noterange[16];
 	mf_clone_t clone[16][16];
 
 	midi_event_t event_map[8][16][128];
-	midi_event_t cc_swap[16][128];
+	//midi_event_t cc_swap[16][128];
 
 	uint8_t ctrl_mode[16][128];
 	uint8_t ctrl_relmode_count[16][128];
@@ -204,14 +196,6 @@ int midi_learning_mode;
 void set_midi_learning_mode(int mlm);
 int get_midi_learning_mode();
 
-//MIDI Filter Swap Mapping
-int get_mf_arrow_from(uint8_t chan, uint8_t num, mf_arrow_t *arrow);
-int get_mf_arrow_to(uint8_t chan, uint8_t num, mf_arrow_t *arrow);
-int set_midi_filter_cc_swap(uint8_t chan_from, uint8_t num_from, uint8_t chan_to, uint8_t num_to);
-int del_midi_filter_cc_swap(uint8_t chan, uint8_t num);
-uint16_t get_midi_filter_cc_swap(uint8_t chan, uint8_t num);
-void reset_midi_filter_cc_swap();
-
 //-----------------------------------------------------------------------------
 // Zynmidi Ports
 //-----------------------------------------------------------------------------
@@ -271,21 +255,19 @@ void reset_midi_filter_cc_swap();
 
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_TUNING 2
-#define FLAG_ZMOP_NOTERANGE 32
+#define FLAG_ZMOP_NOTERANGE 4
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE)
 
 #define FLAG_ZMIP_UI 1
-#define FLAG_ZMIP_ZYNCODER 2
-#define FLAG_ZMIP_CLONE 4
-#define FLAG_ZMIP_FILTER 8
-#define FLAG_ZMIP_SWAP 16
-#define FLAG_ZMIP_NOTERANGE 32
-#define FLAG_ZMIP_ACTIVE_CHAN 64
+#define FLAG_ZMIP_CLONE 2
+#define FLAG_ZMIP_FILTER 4
+#define FLAG_ZMIP_ACTIVE_CHAN 8
+#define FLAG_ZMIP_CC_AUTO_MODE 16
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE|FLAG_ZMIP_ACTIVE_CHAN)
-#define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_ACTIVE_CHAN)
-#define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_ZYNCODER|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_SWAP|FLAG_ZMIP_NOTERANGE)
+#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_CC_AUTO_MODE)
+#define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI)
+#define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
 
 
