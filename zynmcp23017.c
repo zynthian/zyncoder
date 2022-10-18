@@ -248,46 +248,52 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint16_t reg;
 	uint8_t rdiff;
 
-	if (bank==0) {
-		pin_offset = 0;
-		reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOA);
-		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPA);
-		rdiff = reg ^ (zynmcp23017s[i].last_state & 0x00FF);
-		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
-	} else if (bank==1) {
-		pin_offset = 8;
-		reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOB);
-		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPB);
-		rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
-		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
-	} else {
-		printf("ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
-		return;
-	}
-	
-	uint8_t j = 0;
-	uint8_t k, bit_a, bit_b;
-	while (rdiff!=0) {
-		if (rdiff & 0x01) {
-			//printf("zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
-			switch(zynmcp23017s[i].pin_action[j + pin_offset]) {
-				case ZYNSWITCH_PIN_ACTION:
-					k = zynmcp23017s[i].pin_action_num[j + pin_offset];
-					zynswitch_t *zsw = zynswitches + k;
-					bit_a = zsw->pin - (zynmcp23017s[i].base_pin + pin_offset);
-					update_zynswitch(k, bitRead(reg, bit_a));
-					return;
-				case ZYNCODER_PIN_ACTION:
-					k = zynmcp23017s[i].pin_action_num[j + pin_offset];
-					zyncoder_t *zcdr = zyncoders + k;
-					bit_a = zcdr->pin_a - (zynmcp23017s[i].base_pin + pin_offset);
-					bit_b = zcdr->pin_b - (zynmcp23017s[i].base_pin + pin_offset);
-					update_zyncoder(k, bitRead(reg, bit_a), bitRead(reg, bit_b));
-					return;
-			}
+	for (uint8_t retry = 0; retry < 8; ++retry) {
+		if (bank == 0) {
+			pin_offset = 0;
+			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOA);
+			//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPA);
+			rdiff = reg ^ (zynmcp23017s[i].last_state & 0x00FF);
+			if (rdiff == 0)
+				return;
+			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
+		} else if (bank == 1) {
+			pin_offset = 8;
+			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOB);
+			//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPB);
+			rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
+			if (rdiff == 0)
+				return;
+			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
+		} else {
+			printf("ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
+			return;
 		}
-		rdiff >>= 1;
-		j++;
+
+		uint8_t j = 0;
+		uint8_t k, bit_a, bit_b;
+		while (rdiff != 0) {
+			if (rdiff & 0x01) {
+				//printf("zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
+				switch(zynmcp23017s[i].pin_action[j + pin_offset]) {
+					case ZYNSWITCH_PIN_ACTION:
+						k = zynmcp23017s[i].pin_action_num[j + pin_offset];
+						zynswitch_t *zsw = zynswitches + k;
+						bit_a = zsw->pin - (zynmcp23017s[i].base_pin + pin_offset);
+						update_zynswitch(k, bitRead(reg, bit_a));
+						//return;
+					case ZYNCODER_PIN_ACTION:
+						k = zynmcp23017s[i].pin_action_num[j + pin_offset];
+						zyncoder_t *zcdr = zyncoders + k;
+						bit_a = zcdr->pin_a - (zynmcp23017s[i].base_pin + pin_offset);
+						bit_b = zcdr->pin_b - (zynmcp23017s[i].base_pin + pin_offset);
+						update_zyncoder(k, bitRead(reg, bit_a), bitRead(reg, bit_b));
+						//return;
+				}
+			}
+			rdiff >>= 1;
+			j++;
+		}
 	}
 }
 
