@@ -276,14 +276,13 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 					zynswitch_t *zsw = zynswitches + k;
 					bit_a = zsw->pin - (zynmcp23017s[i].base_pin + pin_offset);
 					update_zynswitch(k, bitRead(reg, bit_a));
-					return;
 				case ZYNCODER_PIN_ACTION:
 					k = zynmcp23017s[i].pin_action_num[j + pin_offset];
 					zyncoder_t *zcdr = zyncoders + k;
 					bit_a = zcdr->pin_a - (zynmcp23017s[i].base_pin + pin_offset);
 					bit_b = zcdr->pin_b - (zynmcp23017s[i].base_pin + pin_offset);
 					update_zyncoder(k, bitRead(reg, bit_a), bitRead(reg, bit_b));
-					return;
+					rdiff &= ~((0x1 << bit_a) | (0x1 << bit_b)) >> j;
 			}
 		}
 		rdiff >>= 1;
