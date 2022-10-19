@@ -1065,11 +1065,13 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//}
 		}
 
-		// Save note state ...
-		if (event_type == NOTE_ON)
-			midi_filter.note_state[event_chan][event_num] = event_val;
-		else if (event_type == NOTE_OFF)
-			midi_filter.note_state[event_chan][event_num] = 0;
+		// Save note state for active channel note-off handling
+		if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) {
+			if (event_type == NOTE_ON)
+				midi_filter.note_state[event_chan][event_num] = event_val;
+			else if (event_type == NOTE_OFF)
+				midi_filter.note_state[event_chan][event_num] = 0;
+		}
 
 		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, System]
 		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type >= SYSTEM_EXCLUSIVE)) {
