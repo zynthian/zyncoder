@@ -247,6 +247,7 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint16_t pin_offset;
 	uint16_t reg;
 	uint8_t rdiff;
+	int int_pin;
 
 	for (uint8_t retry = 0; retry < 8; ++retry) {
 		if (bank == 0) {
@@ -254,17 +255,15 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOA);
 			//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPA);
 			rdiff = reg ^ (zynmcp23017s[i].last_state & 0x00FF);
-			if (rdiff == 0)
-				return;
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
+			int_pin = zynmcp23017s[i].intA_pin;
 		} else if (bank == 1) {
 			pin_offset = 8;
 			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOB);
 			//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPB);
 			rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
-			if (rdiff == 0)
-				return;
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
+			int_pin = zynmcp23017s[i].intB_pin;
 		} else {
 			printf("ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
 			return;
@@ -294,6 +293,8 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 			rdiff >>= 1;
 			j++;
 		}
+		if (digitalRead(int_pin) == 0)
+			return;
 	}
 }
 
