@@ -75,9 +75,6 @@ void update_zynswitch(uint8_t i, uint8_t status);
 
 #define MAX_NUM_ZYNCODERS 4
 
-// Number of ticks per retent in rotary encoders
-#define ZYNCODER_TICKS_PER_RETENT 4
-
 typedef struct zyncoder_st {
 	uint8_t enabled;			// 1 to enable encoder
 	int32_t step;				// Size of change in value for each detent of encoder
