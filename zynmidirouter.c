@@ -1007,7 +1007,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 
 				//Absolute Mode
-				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS && midi_filter.cc_automode == 1) {
+				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS) {
 					if (event_val == 64) {
 						//printf("Tenting Relative Mode ...\n");
 						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_REL_2;
