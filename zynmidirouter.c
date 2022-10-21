@@ -1255,26 +1255,6 @@ int write_internal_midi_event(uint8_t *event_buffer) {
 		fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: FULL\n");
 		return 0;
 	}
-
-/*
-	if ((event_buffer[0] >> 4) & CTRL_CHANGE == CTRL_CHANGE) {
-		// Set last CC value
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		uint8_t val = event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if ((event_buffer[0] >> 4) & NOTE_ON == NOTE_ON) {
-		// Set note state
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		uint8_t val = event_buffer[2];
-		midi_filter.note_state[chan][num] = val;
-	} else if ((event_buffer[0] >> 4) & NOTE_OFF == NOTE_OFF) {
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		midi_filter.note_state[chan][num] = 0;
-	}
-*/
 	return 1;
 }
 
@@ -1379,27 +1359,6 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 		fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: FULL\n");
 		return 0;
 	}
-
-	/*
-	//Set last CC value
-	if (event_buffer[0] & (CTRL_CHANGE << 4)) {
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		uint8_t val=event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_ON << 4)) {
-		//Set note state
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		uint8_t val=event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_OFF << 4)) {
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		midi_filter.last_ctrl_val[chan][num] = 0;
-	}
-	*/
-
 	return 1;
 }
 
