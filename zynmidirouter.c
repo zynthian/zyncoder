@@ -875,7 +875,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	uint8_t event_num;
 	uint8_t event_val;
 	uint32_t ui_event;
-	int j;
+	int j, xch;
 	int discard_note = 0;
 
 	// Process MIDI input messages in the order they were received
@@ -929,43 +929,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			event_num=event_val = 0;
 		}
 
-		// Active channel (stage mode)
-		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0 
-				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
-			//Active Channel => When set, move all channel events to active_chan
-			event_chan = midi_filter.active_chan;
-
-			if (midi_filter.last_active_chan >= 0) { 
-				// Release pressed notes across active channel changes, excluding cloned channels
-				if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
-					for (j = 0; j < 16; j++) {
-						if (j != midi_filter.active_chan && midi_filter.note_state[j][event_num] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
-							// Found corresponding note-on for this note-off event on another, non-cloned channel
-							event_chan = j;
-							break;
-						}
-					}
-				} else if (event_type == CTRL_CHANGE && event_num == 64) {
-					// Manage sustain pedal across active_channel changes, excluding cloned channels
-					for (j = 0; j < 16; j++) {
-						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
-							// Found a sustain pedal asserted on another, non-cloned channel
-							write_zynmidi_ccontrol_change(j, 64, event_val);
-							midi_filter.last_ctrl_val[j][64] = event_val;
-						}
-					}
-				}
-			}
-			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan & 0x0F);
-		}
-
 		//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
-
-		// Capture events for UI: before filtering => [Control-Change for MIDI learning]
-		ui_event = 0;
-		if ((zmip->flags & FLAG_ZMIP_UI) && midi_learning_mode && (event_type == CTRL_CHANGE || event_type==NOTE_ON || event_type==NOTE_OFF)) {
-			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
-		}
 
 		// Event Mapping
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
@@ -1000,15 +964,42 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			}
 		}
 
-		// Capture events for UI: MASTER CHANNEL + Program Change
-		if (zmip->flags & FLAG_ZMIP_UI) {
-			if (event_chan == midi_filter.master_chan) {
-				write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
-				goto event_processed;
+		// Capture MASTER CHANNEL events for UI just after mapping
+		if (zmip->flags & FLAG_ZMIP_UI && event_chan == midi_filter.master_chan) {
+			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+			goto event_processed;
+		}
+
+		// Active channel (stage mode)
+		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0
+				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
+			//Active Channel => When set, move all channel events to active_chan
+			event_chan = midi_filter.active_chan;
+
+			if (midi_filter.last_active_chan >= 0) {
+				// Release pressed notes across active channel changes, excluding cloned channels
+				if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
+				    xch = event_chan;
+					for (j = 0; j < 16; j++) {
+						if (midi_filter.note_state[xch][event_num] > 0 && !midi_filter.clone[midi_filter.active_chan][xch].enabled) {
+							// Found corresponding note-on for this note-off event on another, non-cloned channel
+							event_chan = xch;
+							break;
+						}
+						xch = (xch + 1) % 16;
+					}
+				// Manage sustain pedal across active_channel changes, excluding cloned channels
+				} else if (event_type == CTRL_CHANGE && event_num == 64) {
+					for (j = 0; j < 16; j++) {
+						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
+							// Found a sustain pedal asserted on another, non-cloned channel
+							write_zynmidi_ccontrol_change(j, 64, event_val);
+							midi_filter.last_ctrl_val[j][64] = event_val;
+						}
+					}
+				}
 			}
-			if (event_type == PROG_CHANGE) {
-				write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
-			}
+			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan & 0x0F);
 		}
 
 		// MIDI CC messages
@@ -1042,7 +1033,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 
 				//Absolute Mode
-				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS && midi_filter.cc_automode == 1) {
+				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS) {
 					if (event_val == 64) {
 						//printf("Tenting Relative Mode ...\n");
 						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_REL_2;
@@ -1065,20 +1056,16 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//}
 		}
 
-		// Save note state ...
+		// Save per-channel note state
 		if (event_type == NOTE_ON)
 			midi_filter.note_state[event_chan][event_num] = event_val;
 		else if (event_type == NOTE_OFF)
 			midi_filter.note_state[event_chan][event_num] = 0;
 
-		// Capture events for UI: after filtering => [Note-Off, Note-On, Control-Change, System]
-		if (!ui_event && (zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type >= SYSTEM_EXCLUSIVE)) {
-			ui_event = (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]);
+		// Capture events for UI after full processing => [Note-Off, Note-On, Control-Change, Pitch-Bend, Prog-Change, System]
+		if ((zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type == PROG_CHANGE || event_type >= SYSTEM_EXCLUSIVE)) {
+			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 		}
-
-		// Forward event to UI
-		if (ui_event)
-			write_zynmidi(ui_event);
 
 		// Here was placed the CC-swap code. See zynmidiswap.c
 		
@@ -1268,26 +1255,6 @@ int write_internal_midi_event(uint8_t *event_buffer) {
 		fprintf(stderr, "ZynMidiRouter: Error writing internal ring-buffer: FULL\n");
 		return 0;
 	}
-
-/*
-	if ((event_buffer[0] >> 4) & CTRL_CHANGE == CTRL_CHANGE) {
-		// Set last CC value
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		uint8_t val = event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if ((event_buffer[0] >> 4) & NOTE_ON == NOTE_ON) {
-		// Set note state
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		uint8_t val = event_buffer[2];
-		midi_filter.note_state[chan][num] = val;
-	} else if ((event_buffer[0] >> 4) & NOTE_OFF == NOTE_OFF) {
-		uint8_t chan = event_buffer[0] & 0x0F;
-		uint8_t num = event_buffer[1];
-		midi_filter.note_state[chan][num] = 0;
-	}
-*/
 	return 1;
 }
 
@@ -1392,27 +1359,6 @@ int write_ui_midi_event(uint8_t *event_buffer) {
 		fprintf(stderr, "ZynMidiRouter: Error writing UI ring-buffer: FULL\n");
 		return 0;
 	}
-
-	/*
-	//Set last CC value
-	if (event_buffer[0] & (CTRL_CHANGE << 4)) {
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		uint8_t val=event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_ON << 4)) {
-		//Set note state
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		uint8_t val=event_buffer[2];
-		midi_filter.last_ctrl_val[chan][num] = val;
-	} else if (event_buffer[0] & (NOTE_OFF << 4)) {
-		uint8_t chan=event_buffer[0] & 0x0F;
-		uint8_t num=event_buffer[1];
-		midi_filter.last_ctrl_val[chan][num] = 0;
-	}
-	*/
-
 	return 1;
 }
 
