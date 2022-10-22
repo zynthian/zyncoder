@@ -1070,27 +1070,27 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		// Here was placed the CC-swap code. See zynmidiswap.c
 		
 		// Send the processed message to configured output queues
-		for(int izmop = 0; izmop < MAX_NUM_ZMOPS; ++izmop) {
+		for (int izmop = 0; izmop < MAX_NUM_ZMOPS; ++izmop) {
 			zmop = zmops + izmop;
 
-			// Do not send to disconnected outputs
-			if (!zmop->n_connections)
-				continue;
-
-			// Drop "Program Change" if configured in MIDI rules
-			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
-				continue;
-			
-			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
-			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_CH15)
+			// Do not send to unconnected output ports
+			if (zmop->n_connections==0)
 				continue;
 
 			// Only send on configured routes
 			if (!zmop->route_from_zmips[izmip])
 				continue;
 
-			// Do not send if wrong MIDI channel
-			if (zmop->midi_chans[event_chan] != event_chan)
+			// Filter MIDI channels not registered by zmop
+			if (zmop->midi_chans[event_chan] == -1)
+				continue;
+
+			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
+			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_MAIN)
+				continue;
+
+			// Drop "Program Change" if configured in MIDI rules
+			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
 				continue;
 
 			// Add processed event to MIDI outputs
@@ -1103,37 +1103,36 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Check for next "clone_to" channel ...
 			for (int clone_to_chan = 0; clone_to_chan < 16; ++clone_to_chan) {
-				if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled || (event_type == CTRL_CHANGE && !midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num]))
+				zmop = zmops + clone_to_chan;
+
+				// Filter MIDI channels not registered by zmop
+				if (zmop->midi_chans[clone_to_chan] == -1)
 					continue;
 
-				// Filter output MIDI channel
-				if (zmop->midi_chans[clone_to_chan] == -1)
+				// Filter clone-disabled channels
+				if (!midi_filter.clone[clone_from_chan][clone_to_chan].enabled)
 					continue;
 
 				// Clone from last event...
 				ev->buffer[0] = (ev->buffer[0] & 0xF0) | clone_to_chan;
 
-				event_type = ev->buffer[0] >> 4;
-
-				//Get event details depending of event type & size
-				if (event_type == PITCH_BEND) {
-					event_num = 0;
-					event_val = ev->buffer[2] & 0x7F;
-				} else if (event_type == CHAN_PRESS) {
-					event_num = 0;
-					event_val = ev->buffer[1] & 0x7F;
-				} else if (ev->size == 3) {
-					event_num = ev->buffer[1] & 0x7F;
-					event_val = ev->buffer[2] & 0x7F;
-				} else if (ev->size == 2) {
-					event_num = ev->buffer[1] & 0x7F;
-					event_val = 0;
-				} else {
-					event_num=event_val = 0;
+				// Filter & capture CTRL_CHANGE events
+				if (event_type == CTRL_CHANGE) {
+					// Filter CCs not registered by clone
+					if (!midi_filter.clone[clone_from_chan][clone_to_chan].cc[event_num])
+						continue;
+					// Capture cloned CC events for UI, but not if MIDI learning mode
+					if (zmip->flags & FLAG_ZMIP_UI && !midi_learning_mode) {
+						write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+					}
+					// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
+					if (izmip <= ZMIP_CTRL)
+						continue;
 				}
 
-				// Add cloned event to MIDI outputs
-				zmop_push_event(zmops + clone_to_chan, ev);
+				// Add cloned event to MIDI outputs: ZMOP_CH? & ZMOP_MAIN
+				zmop_push_event(zmop, ev);
+				zmop_push_event(zmops + ZMOP_MAIN, ev);
 			}
 		}
 
