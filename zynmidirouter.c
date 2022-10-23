@@ -1085,8 +1085,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (zmop->midi_chans[event_chan] == -1)
 				continue;
 
-			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
-			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_MAIN)
+			// Drop CC to chains except from internal sources or channel mode messages - all engine CC goes via MIDI learn mechanism
+			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_MAIN && event_num < 120)
 				continue;
 
 			// Drop "Program Change" if configured in MIDI rules
