@@ -1086,6 +1086,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				continue;
 
 			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
+			// Channel mode messages (ccnum>120) are also dropped, as they must be processed by UI.
 			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_MAIN)
 				continue;
 

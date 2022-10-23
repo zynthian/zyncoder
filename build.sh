@@ -7,7 +7,11 @@ pushd $DIR
 		mkdir build
 	fi
 	pushd build
-		cmake ..
+		if [ "$1" == "debug" ]; then
+			cmake -DCMAKE_BUILD_TYPE=Debug ..
+		else
+			cmake ..
+		fi
 		make
 	popd
 popd
