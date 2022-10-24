@@ -59,7 +59,7 @@ void setup_zynpot_cb(void (*cbfunc)(int8_t, int32_t)) {
 
 int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 	if (i>MAX_NUM_ZYNPOTS) {
-		printf("ZynCore->setup_zynpot(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
 	zynpots[i].type = type;
@@ -83,7 +83,7 @@ int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 
 int setup_behaviour_zynpot(uint8_t i, int32_t step) {
 	if (i>MAX_NUM_ZYNPOTS || zynpots[i].type==ZYNPOT_NONE) {
-		printf("ZynCore->setup_step_zynpot(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_step_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
 	return zynpots[i].setup_behaviour(zynpots[i].i, step);
@@ -91,7 +91,7 @@ int setup_behaviour_zynpot(uint8_t i, int32_t step) {
 
 int32_t get_value_zynpot(uint8_t i) {
 	if (i>=MAX_NUM_ZYNPOTS || zynpots[i].type==ZYNPOT_NONE) {
-		printf("ZynCore->get_value_zynpot(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->get_value_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
 	return zynpots[i].get_value(zynpots[i].i);

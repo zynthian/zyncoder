@@ -162,7 +162,7 @@ void set_midi_filter_tuning_freq(double freq) {
 		double pb = 6 * log((double)freq / 440.0) / log(2.0);
 		if (pb < 1.0 && pb > -1.0) {
 			midi_filter.tuning_pitchbend = ((int)(8192.0 * (1.0 + pb))) & 0x3FFF;
-			fprintf(stdout, "ZynMidiRouter: MIDI tuning frequency set to %f Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
+			fprintf(stderr, "ZynMidiRouter: MIDI tuning frequency set to %f Hz (%d)\n",freq,midi_filter.tuning_pitchbend);
 		} else {
 			fprintf(stderr, "ZynMidiRouter: MIDI tuning frequency (%f) out of range!\n",freq);
 		}
@@ -894,7 +894,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			break;
 		zmip = zmips + izmip;
 		jack_midi_event_t * ev = &(zmip->event);
-		//printf("Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
+		//fprintf(stderr, "Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
 
 		// Ignore Active Sense & SysEx messages
 		if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE)
@@ -929,19 +929,19 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			event_num=event_val = 0;
 		}
 
-		//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
+		//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) fprintf(stderr, "%x ", ev->buffer[x]); fprintf(stderr, "\n");
 
 		// Event Mapping
 		if ((zmip->flags & FLAG_ZMIP_FILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
 			midi_event_t * event_map = &(midi_filter.event_map[event_type & 0x07][event_chan][event_num]);
 			//Ignore event...
 			if (event_map->type == IGNORE_EVENT) {
-				//fprintf(stdout, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
+				//fprintf(stderr, "IGNORE => %x, %x, %x\n",event_type, event_chan, event_num);
 				goto event_processed;
 			}
 			//Map event ...
 			if (event_map->type >= 0) {
-				//fprintf(stdout, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
+				//fprintf(stderr, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
 				event_type = event_map->type;
 				event_chan = event_map->chan;
 				ev->buffer[0] = (event_type << 4) | event_chan;
@@ -960,7 +960,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					ev->buffer[2] = event_val;
 					ev->size = 3;
 				}
-				//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) printf("%x ", ev->buffer[x]); printf("\n");
+				//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) fprintf(stderr, "%x ", ev->buffer[x]); fprintf(stderr, "\n");
 			}
 		}
 
@@ -1011,7 +1011,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					// Change to absolute mode
 					if (midi_filter.ctrl_relmode_count[event_chan][event_num] > 1) {
 						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_ABS;
-						//printf("Changing Back to Absolute Mode ...\n");
+						//fprintf(stderr, "Changing Back to Absolute Mode ...\n");
 					} else if (event_val == 64) {
 						// Every 2 messages, rel-mode mark. Between 2 marks, can't have a val of 64.
 						if (midi_filter.ctrl_relmode_count[event_chan][event_num] == 1) {
@@ -1019,7 +1019,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 							goto event_processed;
 						} else {
 							midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_ABS;
-							//printf("Changing Back to Absolute Mode ...\n");
+							//fprintf(stderr, "Changing Back to Absolute Mode ...\n");
 						}
 					} else {
 						int16_t last_val = midi_filter.last_ctrl_val[event_chan][event_num];
@@ -1028,14 +1028,14 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 						if (new_val < 0) new_val = 0;
 						ev->buffer[2] = event_val = (uint8_t)new_val;
 						midi_filter.ctrl_relmode_count[event_chan][event_num]++;
-						//printf("Relative Mode! => val=%d\n",new_val);
+						//fprintf(stderr, "Relative Mode! => val=%d\n",new_val);
 					}
 				}
 
 				//Absolute Mode
 				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_ABS) {
 					if (event_val == 64) {
-						//printf("Tenting Relative Mode ...\n");
+						//fprintf(stderr, "Tenting Relative Mode ...\n");
 						midi_filter.ctrl_mode[event_chan][event_num] = CTRL_MODE_REL_2;
 						midi_filter.ctrl_relmode_count[event_chan][event_num] = 0;
 						// Here we lost a tick when an absolute knob moves fast and touch val=64,
@@ -1191,9 +1191,9 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	if ((zmop->flags & FLAG_ZMOP_TUNING) && midi_filter.tuning_pitchbend >= 0) {
 		if (event_type == NOTE_ON) {
 			int pb = midi_filter.last_pb_val[event_chan];
-			//printf("NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
+			//fprintf(stderr, "NOTE-ON PITCHBEND=%d (%d)\n",pb,midi_filter.tuning_pitchbend);
 			pb = get_tuned_pitchbend(pb);
-			//printf("NOTE-ON TUNED PITCHBEND=%d\n",pb);
+			//fprintf(stderr, "NOTE-ON TUNED PITCHBEND=%d\n",pb);
 			xev.buffer[0] = (PITCH_BEND << 4) | event_chan;
 			xev.buffer[1] = pb & 0x7F;
 			xev.buffer[2] = (pb >> 7) & 0x7F;
@@ -1205,9 +1205,9 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 			//Save last received PB value ...
 			midi_filter.last_pb_val[event_chan] = pb;
 			//Calculate tuned PB
-			//printf("PITCHBEND=%d\n",pb);
+			//fprintf(stderr, "PITCHBEND=%d\n",pb);
 			pb = get_tuned_pitchbend(pb);
-			//printf("TUNED PITCHBEND=%d\n",pb);
+			//fprintf(stderr, "TUNED PITCHBEND=%d\n",pb);
 			ev->buffer[1] = pb & 0x7F;
 			ev->buffer[2] = (pb >> 7) & 0x7F;
 		}

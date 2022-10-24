@@ -252,14 +252,14 @@ void reset_midi_filter_cc_swap() {
 		//fprintf(stderr, "PRESWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 		if ((zmip->flags & FLAG_ZMIP_CCSWAP) && event_type == CTRL_CHANGE) {
 			midi_event_t * cc_swap = &(midi_filter.cc_swap[event_chan][event_num]);
-			//fprintf(stdout, "ZynMidiRouter: CC Swap %x, %x => ",ev->buffer[0],ev->buffer[1]);
+			//fprintf(stderr, "ZynMidiRouter: CC Swap %x, %x => ",ev->buffer[0],ev->buffer[1]);
 			event_chan = cc_swap->chan;
 			event_num = cc_swap->num;
 			ev->buffer[0] = (event_type << 4) | event_chan;
 			ev->buffer[1] = event_num;
 			ev->buffer[2] = event_val;
 			ev->size = 3; //!@todo Is it safe to assume we can change the size of the event buffer?
-			//fprintf(stdout, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
+			//fprintf(stderr, "MIDI MSG => %x, %x\n",ev->buffer[0],ev->buffer[1]);
 		}
 		//fprintf(stderr, "POSTSWAP MIDI EVENT: %d, %d, %d\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 

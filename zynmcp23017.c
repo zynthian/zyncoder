@@ -60,7 +60,7 @@ void reset_zynmcp23017s() {
 
 int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t intA_pin, uint8_t intB_pin, void (*isrs[2])) {
 	if (i >= MAX_NUM_MCP23017) {
-		printf("ZynCore->setup_zynmcp23017(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -135,7 +135,7 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	wiringPiISR(intB_pin, INT_EDGE_RISING, isrs[1]);
 
 	#ifdef DEBUG
-	printf("ZynCore->setup_zynmcp23017(%d, ...): I2C %x, base-pin %d, INTA %d, INTB %d\n", i, i2c_address, base_pin, intA_pin, intB_pin);
+	fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): I2C %x, base-pin %d, INTA %d, INTB %d\n", i, i2c_address, base_pin, intA_pin, intB_pin);
 	#endif
 
 	return 1;
@@ -154,17 +154,17 @@ int pin2index_zynmcp23017(uint16_t pin) {
 int setup_pin_action_zynmcp23017(uint16_t pin, zynmcp23017_pin_action_t action, uint16_t num) {
 	int i = pin2index_zynmcp23017(pin);
 	if (i < 0) {
-		printf("ZynCore->setup_pin_action_zynmcp23017(%d, ...): Not a MCP23017 pin!\n", pin);
+		fprintf(stderr, "ZynCore->setup_pin_action_zynmcp23017(%d, ...): Not a MCP23017 pin!\n", pin);
 		return 0;
 	}
 	int j = pin - zynmcp23017s[i].base_pin;
 	if (j>=0 && j<16) {
 		zynmcp23017s[i].pin_action[j] = action;
 		zynmcp23017s[i].pin_action_num[j] = num;
-		//printf("ZynCore->setup_pin_action_zynmcp23017(%d, %d, %d)\n", pin, action, num);
+		//fprintf(stderr, "ZynCore->setup_pin_action_zynmcp23017(%d, %d, %d)\n", pin, action, num);
 	}
 	else {
-		printf("ZynCore->setup_pin_action_zynmcp23017(%d, ...): Pin out of range!\n", pin);
+		fprintf(stderr, "ZynCore->setup_pin_action_zynmcp23017(%d, ...): Pin out of range!\n", pin);
 		return 0;
 	}
 	return 1;
@@ -173,7 +173,7 @@ int setup_pin_action_zynmcp23017(uint16_t pin, zynmcp23017_pin_action_t action, 
 int reset_pin_action_zynmcp23017(uint16_t pin) {
 	int i = pin2index_zynmcp23017(pin);
 	if (i < 0) {
-		printf("ZynCore->reset_pin_action_zynmcp23017(%d): Not a MCP23017 pin!\n", pin);
+		fprintf(stderr, "ZynCore->reset_pin_action_zynmcp23017(%d): Not a MCP23017 pin!\n", pin);
 		return 0;
 	}
 	int j = pin - zynmcp23017s[i].base_pin;
@@ -182,7 +182,7 @@ int reset_pin_action_zynmcp23017(uint16_t pin) {
 		zynmcp23017s[i].pin_action_num[j] = 0;
 	}
 	else {
-		printf("ZynCore->reset_pin_action_zynmcp23017(%d, ...): Pin out of range!\n", pin);
+		fprintf(stderr, "ZynCore->reset_pin_action_zynmcp23017(%d, ...): Pin out of range!\n", pin);
 		return 0;
 	}
 	return 1;
@@ -204,11 +204,11 @@ int read_pin_zynmcp23017(uint16_t pin) {
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
 			return bitRead(reg, (bit - 8));
 		} else {
-			printf("ZynCore: read_pin_zynmcp23017(%d) => pin %d out of range!\n", pin);
+			fprintf(stderr, "ZynCore: read_pin_zynmcp23017(%d) => pin %d out of range!\n", pin);
 			return -1;
 		}
 	}
-	printf("ZynCore: read_pin_zynmcp23017(%d) => invalid pin!\n", pin);
+	fprintf(stderr, "ZynCore: read_pin_zynmcp23017(%d) => invalid pin!\n", pin);
 	return -1;
 }
 
@@ -235,13 +235,13 @@ void zyncoder_update_zynmcp23017(uint8_t i) {
 // ISR for handling the mcp23017 interrupts
 void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	if (i >= MAX_NUM_MCP23017) {
-		printf("ZynCore->zynmcp23017_ISR(%d, %d): Invalid index!\n", i, bank);
+		fprintf(stderr, "ZynCore->zynmcp23017_ISR(%d, %d): Invalid index!\n", i, bank);
 		return;
 	}
 	if (!zynmcp23017s[i].enabled) return;
 
 	#ifdef DEBUG
-	printf("zyncoder_mcp23017_ISR(%d, %d)\n", i, bank);
+	fprintf(stderr, "zyncoder_mcp23017_ISR(%d, %d)\n", i, bank);
 	#endif
 
 	uint16_t pin_offset;
@@ -261,7 +261,7 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 		rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
 		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
 	} else {
-		printf("ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
+		fprintf(stderr, "ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
 		return;
 	}
 	
@@ -269,7 +269,7 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint8_t k, bit_a, bit_b;
 	while (rdiff != 0) {
 		if (rdiff & 0x01) {
-			//printf("zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
+			//fprintf(stderrr, "zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
 			switch(zynmcp23017s[i].pin_action[j + pin_offset]) {
 				case ZYNSWITCH_PIN_ACTION:
 					k = zynmcp23017s[i].pin_action_num[j + pin_offset];

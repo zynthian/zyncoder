@@ -61,13 +61,13 @@ void update_polled_zynswitches() {
 		if (!zsw->enabled || zsw->pin<100) continue;
 		status=digitalRead(zsw->pin);
 		#ifdef DEBUG
-		printf("POLLING SWITCH %d (%d) => %d\n",i,zsw->pin,status);
+		fprintf(stderr, "POLLING SWITCH %d (%d) => %d\n",i,zsw->pin,status);
 		#endif
 		if (status==zsw->status) continue;
 		zsw->status=status;
 		send_zynswitch_midi(zsw, status);
 		#ifdef DEBUG
-		printf("POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
+		fprintf(stderr, "POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
 		#endif
 		if (zsw->status==1) {
 			if (zsw->tsus>0) {
@@ -75,7 +75,7 @@ void update_polled_zynswitches() {
 				zsw->tsus=0;
 				//Ignore spurious ticks
 				if (dtus<1000) return;
-				//printf("Debounced Switch %d\n",i);
+				//fprintf(stderr, "Debounced Switch %d\n",i);
 				zsw->dtus=dtus;
 			}
 		} else zsw->tsus=tsus;
@@ -94,10 +94,10 @@ pthread_t init_poll_zynswitches() {
 	pthread_t tid;
 	int err=pthread_create(&tid, NULL, &poll_zynswitches, NULL);
 	if (err != 0) {
-		printf("ZynCore: Can't create zynswitches poll thread :[%s]", strerror(err));
+		fprintf(stderr, "ZynCore: Can't create zynswitches poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("ZynCore: Zynswitches poll thread created successfully\n");
+		fprintf(stderr, "ZynCore: Zynswitches poll thread created successfully\n");
 		return tid;
 	}
 }
