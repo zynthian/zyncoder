@@ -93,7 +93,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 */
 int setup_zynswitch(uint8_t i, uint8_t index) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore: Zyncoder index %d out of range!\n", i);
+		fprintf(stderr, "ZynCore: Zyncoder index %d out of range!\n", i);
 		return 0;
 	}
 	struct zynswitch_st *zynswitch = zynswitches + i;
@@ -113,7 +113,7 @@ int setup_zynswitch(uint8_t i, uint8_t index) {
 */
 int setup_zynswitch_midi(uint8_t i, uint8_t midi_chan, uint8_t midi_cc) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore: Zyncoder index %d out of range!\n", i);
+		fprintf(stderr, "ZynCore: Zyncoder index %d out of range!\n", i);
 		return 0;
 	}
 
@@ -173,7 +173,7 @@ void midi_event_zyncoders(uint8_t midi_chan, uint8_t midi_ctrl, uint8_t val) {
 	for (j=0;j<MAX_NUM_ZYNCODERS;j++) {
 		if (zyncoders[j].enabled && zyncoders[j].midi_chan==midi_chan && zyncoders[j].midi_ctrl==midi_ctrl) {
 			zyncoders[j].value=val;
-			//fprintf (stdout, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_ctrl);
+			//fprintf (stderr, "ZynMidiRouter: MIDI CC (%x, %x) => UI",midi_chan,midi_ctrl);
 		}
 	}
 }
@@ -190,19 +190,19 @@ void send_zyncoder(uint8_t i) {
 		internal_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 		//Send to MIDI controller feedback => TODO: Reverse Mapping!!
 		ctrlfb_send_ccontrol_change(zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
-		//printf("SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
+		//fprintf(stderr, "SEND MIDI CHAN %d, CTRL %d = %d\n",zyncoder->midi_chan,zyncoder->midi_ctrl,zyncoder->value);
 	} else if (zyncoder->osc_lo_addr!=NULL && zyncoder->osc_path[0]) {
 		if (zyncoder->step >= 8) {
 			if (zyncoder->value>=64) {
 				lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "T");
-				//printf("SEND OSC %s => T\n",zyncoder->osc_path);
+				//fprintf(stderr, "SEND OSC %s => T\n",zyncoder->osc_path);
 			} else {
 				lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "F");
-				//printf("SEND OSC %s => F\n",zyncoder->osc_path);
+				//fprintf(stderr, "SEND OSC %s => F\n",zyncoder->osc_path);
 			}
 		} else {
 			lo_send(zyncoder->osc_lo_addr,zyncoder->osc_path, "i",zyncoder->value);
-			//printf("SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
+			//fprintf(stderr, "SEND OSC %s => %d\n",zyncoder->osc_path,zyncoder->value);
 		}
 	}
 }
@@ -223,11 +223,11 @@ void send_zyncoder(uint8_t i) {
 */
 int setup_zyncoder(uint8_t i, uint8_t pin_a, uint8_t pin_b, uint8_t midi_chan, uint8_t midi_ctrl, char *osc_path, unsigned int value, unsigned int max_value, unsigned int step) {
 	if (i > MAX_NUM_ZYNCODERS) {
-		printf("ZynCore: Zyncoder index %d out of range!\n", i);
+		fprintf(stderr, "ZynCore: Zyncoder index %d out of range!\n", i);
 		return 0;
 	}
 #ifdef DEBUG
-	printf("Set up encoder i=%d, pin_a=%d, pin_b=%d, midich=%d, midictl=%d, oscpath=%s, value=%d, maxval=%d, step=%d\n",
+	fprintf(stderr, "Set up encoder i=%d, pin_a=%d, pin_b=%d, midich=%d, midictl=%d, oscpath=%s, value=%d, maxval=%d, step=%d\n",
           i, pin_a, pin_b, midi_chan, midi_ctrl, osc_path, value, max_value, step);
 #endif // DEBUG
 

@@ -109,7 +109,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	unsigned long int tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
-	//printf("SWITCH ISR %d => STATUS=%d (%lu)\n",i,status,tsus);
+	//fprintf(stderr, "SWITCH ISR %d => STATUS=%d (%lu)\n",i,status,tsus);
 
 	//If pushed ...
 	if (zsw->tsus>0) {
@@ -122,7 +122,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 		//Release
 		if (zsw->status==1) {
 			zsw->tsus=0;
-			//printf("Debounced Switch %d\n",i);
+			//fprintf(stderr, "Debounced Switch %d\n",i);
 			zsw->dtus=dtus;
 		}
 	}
@@ -137,7 +137,7 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 
 int setup_zynswitch(uint8_t i, uint16_t pin) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore->setup_zynswitch(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 	
@@ -175,12 +175,12 @@ int setup_zynswitch(uint8_t i, uint16_t pin) {
 						zynswitch_update_zynmcp23017(i);
 					}
 					else {
-						printf("ZynCore->setup_zynswitch(%d, %d): Pin out of range!\n",i, pin);
+						fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d): Pin out of range!\n",i, pin);
 						return 0;
 					}
 				}
 				else {
-					printf("ZynCore->setup_zynswitch(%d, %d): Pin is not a MPC23017 pin!\n",i, pin);
+					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d): Pin is not a MPC23017 pin!\n",i, pin);
 					return 0;
 				}
 			#endif
@@ -192,7 +192,7 @@ int setup_zynswitch(uint8_t i, uint16_t pin) {
 
 int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore->setup_zynswitch_midi(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_zynswitch_midi(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -201,7 +201,7 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	zsw->midi_event.chan = midi_chan;
 	zsw->midi_event.num = midi_num;
 	zsw->midi_event.val = midi_val;
-	//printf("Zyncoder: Set Zynswitch %u MIDI %d: %u, %u, %u\n", i, midi_evt, midi_chan, midi_num, midi_val);
+	//fprintf(stderr, "Zyncoder: Set Zynswitch %u MIDI %d: %u, %u, %u\n", i, midi_evt, midi_chan, midi_num, midi_val);
 
 	zsw->last_cvgate_note = -1;
 
@@ -239,7 +239,7 @@ unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
-		printf("ZynCore->get_zynswitch(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->get_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 	if (zynswitches[i].push) {
@@ -268,7 +268,7 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-		//printf("ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
+		//fprintf(stderr, "ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
 	}
 	else if (zsw->midi_event.type==CTRL_SWITCH_EVENT) {
 		if (status==0) {
@@ -280,7 +280,7 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 			internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 			//Send MIDI event to UI
 			write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
-			//printf("ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
+			//fprintf(stderr, "ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
 		}
 	}
 	else if (zsw->midi_event.type==NOTE_ON) {
@@ -289,14 +289,14 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 			internal_send_note_on(zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
-			//printf("ZynCore: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
+			//fprintf(stderr, "ZynCore: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_note_off(zsw->midi_event.chan, zsw->midi_event.num, 0);
 			//Send MIDI event to UI
 			write_zynmidi_note_off(zsw->midi_event.chan, zsw->midi_event.num, 0);
-			//printf("ZynCore: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, 0);
+			//fprintf(stderr, "ZynCore: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, 0);
 		}
 	}
 	#ifdef ZYNAPTIK_CONFIG
@@ -312,14 +312,14 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 			internal_send_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
-			//printf("ZynCore: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
 			//Send MIDI event to UI
 			write_zynmidi_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
-			//printf("ZynCore: Zynswitch CV/Gate event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
 		}
 	}
 	#endif
@@ -329,7 +329,7 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 			internal_send_program_change(zsw->midi_event.chan, zsw->midi_event.num);
 			//Send MIDI event to UI
 			write_zynmidi_program_change(zsw->midi_event.chan, zsw->midi_event.num);
-			//printf("ZynCore: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zsw->midi_event.chan, zsw->midi_event.num);
+			//fprintf(stderr, "ZynCore: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zsw->midi_event.chan, zsw->midi_event.num);
 		}
 	}
 }
@@ -414,7 +414,7 @@ void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 
 int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	if (i>=MAX_NUM_ZYNCODERS) {
-		printf("ZynCore->setup_zyncoder(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 	zyncoder_t *zcdr = zyncoders + i;
@@ -470,28 +470,28 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 							return 1;
 						}
 						else {
-							printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different banks!\n", i, pin_a, pin_b);
+							fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different banks!\n", i, pin_a, pin_b);
 							return 0;
 						}
 					}
 					else {
-						printf("ZynCore->setup_zyncoder(%d, %d, %d): Pin numbers out of range!\n", i, pin_a, pin_b);
+						fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Pin numbers out of range!\n", i, pin_a, pin_b);
 						return 0;
 					}
 				}
 				else {
-					printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different MCP23017!\n", i, pin_a, pin_b);
+					fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with pins on different MCP23017!\n", i, pin_a, pin_b);
 					return 0;
 				}
 			#endif
 		}
 		else {
-			printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with mixed pins (RBPi & MCP230XX)!\n", i, pin_a, pin_b);
+			fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with mixed pins (RBPi & MCP230XX)!\n", i, pin_a, pin_b);
 			return 0;
 		}
 	}
 	else {
-		printf("ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder on a single pin!\n", i, pin_a, pin_b);
+		fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder on a single pin!\n", i, pin_a, pin_b);
 		return 0;
 	}
 	return 0;
@@ -499,7 +499,7 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 
 int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
-		printf("ZynCore->setup_behaviour_zyncoder(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_behaviour_zyncoder(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -515,7 +515,7 @@ int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 
 int32_t get_value_zyncoder(uint8_t i) {
 	if (i>=MAX_NUM_ZYNCODERS || zyncoders[i].enabled==0) {
-		printf("ZynCore->get_value_zyncoder(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->get_value_zyncoder(%d): Invalid index!\n", i);
 		return 0;
 	}
 	int32_t res = zyncoders[i].value;

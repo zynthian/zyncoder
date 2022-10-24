@@ -90,7 +90,7 @@ int get_num_rv112s() {
 
 int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins) {
 	if (i > MAX_NUM_RV112) {
-		printf("ZynCore->setup_rv112(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_rv112(%d): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -116,7 +116,7 @@ int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins) {
 
 int setup_behaviour_rv112(uint8_t i, int32_t step) {
 	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
-		printf("ZynCore->setup_step_rv112(%d, ...): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_step_rv112(%d, ...): Invalid index!\n", i);
 		return 0;
 	}
 
@@ -129,7 +129,7 @@ int setup_behaviour_rv112(uint8_t i, int32_t step) {
 
 int32_t get_value_rv112(uint8_t i) {
 	if (i>=MAX_NUM_RV112 || rv112s[i].enabled==0) {
-		printf("ZynCore->get_value_rv112(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->get_value_rv112(%d): Invalid index!\n", i);
 		return 0;
 	}
 	int32_t res = rv112s[i].value;
@@ -242,7 +242,7 @@ int16_t read_rv112(uint8_t i) {
 	rv112s[i].valA = vA;
 	rv112s[i].valB = vB;
 
-	//printf("vA = %d, vB = %d\n", vA, vB);
+	//fprintf(stderr, "vA = %d, vB = %d\n", vA, vB);
 
 	return d / RV112_ADS1115_NOISE_DIV;
 }
@@ -260,7 +260,7 @@ void * poll_rv112(void *arg) {
 				dvbuf = (boost::circular_buffer<int32_t> *)rv112s[i].dvbuf;
 				dvbuf->push_back(abs(rv112s[i].lastdv));
 				rv112s[i].dvavg += (*dvbuf)[DVBUF_SIZE-1] - (*dvbuf)[0];
-				//fprintf(stdout, "DVAVG %d = %d\n", i, rv112s[i].dvavg);
+				//fprintf(stderr, "DVAVG %d = %d\n", i, rv112s[i].dvavg);
 			}
 			if (rv112s[i].lastdv!=0) {
 				// Adaptative speed variation using a moving average 
@@ -279,7 +279,7 @@ void * poll_rv112(void *arg) {
 					rv112s[i].valraw = vr;
 					rv112s[i].value = vr / RV112_ADS1115_RAW_DIV;
 					if (rv112s[i].value!=0 && zynpot_cb) {
-						//fprintf(stdout, "RV112(%d): Vraw=%d, Value=%d\n", i, vr, rv112s[i].value);
+						//fprintf(stderr, "RV112(%d): Vraw=%d, Value=%d\n", i, vr, rv112s[i].value);
 						zynpot_cb(rv112s[i].zpot_i, rv112s[i].value);
 						rv112s[i].valraw = 0;
 						rv112s[i].value = 0;
@@ -312,7 +312,7 @@ pthread_t init_poll_rv112() {
 		fprintf(stderr, "ZynCore: Can't create RV112 poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		fprintf(stdout, "ZynCore: RV112 poll thread created successfully\n");
+		fprintf(stderr, "ZynCore: RV112 poll thread created successfully\n");
 		return tid;
 	}
 }

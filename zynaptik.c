@@ -100,7 +100,7 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	}
 	val>>=8;
 	if (val==zyncvins[i].midi_val) return;
-	//printf("ZYNAPTIK CV-IN [%d] => MIDI event %d, %d, %d\n", i, zyncvins[i].midi_evt, zyncvins[i].midi_num, val);
+	//fprintf(stderr, "ZYNAPTIK CV-IN [%d] => MIDI event %d, %d, %d\n", i, zyncvins[i].midi_evt, zyncvins[i].midi_num, val);
 	if (zyncvins[i].midi_evt==CTRL_CHANGE) {
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
@@ -127,7 +127,7 @@ void * poll_zynaptik_cvins(void *arg) {
 				val=(int)(k_cvin*(6.144/5.0)*val);
 				if (val>32767) val=32767;
 				else if (val<0) val=0;
-				//printf("ZYNAPTIK CV-IN [%d] => %d\n", i, val);
+				//fprintf(stderr, "ZYNAPTIK CV-IN [%d] => %d\n", i, val);
 				zynaptik_cvin_to_midi(i,(uint16_t)val);
 			}
 		}
@@ -147,7 +147,7 @@ pthread_t init_poll_zynaptik_cvins() {
 		fprintf(stderr,"ZynCore: Can't create zynaptik CV-IN poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("ZynCore: Zynaptik CV-IN poll thread created successfully\n");
+		fprintf(stderr, "ZynCore: Zynaptik CV-IN poll thread created successfully\n");
 		return tid;
 	}
 }
@@ -191,16 +191,16 @@ float get_k_cvout() { return k_cvout; }
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	uint8_t event_type = ev->buffer[0] >> 4;
 	if (event_type<NOTE_OFF || event_type>PITCH_BENDING) return;
-	//printf("ZYNAPTIK MIDI TO CV-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
+	//fprintf(stderr, "ZYNAPTIK MIDI TO CV-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
 	uint16_t ev_data = ev->buffer[0]<<8 | ev->buffer[1];
 	for (int i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
 		if  (!zyncvouts[i].enabled) continue;
-		//printf("\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyncvouts[i].midi_event_mask, zyncvouts[i].midi_event_temp);
+		//fprintf(stderr, "\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyncvouts[i].midi_event_mask, zyncvouts[i].midi_event_temp);
 		if (zyncvouts[i].midi_event_temp!=(ev_data & zyncvouts[i].midi_event_mask)) continue;
 
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
-			//printf("ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-ON => %d, %d\n", zyncvouts[i].midi_num, ev->buffer[1], ev->buffer[2]);
+			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-ON => %d, %d\n", zyncvouts[i].midi_num, ev->buffer[1], ev->buffer[2]);
 			if (zyncvouts[i].val>0) {
 				digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,1);
 			}
@@ -211,7 +211,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 			digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,0);
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
-			//printf("ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-OFF => %d\n", zyncvouts[i].midi_num, ev->buffer[1]);
+			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-OFF => %d\n", zyncvouts[i].midi_num, ev->buffer[1]);
 			if (zyncvouts[i].val==ev->buffer[1]<<7) {
 				zyncvouts[i].val = 0;
 				//set_zynaptik_cvout(i, zyncvouts[i].val);
@@ -239,7 +239,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 
 void set_zynaptik_cvout(int i, uint16_t val) {
 	float vout=k_cvout*val/16384.0;
-	//printf("ZYNAPTIK CV-OUT %d => %f\n", i, vout);
+	//fprintf(stderr, "ZYNAPTIK CV-OUT %d => %f\n", i, vout);
 	int err=mcp4728_singleexternal(mcp4728_chip, i, vout, 0);
 	if (err!=0) {
 		fprintf(stderr,"ZYNAPTIK CV-OUT => Can't write MCP4728 (DAC) register %d. ERROR %d\n", i, err);
@@ -256,7 +256,7 @@ void refresh_zynaptik_cvouts() {
 			buffer[i] = 0;
 		}
 	}
-	//printf("ZYNAPTIK CV-OUT => [%f, %f, %f, %f]\n", buffer[0], buffer[1], buffer[2], buffer[3]);
+	//fprintf(stderr, "ZYNAPTIK CV-OUT => [%f, %f, %f, %f]\n", buffer[0], buffer[1], buffer[2], buffer[3]);
 	//err=mcp4728_multipleinternal(mcp4728_chip, buffer, 0);
 	err=mcp4728_multipleexternal(mcp4728_chip, buffer, 0);
 	if (err!=0) {
@@ -280,7 +280,7 @@ pthread_t init_refresh_zynaptik_cvouts() {
 		fprintf(stderr,"Zyncoder: Can't create zynaptik CV-OUT refresh thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("Zyncoder: Zynaptik CV-OUT refresh thread created successfully.\n");
+		fprintf(stderr, "Zyncoder: Zynaptik CV-OUT refresh thread created successfully.\n");
 		return tid;
 	}
 }
@@ -311,20 +311,20 @@ void disable_zynaptik_gateout(uint8_t i) {
 void zynaptik_midi_to_gateout(jack_midi_event_t *ev) {
 	uint8_t event_type = ev->buffer[0] >> 4;
 	if (event_type<NOTE_OFF || event_type>NOTE_ON) return;
-	//printf("ZYNAPTIK MIDI TO GATE-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
+	//fprintf(stderr, "ZYNAPTIK MIDI TO GATE-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
 	uint16_t ev_data = ev->buffer[0]<<8 | ev->buffer[1];
 	for (int i=0;i<MAX_NUM_ZYNGATEOUTS;i++) {
 		if  (!zyngateouts[i].enabled) continue;
-		//printf("\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyngateouts[i].midi_event_mask, zyngateouts[i].midi_event_temp);
+		//fprintf(stderr, "\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyngateouts[i].midi_event_mask, zyngateouts[i].midi_event_temp);
 		if (zyngateouts[i].midi_event_temp!=(ev_data & zyngateouts[i].midi_event_mask)) continue;
 
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
-			//printf("ZYNAPTIK MIDI TO GATE-OUT %d NOTE-ON => %d, %d\n", i, ev->buffer[1], ev->buffer[2]);
+			//fprintf(stderr, "ZYNAPTIK MIDI TO GATE-OUT %d NOTE-ON => %d, %d\n", i, ev->buffer[1], ev->buffer[2]);
 			digitalWrite(zynswitches[i].pin,0);
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
-			//printf("ZYNAPTIK MIDI TO GATE-OUT %d NOTE-OFF => %d, 0\n", i, ev->buffer[1]);
+			//fprintf(stderr, "ZYNAPTIK MIDI TO GATE-OUT %d NOTE-OFF => %d, 0\n", i, ev->buffer[1]);
 			digitalWrite(zynswitches[i].pin,1);
 		}
 	}
@@ -353,7 +353,7 @@ int init_zynaptik() {
 
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
 		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
-		printf("Setting-up %d x Zynaptik Switches...\n", 16);
+		fprintf(stderr, "Setting-up %d x Zynaptik Switches...\n", 16);
 		for (i=0;i<16;i++) {
 			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i);
 		}

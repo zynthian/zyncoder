@@ -83,12 +83,12 @@ void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_n
 		pthread_mutex_lock(&mutex);
 		select_zyntof_chan(i);
 		if (tofInit(1, VL53L0X_I2C_ADDRESS, VL53L0X_DISTANCE_MODE)!=1) {
-			printf("ZynTOF: Can't setup zyntof device VL53L0X-%d.\n", i);
+			fprintf(stderr, "ZynTOF: Can't setup zyntof device VL53L0X-%d.\n", i);
 		} else {
 			zyntofs[i].enabled = 1;
 			int model, rev;
 			tofGetModel(&model, &rev);
-			printf("ZynTOF: Device VL53L0X-%d successfully opened (model %d, rev %d)\n", i, model, rev);
+			fprintf(stderr, "ZynTOF: Device VL53L0X-%d successfully opened (model %d, rev %d)\n", i, model, rev);
 		}
 		pthread_mutex_unlock(&mutex);
 	}
@@ -111,11 +111,11 @@ void send_zyntof_midi(uint8_t i) {
 	if (zyntofs[i].midi_evt==PITCH_BENDING) {
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_pitchbend_change(zyntofs[i].midi_chan, v);
-		//printf("ZYNTOF [%d] => MIDI %d\n", i, v);
+		//fprintf(stderr, "ZYNTOF [%d] => MIDI %d\n", i, v);
 	} else {
 		uint8_t mv = v>>7;
 		if (mv!=zyntofs[i].midi_val) {
-			//printf("ZYNTOF [%d] => MIDI %d\n", i, mv);
+			//fprintf(stderr, "ZYNTOF [%d] => MIDI %d\n", i, mv);
 			zyntofs[i].midi_val = mv;
 			if (zyntofs[i].midi_evt==CTRL_CHANGE) {
 				//Send MIDI event to engines and ouput (ZMOPS)
@@ -142,7 +142,7 @@ void * poll_zyntofs(void *arg) {
 				zyntofs[i].val = tofReadDistance();
 				pthread_mutex_unlock(&mutex);
 				send_zyntof_midi(i);
-				//printf("ZYNTOF [%d] => %d\n", i, zyntofs[i].val);
+				//fprintf(stderr, "ZYNTOF [%d] => %d\n", i, zyntofs[i].val);
 			}
 		}
 		usleep(POLL_ZYNTOFS_US);
@@ -154,10 +154,10 @@ pthread_t init_poll_zyntofs() {
 	pthread_t tid;
 	int err=pthread_create(&tid, NULL, &poll_zyntofs, NULL);
 	if (err != 0) {
-		printf("ZynTOF: Can't create poll thread :[%s]", strerror(err));
+		fprintf(stderr, "ZynTOF: Can't create poll thread :[%s]", strerror(err));
 		return 0;
 	} else {
-		printf("ZynTOF: Poll thread created successfully\n");
+		fprintf(stderr, "ZynTOF: Poll thread created successfully\n");
 		return tid;
 	}
 }
