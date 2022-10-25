@@ -269,7 +269,7 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint8_t k, bit_a, bit_b;
 	while (rdiff != 0) {
 		if (rdiff & 0x01) {
-			//fprintf(stderrr, "zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
+			//fprintf(stderr, "zyncoder_mcp23017_ISR(%d, %d) => pin %d changed, action %d\n", i, bank, j, zynmcp23017s[i].pin_action[j]);
 			switch(zynmcp23017s[i].pin_action[j + pin_offset]) {
 				case ZYNSWITCH_PIN_ACTION:
 					k = zynmcp23017s[i].pin_action_num[j + pin_offset];
