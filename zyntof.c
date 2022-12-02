@@ -108,7 +108,7 @@ void send_zyntof_midi(uint8_t i) {
 	} else {
 		v = 16384 * (zyntofs[i].val - MIN_TOF_DISTANCE) / (MAX_TOF_DISTANCE - MIN_TOF_DISTANCE);
 	}
-	if (zyntofs[i].midi_evt==PITCH_BENDING) {
+	if (zyntofs[i].midi_evt==PITCH_BEND) {
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_pitchbend_change(zyntofs[i].midi_chan, v);
 		//fprintf(stderr, "ZYNTOF [%d] => MIDI %d\n", i, v);

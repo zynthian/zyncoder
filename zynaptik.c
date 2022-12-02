@@ -91,7 +91,7 @@ void set_k_cvin(float k) { k_cvin=k; }
 float get_k_cvin() { return k_cvin; }
 
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
-	if (zyncvins[i].midi_evt==PITCH_BENDING) {
+	if (zyncvins[i].midi_evt==PITCH_BEND) {
 		val>>=1;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_pitchbend_change(zyncvins[i].midi_chan, val);
@@ -161,7 +161,7 @@ void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t mi
 		zyncvouts[i].midi_event_mask=0xEF00;
 		zyncvouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8);
 	}
-	else if (midi_evt==PITCH_BENDING || midi_evt==CHAN_PRESS) {
+	else if (midi_evt==PITCH_BEND || midi_evt==CHAN_PRESS) {
 		zyncvouts[i].midi_event_mask=0xFF00;
 		zyncvouts[i].midi_event_temp=((midi_evt&0xF)<<12) | ((midi_chan&0xF)<<8);
 	}
@@ -190,7 +190,7 @@ float get_k_cvout() { return k_cvout; }
 
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	uint8_t event_type = ev->buffer[0] >> 4;
-	if (event_type<NOTE_OFF || event_type>PITCH_BENDING) return;
+	if (event_type<NOTE_OFF || event_type>PITCH_BEND) return;
 	//fprintf(stderr, "ZYNAPTIK MIDI TO CV-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
 	uint16_t ev_data = ev->buffer[0]<<8 | ev->buffer[1];
@@ -219,7 +219,7 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 				digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,1);
 			}
 		}
-		else if (event_type==PITCH_BENDING) {
+		else if (event_type==PITCH_BEND) {
 			zyncvouts[i].val = (ev->buffer[2]<<7) | ev->buffer[1];
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
 			refresh_zynaptik_cvouts();
