@@ -102,10 +102,8 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (val==zyncvins[i].midi_val) return;
 	//fprintf(stderr, "ZYNAPTIK CV-IN [%d] => MIDI event %d, %d, %d\n", i, zyncvins[i].midi_evt, zyncvins[i].midi_num, val);
 	if (zyncvins[i].midi_evt==CTRL_CHANGE) {
-		//Send MIDI event to engines and ouput (ZMOPS)
+		//Send MIDI event to engines and output (ZMOPS)
 		internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
-		//Update zyncoders
-		midi_event_zynpot(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 	}

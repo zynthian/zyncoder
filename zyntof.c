@@ -118,10 +118,8 @@ void send_zyntof_midi(uint8_t i) {
 			//fprintf(stderr, "ZYNTOF [%d] => MIDI %d\n", i, mv);
 			zyntofs[i].midi_val = mv;
 			if (zyntofs[i].midi_evt==CTRL_CHANGE) {
-				//Send MIDI event to engines and ouput (ZMOPS)
+				//Send MIDI event to engines and output (ZMOPS)
 				internal_send_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
-				//Update zyncoders
-				midi_event_zynpot(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 				//Send MIDI event to UI
 				write_zynmidi_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 			} else if (zyntofs[i].midi_evt==CHAN_PRESS) {
