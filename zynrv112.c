@@ -289,15 +289,18 @@ void * poll_rv112(void *arg) {
 		}
 		// Calc next rotary ...
 		i = (i + 1) % MAX_NUM_RV112;
-		if (j++<13) {
-		// prioritize active rotaries, cycling among them ...	
-			int k = 0;
-			while (k++<MAX_NUM_RV112) {
+		// prioritize active rotaries, cycling among them, but force a full cyle from time to time ... ...
+		if (j<MAX_NUM_RV112) {
+			j++;
+		}
+		else if (j<3*MAX_NUM_RV112) {
+			for (int k=0; k<MAX_NUM_RV112; k++) {
 				if (rv112s[i].lastdv!=0) break;
 				i = (i + 1) % MAX_NUM_RV112;
 			}
+			j++;
 		}
-		// but force next rotary from time to time ...
+		//
 		else {
 			j = 0;
 		}
