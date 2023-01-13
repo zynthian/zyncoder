@@ -91,8 +91,8 @@ int init_midi_router() {
 	for (i = 0; i < 16; i++) {
 		midi_filter.noterange[i].note_low = 0;
 		midi_filter.noterange[i].note_high = 127;
-		midi_filter.noterange[i].octave_trans = 0;
-		midi_filter.noterange[i].halftone_trans = 0;
+		midi_filter.noterange[i].transpose_octave = 0;
+		midi_filter.noterange[i].transpose_semitone = 0;
 		midi_filter.last_pb_val[i] = 8192;
 	}
 	for (i = 0; i < 8; i++) {
@@ -270,20 +270,9 @@ void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to) {
 
 //MIDI Note-range & Transposing
 
-void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_t oct_trans, int8_t ht_trans) {
-	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
-		return;
-	}
-	midi_filter.noterange[chan].note_low = nlow;
-	midi_filter.noterange[chan].note_high = nhigh;
-	midi_filter.noterange[chan].octave_trans = oct_trans;
-	midi_filter.noterange[chan].halftone_trans = ht_trans;
-}
-
 void set_midi_filter_note_low(uint8_t chan, uint8_t nlow) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI lower note-range chan (%d) is out of range!\n", chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_low = nlow;
@@ -291,31 +280,31 @@ void set_midi_filter_note_low(uint8_t chan, uint8_t nlow) {
 
 void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI upper note-range chan (%d) is out of range!\n", chan);
 		return;
 	}
 	midi_filter.noterange[chan].note_high = nhigh;
 }
 
-void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans) {
+void set_midi_filter_transpose_octave(uint8_t chan, int8_t transpose) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI octave transpose chan (%d) is out of range!\n", chan);
 		return;
 	}
-	midi_filter.noterange[chan].octave_trans = oct_trans;
+	midi_filter.noterange[chan].transpose_octave = transpose;
 }
 
-void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans) {
+void set_midi_filter_transpose_semitone(uint8_t chan, int8_t transpose) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI semitone transpose chan (%d) is out of range!\n", chan);
 		return;
 	}
-	midi_filter.noterange[chan].halftone_trans = ht_trans;
+	midi_filter.noterange[chan].transpose_semitone = transpose;
 }
 
 uint8_t get_midi_filter_note_low(uint8_t chan) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI lower note-range chan (%d) is out of range!\n", chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].note_low;
@@ -323,26 +312,25 @@ uint8_t get_midi_filter_note_low(uint8_t chan) {
 
 uint8_t get_midi_filter_note_high(uint8_t chan) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI upper note-range chan (%d) is out of range!\n", chan);
 		return 0;
 	}
 	return midi_filter.noterange[chan].note_high;
 }
 
-int8_t get_midi_filter_octave_trans(uint8_t chan) {
+int8_t get_midi_filter_transpose_octave(uint8_t chan) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI octave transpose chan (%d) is out of range!\n", chan);
 		return 0;
 	}
-	return midi_filter.noterange[chan].octave_trans;
+	return midi_filter.noterange[chan].transpose_octave;
 }
-
-int8_t get_midi_filter_halftone_trans(uint8_t chan) {
+int8_t get_midi_filter_transpose_semitone(uint8_t chan) {
 	if (chan > 15) {
-		fprintf(stderr, "ZynMidiRouter: MIDI note-range chan (%d) is out of range!\n", chan);
+		fprintf(stderr, "ZynMidiRouter: MIDI semitone transpose chan (%d) is out of range!\n", chan);
 		return 0;
 	}
-	return midi_filter.noterange[chan].halftone_trans;
+	return midi_filter.noterange[chan].transpose_semitone;
 }
 
 void reset_midi_filter_note_range(uint8_t chan) {
@@ -352,8 +340,8 @@ void reset_midi_filter_note_range(uint8_t chan) {
 	}
 	midi_filter.noterange[chan].note_low = 0;
 	midi_filter.noterange[chan].note_high = 127;
-	midi_filter.noterange[chan].octave_trans = 0;
-	midi_filter.noterange[chan].halftone_trans = 0;
+	midi_filter.noterange[chan].transpose_octave = 0;
+	midi_filter.noterange[chan].transpose_semitone = 0;
 }
 
 //Core MIDI filter functions
@@ -1164,8 +1152,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 			return;
 
 		// Transpose
-		note += 12 * midi_filter.noterange[event_chan].octave_trans;
-		note += midi_filter.noterange[event_chan].halftone_trans;
+		note += midi_filter.noterange[event_chan].transpose_octave * 12 + midi_filter.noterange[event_chan].transpose_semitone ;
 		if (note > 0x7F || note < 0)
 			return; // Transposed note out of range
 

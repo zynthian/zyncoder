@@ -101,8 +101,8 @@ static uint8_t default_cc_to_clone[]={ 1, 2, 64, 65, 66, 67, 68 };
 typedef struct mf_noterange_st {
 	uint8_t note_low;
 	uint8_t note_high;
-	int8_t octave_trans;
-	int8_t halftone_trans;
+	int8_t transpose_octave;
+	int8_t transpose_semitone;
 } mf_noterange_t;
 
 typedef struct midi_filter_st {
@@ -156,15 +156,14 @@ uint8_t *get_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
 void reset_midi_filter_clone_cc(uint8_t chan_from, uint8_t chan_to);
 
 //MIDI Note Range & Transpose
-void set_midi_filter_note_range(uint8_t chan, uint8_t nlow, uint8_t nhigh, int8_t oct_trans, int8_t ht_trans);
 void set_midi_filter_note_low(uint8_t chan, uint8_t nlow);
 void set_midi_filter_note_high(uint8_t chan, uint8_t nhigh);
-void set_midi_filter_octave_trans(uint8_t chan, int8_t oct_trans);
-void set_midi_filter_halftone_trans(uint8_t chan, int8_t ht_trans);
+void set_midi_filter_transpose_octave(uint8_t chan, int8_t transpose);
+void set_midi_filter_transpose_semitone(uint8_t chan, int8_t transpose);
 uint8_t get_midi_filter_note_low(uint8_t chan);
 uint8_t get_midi_filter_note_high(uint8_t chan);
-int8_t get_midi_filter_octave_trans(uint8_t chan);
-int8_t get_midi_filter_halftone_trans(uint8_t chan);
+int8_t get_midi_filter_transpose_octave(uint8_t chan);
+int8_t get_midi_filter_transpose_semitone(uint8_t chan);
 void reset_midi_filter_note_range(uint8_t chan);
 
 //MIDI Filter Core functions
