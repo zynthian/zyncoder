@@ -960,7 +960,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Active channel (stage mode)
 		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0
-				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan) {
+				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan
+				&& event_type != 0xc) {
 			//Active Channel => When set, move all channel events to active_chan
 			event_chan = midi_filter.active_chan;
 
