@@ -190,6 +190,11 @@ void set_midi_filter_cc_automode(int mfccam);
 // MIDI System Events enable/disable
 void set_midi_filter_system_events(int mfse);
 
+// MIDI Thru enable/disable => Route MIDI input to output
+int midi_thru_enabled;
+int set_midi_thru(int enabled);
+int get_midi_thru();
+
 //MIDI Learning Mode
 int midi_learning_mode;
 void set_midi_learning_mode(int mlm);
@@ -253,10 +258,12 @@ int get_midi_learning_mode();
 #define NUM_ZMIP_DEVS 16
 
 #define FLAG_ZMOP_DROPPC 1
-#define FLAG_ZMOP_TUNING 2
-#define FLAG_ZMOP_NOTERANGE 4
+#define FLAG_ZMOP_DROPCC 2
+#define FLAG_ZMOP_DROPSYS 4
+#define FLAG_ZMOP_TUNING 8
+#define FLAG_ZMOP_NOTERANGE 16
 
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE)
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPSYS)
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_CLONE 2
@@ -286,6 +293,8 @@ int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
 int zmop_chain_set_flag_droppc(int iz, uint8_t flag);
 int zmop_chain_get_flag_droppc(int ch);
+int zmop_chain_set_flag_dropcc(int iz, uint8_t flag);
+int zmop_chain_get_flag_dropcc(int ch);
 int zmop_reset_midi_chans(int iz);
 int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to);
 int zmop_get_midi_chan(int iz, int midi_chan);

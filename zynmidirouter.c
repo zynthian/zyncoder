@@ -555,6 +555,27 @@ int zmop_chain_get_flag_droppc(int ch) {
 	return zmops[ZMOP_CH0 + ch].flags & (uint32_t)FLAG_ZMOP_DROPPC;
 }
 
+int zmop_chain_set_flag_dropcc(int ch, uint8_t flag) {
+	if (ch < 0 || ch >= 16) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+		return 0;
+	}
+	if (flag)
+		zmops[ZMOP_CH0 + ch].flags |= (uint32_t)FLAG_ZMOP_DROPCC;
+	else
+		zmops[ZMOP_CH0 + ch].flags &= ~(uint32_t)FLAG_ZMOP_DROPCC;
+	//fprintf(stderr, "ZynMidiRouter: ZMOPS flags for chain (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
+	return 1;
+}
+
+int zmop_chain_get_flag_dropcc(int ch) {
+	if (ch < 0 || ch >= 16) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+		return 0;
+	}
+	return zmops[ZMOP_CH0 + ch].flags & (uint32_t)FLAG_ZMOP_DROPCC;
+}
+
 int zmop_reset_midi_chans(int iz) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
@@ -764,9 +785,11 @@ int init_jack_midi(char *name) {
 
 	//Route Input to Output Ports
 	for (i = 0; i < ZMOP_CTRL; i++) {
-		//External Controllers to all ZMOPS
-		for (j = 0; j < NUM_ZMIP_DEVS; j++) {
-			if (!zmop_set_route_from(i, ZMIP_DEV0 + j, 1)) return 0;
+		//External Devices to all ZMOPS except MIDI OUT (ZMOP_MIDI & ZMOP_NET)
+		if (i != ZMOP_MIDI && i != ZMOP_NET) {
+			for (j = 0; j < NUM_ZMIP_DEVS; j++) {
+				if (!zmop_set_route_from(i, ZMIP_DEV0 + j, 1)) return 0;
+			}
 		}
 		//MIDI player to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
@@ -785,6 +808,8 @@ int init_jack_midi(char *name) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
 	}
+	//External Devices to MIDI OUT (ZMOP_MIDI & ZMOP_NET) => Not routed by default!
+	if (!set_midi_thru(0)) return 0;
 	//ZMOP_CTRL only receive feedback from Zynthian UI
 	if (!zmop_set_route_from(ZMOP_CTRL, ZMIP_FAKE_CTRL_FB, 1)) return 0;
 
@@ -828,6 +853,21 @@ void populate_zmip_event(struct zmip_st * zmip) {
 			zmip->event.time = 0xFFFFFFFF;
 		}
 	}
+}
+
+int set_midi_thru(int enabled) {
+	int j;
+	for (j = 0; j < NUM_ZMIP_DEVS; j++) {
+		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, enabled)) return 0;
+		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, enabled)) return 0;
+	}
+	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", enabled);
+	midi_thru_enabled = enabled;
+	return 1;
+}
+
+int get_midi_thru() {
+	return midi_thru_enabled;
 }
 
 //-----------------------------------------------------
@@ -1070,18 +1110,25 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			if (!zmop->route_from_zmips[izmip])
 				continue;
 
-			// Filter MIDI channels not registered by zmop
-			if (zmop->midi_chans[event_chan] == -1)
-				continue;
+			// Channel messages ...
+			if (event_type < SYSTEM_EXCLUSIVE) {
+				// Filter MIDI channels not registered by zmop
+				if (zmop->midi_chans[event_chan] == -1)
+					continue;
 
-			// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
-			// Channel mode messages (ccnum>120) are also dropped, as they must be processed by UI.
-			if (event_type == CTRL_CHANGE && izmip <= ZMIP_CTRL && izmop <= ZMOP_MAIN)
-				continue;
+				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
+				// Channel mode messages (ccnum>120) are also dropped, as they must be processed by UI.
+				if (event_type == CTRL_CHANGE && (zmop->flags & FLAG_ZMOP_DROPCC)  && izmip <= ZMIP_CTRL)
+					continue;
 
-			// Drop "Program Change" if configured in MIDI rules
-			if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
-				continue;
+				// Drop "Program Change" if configured in zmop options, except from internal sources (UI)
+				if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
+					continue;
+			}
+			// Drop "System messages" if configured in zmop options, except from internal sources (UI)
+			else if ((zmop->flags & FLAG_ZMOP_DROPSYS)  && izmip != ZMIP_FAKE_UI) {
+			 	continue;
+			}
 
 			// Add processed event to MIDI outputs
 			zmop_push_event(zmop, ev);
