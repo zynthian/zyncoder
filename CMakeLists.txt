@@ -89,6 +89,11 @@ elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V3"))
 	add_definitions(-DMCP23017_ENCODERS)
 	add_definitions(-DZ2_VERSION=3)
 
+elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5"))
+	message("++ Defined MCP23017_ENCODERS")
+	add_definitions(-DMCP23017_ENCODERS)
+	add_definitions(-DV5_VERSION=1)
+
 elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "I2C_HWC"))
 	message("++ Defined I2C_HWC_ENCODERS")
 	add_definitions(-DI2C_HWC_ENCODERS)
@@ -122,6 +127,11 @@ elseif (("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V1") OR ("$ENV{ZYNTHIAN_WIR
 	target_link_libraries(zyncore wiringPi jack lo)
 	add_executable(lm4811_set_volume lm4811_set_volume.c lm4811.c)
 	target_link_libraries(lm4811_set_volume wiringPi)
+
+elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5")
+	message("++ Using wiringPi")
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_v5.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
+	target_link_libraries(zyncore wiringPi jack lo)
 
 elseif (NOT ZYNTHIAN_FORCE_WIRINGPI_EMU AND HAVE_WIRINGPI_LIB)
 	message("++ Using wiringPi")
