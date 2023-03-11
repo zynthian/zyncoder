@@ -803,7 +803,7 @@ int init_jack_midi(char *name) {
 		}
 		//Internal MIDI to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
-		//MIDI from UI to Layer's ZMOPS 
+		//MIDI from UI to Chain's ZMOPS 
 		if (i == ZMOP_MAIN || (i >= ZMOP_CH0 && i <= ZMOP_CH15)) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
@@ -1033,7 +1033,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// MIDI CC messages
 		if (event_type == CTRL_CHANGE) {
-
 			//Auto Relative-Mode
 			if (midi_filter.cc_automode == 1 && (zmip->flags & FLAG_ZMIP_CC_AUTO_MODE)) {
 				if (midi_filter.ctrl_mode[event_chan][event_num] == CTRL_MODE_REL_2) {
