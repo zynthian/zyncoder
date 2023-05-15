@@ -30,6 +30,14 @@
 #include "zyncoder.h"
 
 //-----------------------------------------------------------------------------
+// Zynface V5
+//-----------------------------------------------------------------------------
+
+#ifdef ZYNAPTIK_CONFIG
+#include "zynaptik.h"
+#endif
+
+//-----------------------------------------------------------------------------
 // GPIO Expander 1
 //-----------------------------------------------------------------------------
 
@@ -129,10 +137,16 @@ int init_zyncontrol() {
 	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
+	#ifdef ZYNAPTIK_CONFIG
+		init_zynaptik();
+	#endif
 	return 1;
 }
 
 int end_zyncontrol() {
+	#ifdef ZYNAPTIK_CONFIG
+		end_zynaptik();
+	#endif
 	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();

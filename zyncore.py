@@ -32,19 +32,18 @@ from numpy.ctypeslib import ndpointer
 #-------------------------------------------------------------------------------
 
 global lib_zyncore
-lib_zyncore=None
-
+lib_zyncore = None
 
 def lib_zyncore_init():
 	global lib_zyncore
 	try:
-		lib_zyncore=cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
+		lib_zyncore = cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
 		lib_zyncore.init_zyncore()
 		#Setup return type for some functions
 		lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
 
 	except Exception as e:
-		lib_zyncore=None
+		lib_zyncore = None
 		print("Can't init zyncore library: %s" % str(e))
 
 	return lib_zyncore
