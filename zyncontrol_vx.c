@@ -143,7 +143,7 @@ void init_zynswitches() {
 	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	for (i=0;i<NUM_ZYNSWITCHES;i++) {
 		if (zynswitch_pins[i]>0) {
-			setup_zynswitch(i, zynswitch_pins[i]);
+			setup_zynswitch(i, zynswitch_pins[i], 1);
 		}
 	}
 }

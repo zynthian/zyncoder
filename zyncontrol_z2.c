@@ -96,8 +96,8 @@ void init_zynswitches() {
 	reset_zynswitches();
 	int i;
 	fprintf(stderr, "ZynCore: Setting-up 30 x Zynswitches...\n");
-	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i);
-	for (i=0;i<14;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i);
+	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i, 1);
+	for (i=0;i<14;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i, 1);
 }
 
 //-----------------------------------------------------------------------------

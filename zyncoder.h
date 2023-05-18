@@ -46,6 +46,7 @@
 typedef struct zynswitch_st {
 	uint8_t enabled;
 	uint16_t pin;
+	uint8_t off_state;
 	uint8_t push;
 	uint64_t tsus;
 	unsigned int dtus;
@@ -60,13 +61,13 @@ void reset_zynswitches();
 int get_num_zynswitches();
 int get_last_zynswitch_index();
 
-int setup_zynswitch(uint8_t i, uint16_t pin); 
+int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state);
 int setup_zynswitch_midi(uint8_t i, midi_event_type midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val);
 
 unsigned int get_zynswitch(uint8_t i, unsigned int long_dtus);
 int get_next_pending_zynswitch(uint8_t i);
 
-void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status);
+void send_zynswitch_midi(zynswitch_t *zsw);
 void update_zynswitch(uint8_t i, uint8_t status);
 
 //-----------------------------------------------------------------------------
