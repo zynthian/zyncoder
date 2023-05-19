@@ -94,12 +94,12 @@ struct zyncvin_st {
 };
 struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 
-
-int note0_cvin;
 float k_cvin;
-void set_k_cvin(float k);
-float get_k_cvin();
+int note0_cvin;
 void set_volts_octave_cvin(float vo);
+float get_volts_octave_cvin();
+void set_note0_cvin(int note0);
+int get_note0_cvin();
 
 void setup_zynaptik_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvin(uint8_t i);
@@ -135,11 +135,12 @@ struct zyncvout_st {
 };
 struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 
-int note0_cvout;
 float k_cvout;
-void set_k_cvout(float k);
-float get_k_cvout();
+int note0_cvout;
 void set_volts_octave_cvout(float vo);
+float get_volts_octave_cvout();
+void set_note0_cvout(int note0);
+int get_note0_cvout();
 
 void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvout(uint8_t i);

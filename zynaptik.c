@@ -87,9 +87,10 @@ void disable_zynaptik_cvin(uint8_t i) {
 	zyncvins[i].enabled = 0;
 }
 
-void set_k_cvin(float k) { k_cvin=k; }
-float get_k_cvin() { return k_cvin; }
 void set_volts_octave_cvin(float vo) { k_cvin = K_CVIN_VOLT_OCTAVE / vo; }
+float get_volts_octave_cvin(float vo) {  K_CVIN_VOLT_OCTAVE / k_cvin; }
+void set_note0_cvin(int note0) { note0_cvin = note0; }
+int get_note0_cvin() { return note0_cvin; }
 
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (zyncvins[i].midi_evt==PITCH_BEND) {
@@ -183,9 +184,10 @@ void disable_zynaptik_cvout(uint8_t i) {
 	zyncvouts[i].enabled = 0;
 }
 
-void set_k_cvout(float k) { k_cvout = k; }
-float get_k_cvout() { return k_cvout; }
 void set_volts_octave_cvout(float vo) { k_cvout = K_CVOUT_VOLT_OCTAVE / vo; }
+float get_volts_octave_cvout(float vo) {  K_CVOUT_VOLT_OCTAVE / k_cvout; }
+void set_note0_cvout(int note0) { note0_cvout = note0; }
+int get_note0_cvout() { return note0_cvout; }
 
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	uint8_t event_type = ev->buffer[0] >> 4;
@@ -363,13 +365,13 @@ int init_zynaptik() {
 		//init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_4_096, ADS1115_RATE_860SPS);
 		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_6_144, ADS1115_RATE_128SPS);
 		set_volts_octave_cvin(ZYNAPTIK_CVIN_VOLTS_OCTAVE);
-		note0_cvin = 0;
+		set_note0_cvin(0);
 		init_poll_zynaptik_cvins();
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {
 		init_mcp4728(ZYNAPTIK_MCP4728_I2C_ADDRESS);
 		set_volts_octave_cvout(ZYNAPTIK_CVOUT_VOLTS_OCTAVE);
-		note0_cvout = 0;
+		set_note0_cvout(0);
 		refresh_zynaptik_cvouts();
 		//init_refresh_zynaptik_cvouts();
 	}
