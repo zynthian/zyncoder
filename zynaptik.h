@@ -77,7 +77,11 @@ void init_mcp4728(uint16_t i2c_address);
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCVINS 4
-#define DEFAULT_K_CVIN 1.03
+#define K_CVIN_VOLT_OCTAVE (12.0 * 6.144 / 32767.0)
+
+#if !defined(ZYNAPTIK_CVIN_VOLTS_OCTAVE)
+	#define ZYNAPTIK_CVIN_VOLTS_OCTAVE 1.0
+#endif
 
 struct zyncvin_st {
 	uint8_t enabled;
@@ -93,6 +97,7 @@ struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 float k_cvin;
 void set_k_cvin(float k);
 float get_k_cvin();
+void set_volts_octave_cvin(float vo);
 
 void setup_zynaptik_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvin(uint8_t i);
@@ -108,7 +113,11 @@ pthread_t init_poll_zynaptik_cvins();
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCVOUTS 4
-#define DEFAULT_K_CVOUT 1.0
+#define K_CVOUT_VOLT_OCTAVE (60.0 / 127.0)
+
+#if !defined(ZYNAPTIK_CVOUT_VOLTS_OCTAVE)
+	#define ZYNAPTIK_CVOUT_VOLTS_OCTAVE 1.0
+#endif
 
 struct zyncvout_st {
 	uint8_t enabled;
@@ -127,6 +136,7 @@ struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 float k_cvout;
 void set_k_cvout(float k);
 float get_k_cvout();
+void set_volts_octave_cvout(float vo);
 
 void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zynaptik_cvout(uint8_t i);

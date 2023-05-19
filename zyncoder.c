@@ -214,10 +214,12 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
+		digitalWrite(zsw->pin, zsw->off_state);
 		setup_zynaptik_cvout(midi_num, midi_evt, midi_chan, i);
 	}
 	else if (midi_evt==GATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
+		digitalWrite(zsw->pin, zsw->off_state);
 		setup_zynaptik_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
@@ -311,7 +313,9 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
 			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zsw->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
-			zsw->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
+			//zsw->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
+
+			zsw->last_cvgate_note=(int)(k_cvin * val);
 			if (zsw->last_cvgate_note>127) zsw->last_cvgate_note=127;
 			else if (zsw->last_cvgate_note<0) zsw->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
