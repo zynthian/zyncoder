@@ -82,6 +82,9 @@ void init_mcp4728(uint16_t i2c_address);
 #if !defined(ZYNAPTIK_CVIN_VOLTS_OCTAVE)
 	#define ZYNAPTIK_CVIN_VOLTS_OCTAVE 1.0
 #endif
+#if !defined(ZYNAPTIK_CVIN_NOTE0)
+	#define ZYNAPTIK_CVIN_NOTE0 0
+#endif
 
 struct zyncvin_st {
 	uint8_t enabled;
@@ -119,6 +122,9 @@ pthread_t init_poll_zynaptik_cvins();
 
 #if !defined(ZYNAPTIK_CVOUT_VOLTS_OCTAVE)
 	#define ZYNAPTIK_CVOUT_VOLTS_OCTAVE 1.0
+#endif
+#if !defined(ZYNAPTIK_CVOUT_NOTE0)
+	#define ZYNAPTIK_CVOUT_NOTE0 0
 #endif
 
 struct zyncvout_st {

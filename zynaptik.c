@@ -365,13 +365,13 @@ int init_zynaptik() {
 		//init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_4_096, ADS1115_RATE_860SPS);
 		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_6_144, ADS1115_RATE_128SPS);
 		set_volts_octave_cvin(ZYNAPTIK_CVIN_VOLTS_OCTAVE);
-		set_note0_cvin(0);
+		set_note0_cvin(ZYNAPTIK_CVIN_NOTE0);
 		init_poll_zynaptik_cvins();
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {
 		init_mcp4728(ZYNAPTIK_MCP4728_I2C_ADDRESS);
 		set_volts_octave_cvout(ZYNAPTIK_CVOUT_VOLTS_OCTAVE);
-		set_note0_cvout(0);
+		set_note0_cvout(ZYNAPTIK_CVOUT_NOTE0);
 		refresh_zynaptik_cvouts();
 		//init_refresh_zynaptik_cvouts();
 	}
