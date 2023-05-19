@@ -206,10 +206,10 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 				digitalWrite(zsw->pin, zsw->off_state);
 				zsw->status = zsw->off_state;
 			}
-			zyncvouts[i].val = (int)((ev->buffer[1]<<7)/k_cvout);
+			zyncvouts[i].val = (int)(((ev->buffer[1]-note0_cvout)<<7)/k_cvout);
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
 			refresh_zynaptik_cvouts();
-			usleep(50);
+			usleep(20);
 			digitalWrite(zsw->pin, ~zsw->off_state);
 			zsw->status = ~zsw->off_state;
 		}
@@ -363,11 +363,13 @@ int init_zynaptik() {
 		//init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_4_096, ADS1115_RATE_860SPS);
 		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_6_144, ADS1115_RATE_128SPS);
 		set_volts_octave_cvin(ZYNAPTIK_CVIN_VOLTS_OCTAVE);
+		note0_cvin = 0;
 		init_poll_zynaptik_cvins();
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {
 		init_mcp4728(ZYNAPTIK_MCP4728_I2C_ADDRESS);
 		set_volts_octave_cvout(ZYNAPTIK_CVOUT_VOLTS_OCTAVE);
+		note0_cvout = 0;
 		refresh_zynaptik_cvouts();
 		//init_refresh_zynaptik_cvouts();
 	}

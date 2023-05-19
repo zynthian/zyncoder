@@ -94,6 +94,8 @@ struct zyncvin_st {
 };
 struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 
+
+int note0_cvin;
 float k_cvin;
 void set_k_cvin(float k);
 float get_k_cvin();
@@ -133,6 +135,7 @@ struct zyncvout_st {
 };
 struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 
+int note0_cvout;
 float k_cvout;
 void set_k_cvout(float k);
 float get_k_cvout();
