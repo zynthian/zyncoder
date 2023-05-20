@@ -100,7 +100,7 @@ struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 float k_cvin;
 int note0_cvin;
 void set_volts_octave_cvin(float vo);
-float get_volts_octave_cvin();
+float get_volts_octave_cvin(float);
 void set_note0_cvin(int note0);
 int get_note0_cvin();
 
@@ -118,7 +118,7 @@ pthread_t init_poll_zynaptik_cvins();
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCVOUTS 4
-#define K_CVOUT_VOLT_OCTAVE (60.0 / 127.0)
+#define K_CVOUT_VOLT_OCTAVE (60.0 / 127.0 / 0.97)
 
 #if !defined(ZYNAPTIK_CVOUT_VOLTS_OCTAVE)
 	#define ZYNAPTIK_CVOUT_VOLTS_OCTAVE 1.0
@@ -133,6 +133,7 @@ struct zyncvout_st {
 	int midi_evt;
 	uint8_t midi_chan;
 	uint8_t midi_num;
+	uint8_t note[128];
 
 	uint16_t midi_event_temp;
 	uint16_t midi_event_mask;
@@ -144,7 +145,7 @@ struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 float k_cvout;
 int note0_cvout;
 void set_volts_octave_cvout(float vo);
-float get_volts_octave_cvout();
+float get_volts_octave_cvout(float);
 void set_note0_cvout(int note0);
 int get_note0_cvout();
 
