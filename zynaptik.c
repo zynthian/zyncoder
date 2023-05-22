@@ -175,6 +175,7 @@ void zynaptik_setup_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t mi
 	zyncvouts[i].midi_evt = midi_evt;
 	zyncvouts[i].midi_chan = midi_chan & 0xF;
 	zyncvouts[i].midi_num = midi_num & 0x7F;
+	for (int j=0; j<128; ++j) zyncvouts[i].note[j] = 0;
 	zyncvouts[i].val = 0;
 	zyncvouts[i].enabled = 1;
 }
@@ -204,10 +205,18 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-ON => %d, %d\n", zyncvouts[i].midi_num, ev->buffer[1], ev->buffer[2]);
 			zsw = &zynswitches[zyncvouts[i].midi_num];
-			if (zsw->status!=zsw->off_state) {
+			uint8_t held = 0;
+			for (int j=0; j<128; ++j) {
+				if (zyncvouts[i].note[j]) {
+					held = 1;
+					break;
+				}
+			}
+			if (held == 0 && zsw->status != zsw->off_state) {
 				digitalWrite(zsw->pin, zsw->off_state);
 				zsw->status = zsw->off_state;
 			}
+			zyncvouts[i].note[ev->buffer[1]] = 1;
 			zyncvouts[i].val = (int)(((ev->buffer[1]-note0_cvout)<<7)/k_cvout);
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
 			zynaptik_refresh_cvouts();
@@ -217,6 +226,14 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-OFF => %d\n", zyncvouts[i].midi_num, ev->buffer[1]);
+			zyncvouts[i].note[ev->buffer[1]] = 0;
+			for (int j=0; j < 128; ++j) {
+				if (zyncvouts[i].note[j]) {
+					zyncvouts[i].val = (int)(((j - note0_cvout) << 7) / k_cvout);
+					zynaptik_refresh_cvouts();
+					return;
+				}
+			}
 			zsw = &zynswitches[zyncvouts[i].midi_num];
 			digitalWrite(zsw->pin, zsw->off_state);
 			zsw->status = zsw->off_state;

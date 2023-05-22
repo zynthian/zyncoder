@@ -133,6 +133,7 @@ struct zyncvout_st {
 	int midi_evt;
 	uint8_t midi_chan;
 	uint8_t midi_num;
+	uint8_t note[128];
 
 	uint16_t midi_event_temp;
 	uint16_t midi_event_mask;
