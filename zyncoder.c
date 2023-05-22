@@ -215,12 +215,12 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
 		digitalWrite(zsw->pin, zsw->off_state);
-		setup_zynaptik_cvout(midi_num, midi_evt, midi_chan, i);
+		zynaptik_setup_cvout(midi_num, midi_evt, midi_chan, i);
 	}
 	else if (midi_evt==GATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
 		digitalWrite(zsw->pin, zsw->off_state);
-		setup_zynaptik_gateout(i, midi_evt, midi_chan, midi_num);
+		zynaptik_setup_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
 
