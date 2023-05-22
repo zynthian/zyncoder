@@ -65,7 +65,7 @@ void update_polled_zynswitches() {
 		#endif
 		if (status==zsw->status) continue;
 		zsw->status=status;
-		send_zynswitch_midi(zsw, status);
+		send_zynswitch_midi(zsw);
 		#ifdef DEBUG
 		fprintf(stderr, "POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
 		#endif
