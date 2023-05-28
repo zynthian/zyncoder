@@ -138,11 +138,6 @@ void set_midi_active_chan(int chan) {
 	if (chan != midi_filter.active_chan) {
 		midi_filter.last_active_chan = midi_filter.active_chan;
 		midi_filter.active_chan = chan;
-		// Resend sustain if required
-		if (midi_filter.last_ctrl_val[chan][64] < midi_filter.last_ctrl_val[midi_filter.last_active_chan][64]) {
-			midi_filter.last_ctrl_val[chan][64] = midi_filter.last_ctrl_val[midi_filter.last_active_chan][64];
-			write_zynmidi_ccontrol_change(midi_filter.active_chan, 64, midi_filter.last_ctrl_val[chan][64]);
-		}
 	}
 }
 
@@ -1000,8 +995,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Active channel (stage mode)
 		if ((zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) && midi_filter.active_chan >= 0
-				&& ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan
-				&& event_type != 0xc) {
+				&& (ev->buffer[0] < SYSTEM_EXCLUSIVE && event_chan != midi_filter.master_chan
+				&& event_type != PROG_CHANGE && event_type != CTRL_CHANGE
+				|| (event_type == CTRL_CHANGE && (event_num == 64 ||event_num == 66 ||event_num == 67 ||event_num == 69))
+				)
+			) {
 			//Active Channel => When set, move all channel events to active_chan
 			event_chan = midi_filter.active_chan;
 
@@ -1016,15 +1014,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 							break;
 						}
 						xch = (xch + 1) % 16;
-					}
-				// Manage sustain pedal across active_channel changes, excluding cloned channels
-				} else if (event_type == CTRL_CHANGE && event_num == 64) {
-					for (j = 0; j < 16; j++) {
-						if (j != midi_filter.active_chan && midi_filter.last_ctrl_val[j][64] > 0 && !midi_filter.clone[midi_filter.active_chan][j].enabled) {
-							// Found a sustain pedal asserted on another, non-cloned channel
-							write_zynmidi_ccontrol_change(j, 64, event_val);
-							midi_filter.last_ctrl_val[j][64] = event_val;
-						}
 					}
 				}
 			}

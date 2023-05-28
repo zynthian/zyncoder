@@ -83,12 +83,14 @@ void setup_zynaptik_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t mid
 	zyncvins[i].enabled = 1;
 }
 
-void disable_zynaptik_cvin(uint8_t i) {
+void zynaptik_disable_cvin(uint8_t i) {
 	zyncvins[i].enabled = 0;
 }
 
-void set_k_cvin(float k) { k_cvin=k; }
-float get_k_cvin() { return k_cvin; }
+void zynaptik_cvin_set_volts_octave(float vo) { k_cvin = K_CVIN_VOLT_OCTAVE / vo; }
+float zynaptik_cvin_get_volts_octave() {  K_CVIN_VOLT_OCTAVE / k_cvin; }
+void zynaptik_cvin_set_note0(int note0) { note0_cvin = note0; }
+int zynaptik_cvin_get_note0() { return note0_cvin; }
 
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (zyncvins[i].midi_evt==PITCH_BEND) {
@@ -114,7 +116,7 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	zyncvins[i].midi_val = val;
 }
 
-void * poll_zynaptik_cvins(void *arg) {
+void * zynaptik_poll_cvins(void *arg) {
 	int i, val;
 	while (1) {
 		for (i=0;i<MAX_NUM_ZYNCVINS;i++) {
@@ -134,13 +136,13 @@ void * poll_zynaptik_cvins(void *arg) {
 	return NULL;
 }
 
-pthread_t init_poll_zynaptik_cvins() {
+pthread_t zynaptik_init_poll_cvins() {
 	if (pthread_mutex_init(&zynaptik_cvin_lock, NULL) != 0) {
 		fprintf(stderr,"ZynCore: Zynaptik CV-IN mutex init failed\n");
 		return 0;
     }
 	pthread_t tid;
-	int err=pthread_create(&tid, NULL, &poll_zynaptik_cvins, NULL);
+	int err=pthread_create(&tid, NULL, &zynaptik_poll_cvins, NULL);
 	if (err != 0) {
 		fprintf(stderr,"ZynCore: Can't create zynaptik CV-IN poll thread :[%s]", strerror(err));
 		return 0;
@@ -154,7 +156,7 @@ pthread_t init_poll_zynaptik_cvins() {
 // CV-OUT: Set Analog Outputs from MIDI: CC, Pitchbend, Channel Pressure, Notes (velocity+pitchbend)
 //-----------------------------------------------------------------------------
 
-void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
+void zynaptik_setup_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		zyncvouts[i].midi_event_mask=0xEF00;
 		zyncvouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8);
@@ -173,18 +175,20 @@ void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t mi
 	zyncvouts[i].midi_evt = midi_evt;
 	zyncvouts[i].midi_chan = midi_chan & 0xF;
 	zyncvouts[i].midi_num = midi_num & 0x7F;
+	for (int j=0; j<128; ++j) zyncvouts[i].note[j] = 0;
 	zyncvouts[i].val = 0;
 	zyncvouts[i].enabled = 1;
 }
 
-void disable_zynaptik_cvout(uint8_t i) {
+void zynaptik_disable_cvout(uint8_t i) {
 	zyncvouts[i].val = 0;
 	zyncvouts[i].enabled = 0;
 }
 
-float k_cvout=DEFAULT_K_CVOUT;
-void set_k_cvout(float k) { k_cvout = k; }
-float get_k_cvout() { return k_cvout; }
+void zynaptik_cvout_set_volts_octave(float vo) { k_cvout = K_CVOUT_VOLT_OCTAVE / vo; }
+float zynaptik_cvout_get_volts_octave() {  K_CVOUT_VOLT_OCTAVE / k_cvout; }
+void zynaptik_cvout_set_note0(int note0) { note0_cvout = note0; }
+int zynaptik_cvout_get_note0() { return note0_cvout; }
 
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	uint8_t event_type = ev->buffer[0] >> 4;
@@ -192,51 +196,68 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 	//fprintf(stderr, "ZYNAPTIK MIDI TO CV-OUT => [0x%x, %d, %d]\n", ev->buffer[0], ev->buffer[1], ev->buffer[2]);
 
 	uint16_t ev_data = ev->buffer[0]<<8 | ev->buffer[1];
+	zynswitch_t *zsw;
 	for (int i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
-		if  (!zyncvouts[i].enabled) continue;
+		if (!zyncvouts[i].enabled) continue;
 		//fprintf(stderr, "\t %d.) => 0x%x <=> 0x%x\n", i, ev_data & zyncvouts[i].midi_event_mask, zyncvouts[i].midi_event_temp);
 		if (zyncvouts[i].midi_event_temp!=(ev_data & zyncvouts[i].midi_event_mask)) continue;
 
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-ON => %d, %d\n", zyncvouts[i].midi_num, ev->buffer[1], ev->buffer[2]);
-			if (zyncvouts[i].val>0) {
-				digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,1);
+			zsw = &zynswitches[zyncvouts[i].midi_num];
+			uint8_t held = 0;
+			for (int j=0; j<128; ++j) {
+				if (zyncvouts[i].note[j]) {
+					held = 1;
+					break;
+				}
 			}
-			zyncvouts[i].val = ev->buffer[1]<<7;
+			if (held == 0 && zsw->status != zsw->off_state) {
+				digitalWrite(zsw->pin, zsw->off_state);
+				zsw->status = zsw->off_state;
+			}
+			zyncvouts[i].note[ev->buffer[1]] = 1;
+			zyncvouts[i].val = (int)(((ev->buffer[1]-note0_cvout)<<7)/k_cvout);
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
-			refresh_zynaptik_cvouts();
-			usleep(50);
-			digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,0);
+			zynaptik_refresh_cvouts();
+			usleep(20);
+			digitalWrite(zsw->pin, ~zsw->off_state);
+			zsw->status = ~zsw->off_state;
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-OFF => %d\n", zyncvouts[i].midi_num, ev->buffer[1]);
-			if (zyncvouts[i].val==ev->buffer[1]<<7) {
-				zyncvouts[i].val = 0;
-				//set_zynaptik_cvout(i, zyncvouts[i].val);
-				refresh_zynaptik_cvouts();
-				digitalWrite(zynswitches[zyncvouts[i].midi_num].pin,1);
+			zyncvouts[i].note[ev->buffer[1]] = 0;
+			for (int j=0; j < 128; ++j) {
+				if (zyncvouts[i].note[j]) {
+					zyncvouts[i].val = (int)(((j - note0_cvout) << 7) / k_cvout);
+					zynaptik_refresh_cvouts();
+					return;
+				}
 			}
+			zsw = &zynswitches[zyncvouts[i].midi_num];
+			digitalWrite(zsw->pin, zsw->off_state);
+			zsw->status = zsw->off_state;
 		}
 		else if (event_type==PITCH_BEND) {
 			zyncvouts[i].val = (ev->buffer[2]<<7) | ev->buffer[1];
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
-			refresh_zynaptik_cvouts();
+			zynaptik_refresh_cvouts();
 		}
 		else if (event_type==CTRL_CHANGE) {
 			zyncvouts[i].val = ev->buffer[2]<<7;
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
-			refresh_zynaptik_cvouts();
+			zynaptik_refresh_cvouts();
 		}
 		else if (event_type==CHAN_PRESS) {
 			zyncvouts[i].val = ev->buffer[2]<<7;
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
-			refresh_zynaptik_cvouts();
+			zynaptik_refresh_cvouts();
 		} 
 	}
 }
 
-void set_zynaptik_cvout(int i, uint16_t val) {
-	float vout=k_cvout*val/16384.0;
+void zynaptik_set_cvout(int i, uint16_t val) {
+	float vout=val/16384.0;
 	//fprintf(stderr, "ZYNAPTIK CV-OUT %d => %f\n", i, vout);
 	int err=mcp4728_singleexternal(mcp4728_chip, i, vout, 0);
 	if (err!=0) {
@@ -244,12 +265,12 @@ void set_zynaptik_cvout(int i, uint16_t val) {
 	}
 }
 
-void refresh_zynaptik_cvouts() {
+void zynaptik_refresh_cvouts() {
 	int i, err;
 	float buffer[MAX_NUM_ZYNCVOUTS];
 	for (i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
 		if (zyncvouts[i].enabled) {
-			buffer[i] = k_cvout*zyncvouts[i].val/16384.0;
+			buffer[i] = zyncvouts[i].val/16384.0;
 		} else {
 			buffer[i] = 0;
 		}
@@ -263,7 +284,7 @@ void refresh_zynaptik_cvouts() {
 }
 
 /*
-void * _refresh_zynaptik_cvouts(void *arg) {
+void * _zynaptik_refresh_cvouts(void *arg) {
 	while (1) {
 		refresh_zynaptik_cvouts();
 		usleep(REFRESH_ZYNAPTIK_CVOUTS_US);
@@ -271,7 +292,7 @@ void * _refresh_zynaptik_cvouts(void *arg) {
 	return NULL;
 }
 
-pthread_t init_refresh_zynaptik_cvouts() {
+pthread_t zynaptik_init_refresh_cvouts() {
 	pthread_t tid;
 	int err=pthread_create(&tid, NULL, &_refresh_zynaptik_cvouts, NULL);
 	if (err != 0) {
@@ -288,7 +309,7 @@ pthread_t init_refresh_zynaptik_cvouts() {
 // GATE-OUT: Set Digital Outputs from MIDI Notes
 //-----------------------------------------------------------------------------
 
-void setup_zynaptik_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
+void zynaptik_setup_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num) {
 	if (midi_evt==GATE_OUT_EVENT) {
 		zyngateouts[i].midi_event_mask=0xEF7F;
 		zyngateouts[i].midi_event_temp=((NOTE_OFF&0xF)<<12) | ((midi_chan&0xF)<<8) | (midi_num&0x7F);
@@ -302,7 +323,7 @@ void setup_zynaptik_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t 
 	zyngateouts[i].enabled = 1;
 }
 
-void disable_zynaptik_gateout(uint8_t i) {
+void zynaptik_disable_gateout(uint8_t i) {
 	zyngateouts[i].enabled = 0;
 }
 
@@ -318,13 +339,34 @@ void zynaptik_midi_to_gateout(jack_midi_event_t *ev) {
 		if (zyngateouts[i].midi_event_temp!=(ev_data & zyngateouts[i].midi_event_mask)) continue;
 
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
+			zynswitch_t *zsw = &zynswitches[i];
 			//fprintf(stderr, "ZYNAPTIK MIDI TO GATE-OUT %d NOTE-ON => %d, %d\n", i, ev->buffer[1], ev->buffer[2]);
-			digitalWrite(zynswitches[i].pin,0);
+			digitalWrite(zsw->pin, ~zsw->off_state);
+			zsw->status = ~zsw->off_state;
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
+			zynswitch_t *zsw = &zynswitches[i];
 			//fprintf(stderr, "ZYNAPTIK MIDI TO GATE-OUT %d NOTE-OFF => %d, 0\n", i, ev->buffer[1]);
-			digitalWrite(zynswitches[i].pin,1);
+			digitalWrite(zsw->pin, zsw->off_state);
+			zsw->status = zsw->off_state;
 		}
+	}
+}
+
+void zynaptik_all_gates_off() {
+	int i;
+	zynswitch_t *zsw;
+	for (i=0;i<MAX_NUM_ZYNCVOUTS;i++) {
+		if (!zyncvouts[i].enabled || zyncvouts[i].midi_event_mask != 0xEF00) continue;
+		zsw = &zynswitches[zyncvouts[i].midi_num];
+		digitalWrite(zsw->pin, zsw->off_state);
+		zsw->status = zsw->off_state;
+	}
+	for (i=0;i<MAX_NUM_ZYNGATEOUTS;i++) {
+		if  (!zyngateouts[i].enabled || zyngateouts[i].midi_event_mask != 0xEF7F) continue;
+		zsw = &zynswitches[i];
+		digitalWrite(zsw->pin, zsw->off_state);
+		zsw->status = zsw->off_state;
 	}
 }
 
@@ -346,24 +388,26 @@ int init_zynaptik() {
 
 	mcp4728_chip = NULL;
 
-	k_cvin=DEFAULT_K_CVIN;
-	k_cvout=DEFAULT_K_CVOUT;
-
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
 		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
 		fprintf(stderr, "Setting-up %d x Zynaptik Switches...\n", 16);
 		for (i=0;i<16;i++) {
-			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i);
+			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i, 0);
 		}
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
 		//init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_4_096, ADS1115_RATE_860SPS);
 		init_ads1115(ZYNAPTIK_ADS1115_BASE_PIN, ZYNAPTIK_ADS1115_I2C_ADDRESS, ADS1115_GAIN_VREF_6_144, ADS1115_RATE_128SPS);
-		init_poll_zynaptik_cvins();
+		zynaptik_cvin_set_volts_octave(ZYNAPTIK_CVIN_VOLTS_OCTAVE);
+		zynaptik_cvin_set_note0(ZYNAPTIK_CVIN_NOTE0);
+		zynaptik_init_poll_cvins();
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xDA") || 1) {
 		init_mcp4728(ZYNAPTIK_MCP4728_I2C_ADDRESS);
-		//init_refresh_zynaptik_cvouts();
+		zynaptik_cvout_set_volts_octave(ZYNAPTIK_CVOUT_VOLTS_OCTAVE);
+		zynaptik_cvout_set_note0(ZYNAPTIK_CVOUT_NOTE0);
+		zynaptik_refresh_cvouts();
+		//zynaptik_init_refresh_cvouts();
 	}
 
 	return 1;

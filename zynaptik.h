@@ -77,7 +77,14 @@ void init_mcp4728(uint16_t i2c_address);
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCVINS 4
-#define DEFAULT_K_CVIN 1.03
+#define K_CVIN_VOLT_OCTAVE (12.0 * 6.144 / 32767.0)
+
+#if !defined(ZYNAPTIK_CVIN_VOLTS_OCTAVE)
+	#define ZYNAPTIK_CVIN_VOLTS_OCTAVE 1.0
+#endif
+#if !defined(ZYNAPTIK_CVIN_NOTE0)
+	#define ZYNAPTIK_CVIN_NOTE0 0
+#endif
 
 struct zyncvin_st {
 	uint8_t enabled;
@@ -91,11 +98,14 @@ struct zyncvin_st {
 struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 
 float k_cvin;
-void set_k_cvin(float k);
-float get_k_cvin();
+int note0_cvin;
+void zynaptik_cvin_set_volts_octave(float vo);
+float zynaptik_cvin_get_volts_octave();
+void zynaptik_cvin_set_note0(int note0);
+int zynaptik_cvin_get_note0();
 
-void setup_zynaptik_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
-void disable_zynaptik_cvin(uint8_t i);
+void zynaptik_setup_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void zynaptik_disable_cvin(uint8_t i);
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val);
 
 //CV-IN Polling interval
@@ -108,7 +118,14 @@ pthread_t init_poll_zynaptik_cvins();
 //-----------------------------------------------------------------------------
 
 #define MAX_NUM_ZYNCVOUTS 4
-#define DEFAULT_K_CVOUT 1.0
+#define K_CVOUT_VOLT_OCTAVE (60.0 / (127.0 * 0.97))
+
+#if !defined(ZYNAPTIK_CVOUT_VOLTS_OCTAVE)
+	#define ZYNAPTIK_CVOUT_VOLTS_OCTAVE 1.0
+#endif
+#if !defined(ZYNAPTIK_CVOUT_NOTE0)
+	#define ZYNAPTIK_CVOUT_NOTE0 0
+#endif
 
 struct zyncvout_st {
 	uint8_t enabled;
@@ -116,6 +133,7 @@ struct zyncvout_st {
 	int midi_evt;
 	uint8_t midi_chan;
 	uint8_t midi_num;
+	uint8_t note[128];
 
 	uint16_t midi_event_temp;
 	uint16_t midi_event_mask;
@@ -125,14 +143,17 @@ struct zyncvout_st {
 struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 
 float k_cvout;
-void set_k_cvout(float k);
-float get_k_cvout();
+int note0_cvout;
+void zynaptik_cvout_set_volts_octave(float vo);
+float zynaptik_cvout_get_volts_octave();
+void zynaptik_cvout_set_note0(int note0);
+int zynaptik_cvout_get_note0();
 
-void setup_zynaptik_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
-void disable_zynaptik_cvout(uint8_t i);
+void zynaptik_setup_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void zynaptik_disable_cvout(uint8_t i);
 void zynaptik_midi_to_cvout(jack_midi_event_t *ev);
-void set_zynaptik_cvout(int i, uint16_t val);
-void refresh_zynaptik_cvouts();
+void zynaptik_set_cvout(int i, uint16_t val);
+void zynaptik_refresh_cvouts();
 
 //CV-OUT Refresh interval
 #define REFRESH_ZYNAPTIK_CVOUTS_US 40000
@@ -141,7 +162,7 @@ void refresh_zynaptik_cvouts();
 // GATE-OUT: Set Digital Outputs from MIDI Notes
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNGATEOUTS 24
+#define MAX_NUM_ZYNGATEOUTS 36
 
 struct zyngateout_st {
 	uint8_t enabled;
@@ -155,8 +176,8 @@ struct zyngateout_st {
 };
 struct zyngateout_st zyngateouts[MAX_NUM_ZYNGATEOUTS];
 
-void setup_zynaptik_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
-void disable_zynaptik_gateout(uint8_t i);
+void zynaptik_setup_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
+void zynaptik_disable_gateout(uint8_t i);
 void zynaptik_midi_to_gateout(jack_midi_event_t *ev);
 
 //-----------------------------------------------------------------------------
