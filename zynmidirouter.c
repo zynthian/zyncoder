@@ -867,14 +867,27 @@ void populate_zmip_event(struct zmip_st * zmip) {
 	}
 }
 
-int set_midi_thru(int enabled) {
+int set_midi_thru(int flag) {
 	int j;
 	for (j = 0; j < NUM_ZMIP_DEVS; j++) {
-		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, enabled)) return 0;
-		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, enabled)) return 0;
+		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, flag)) return 0;
+		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, flag)) return 0;
 	}
-	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", enabled);
-	midi_thru_enabled = enabled;
+	//if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_STEP, flag)) return 0;
+	//if (!zmop_set_route_from(ZMOP_NET, ZMIP_STEP, flag)) return 0;
+	if (flag) {
+		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPCC;
+		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPCC;
+	} else {
+		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPCC;
+		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPCC;
+	}
+	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", flag);
+	midi_thru_enabled = flag;
 	return 1;
 }
 
@@ -1134,6 +1147,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 				// Drop "Program Change" if configured in zmop options, except from internal sources (UI)
 				if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
+					continue;
+
+				// Drop "Note On/Off" if configured in zmop options, except from internal sources (UI)
+				if ((zmop->flags & FLAG_ZMOP_DROPNOTE) && (event_type == NOTE_ON || event_type == NOTE_OFF) && izmip != ZMIP_FAKE_UI)
 					continue;
 			}
 			// Drop "System messages" if configured in zmop options, except from internal sources (UI)

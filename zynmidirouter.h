@@ -193,7 +193,7 @@ void set_midi_filter_system_events(int mfse);
 
 // MIDI Thru enable/disable => Route MIDI input to output
 int midi_thru_enabled;
-int set_midi_thru(int enabled);
+int set_midi_thru(int flag);
 int get_midi_thru();
 
 //MIDI Learning Mode
@@ -261,8 +261,9 @@ int get_midi_learning_mode();
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_DROPCC 2
 #define FLAG_ZMOP_DROPSYS 4
-#define FLAG_ZMOP_TUNING 8
-#define FLAG_ZMOP_NOTERANGE 16
+#define FLAG_ZMOP_DROPNOTE 8
+#define FLAG_ZMOP_TUNING 16
+#define FLAG_ZMOP_NOTERANGE 32
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPSYS)
 
