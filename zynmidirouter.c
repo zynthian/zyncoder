@@ -923,6 +923,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		populate_zmip_event(zmip);
 	}
 
+	uint8_t event_idev;
 	uint8_t event_type;
 	uint8_t event_chan;
 	uint8_t event_num;
@@ -948,6 +949,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		zmip = zmips + izmip;
 		jack_midi_event_t * ev = &(zmip->event);
 		//fprintf(stderr, "Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
+
+		// MIDI device index
+		event_idev = (uint8_t)(izmip + 1);
 
 		// Ignore Active Sense & SysEx messages
 		if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE)
@@ -1019,7 +1023,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Capture MASTER CHANNEL events for UI just after mapping
 		if (zmip->flags & FLAG_ZMIP_UI && event_chan == midi_filter.master_chan) {
-			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+			write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 			goto event_processed;
 		}
 
@@ -1117,7 +1121,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Capture events for UI after full processing => [Note-Off, Note-On, Control-Change, Pitch-Bend, Prog-Change, System]
 		if ((zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type == PROG_CHANGE || event_type >= SYSTEM_EXCLUSIVE)) {
-			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+			write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 		}
 
 		// Here was placed the CC-swap code. See zynmidiswap.c
@@ -1188,7 +1192,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 						continue;
 					// Capture cloned CC events for UI, but not if MIDI learning mode
 					if (zmip->flags & FLAG_ZMIP_UI && !midi_learning_mode) {
-						write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+						write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 					}
 					// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
 					if (izmip <= ZMIP_CTRL)
