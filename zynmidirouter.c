@@ -725,6 +725,21 @@ int zmip_has_flags(int iz, uint32_t flags) {
 	return (zmips[iz].flags & flags) == flags;
 }
 
+
+//Route/unroute external MIDI device to zmops
+int zmip_set_route_extdev(int iz, int route) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	for (int i = 0; i < ZMOP_CTRL; i++) {
+		if (i != ZMOP_MIDI && i != ZMOP_NET) {
+			if (!zmop_set_route_from(i, iz, route)) return 0;
+		}
+	}
+	return 1;
+}
+
 //-----------------------------------------------------------------------------
 // Jack MIDI processing
 //-----------------------------------------------------------------------------
