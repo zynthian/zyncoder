@@ -199,14 +199,18 @@ if (("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V1") OR ("$ENV{ZYNTHIAN_WIRING_
 
 elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5")
 	message("++ Using wiringPi")
-	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_v5.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_v5.c tpa6130.c tpa6130.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
 	target_link_libraries(zyncore wiringPi jack lo)
+	add_executable(tpa6130_set_volume tpa6130_set_volume.c tpa6130.c)
+	target_link_libraries(tpa6130_set_volume wiringPi)
 
 elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5_ZYNFACE")
 	message("++ Using wiringPi")
 	message("++ Building Zynaptik support")
-	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_v5.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c zynaptik.h zynaptik.c)
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_v5.c tpa6130.c tpa6130.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c zynaptik.h zynaptik.c)
 	target_link_libraries(zyncore wiringPi jack MCP4728 lo)
+	add_executable(tpa6130_set_volume tpa6130_set_volume.c tpa6130.c)
+	target_link_libraries(tpa6130_set_volume wiringPi)
 
 elseif (NOT ZYNTHIAN_FORCE_WIRINGPI_EMU AND HAVE_WIRINGPI_LIB)
 	message("++ Using wiringPi")

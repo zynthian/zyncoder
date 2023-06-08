@@ -28,6 +28,7 @@
 
 #include "zynpot.h"
 #include "zyncoder.h"
+#include "tpa6130.h"
 
 //-----------------------------------------------------------------------------
 // Zynface V5
@@ -132,8 +133,13 @@ void end_zynpots() {
 // Zyncontrol Initialization
 //-----------------------------------------------------------------------------
 
+uint8_t set_hpvol(uint8_t vol) { return tpa6130_set_volume(vol); }
+uint8_t get_hpvol() { return tpa6130_get_volume(); }
+uint8_t get_hpvol_max() { return tpa6130_get_volume_max(); }
+
 int init_zyncontrol() {
 	wiringPiSetup();
+	tpa6130_init();
 	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
@@ -151,6 +157,7 @@ int end_zyncontrol() {
 	reset_zyncoders();
 	reset_zynswitches();
 	reset_zynmcp23017s();
+	tpa6130_end();
 	return 1;
 }
 
