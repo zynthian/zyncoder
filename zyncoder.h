@@ -41,7 +41,11 @@
 // Zynswitch data & functions
 //-----------------------------------------------------------------------------
 
-#define MAX_NUM_ZYNSWITCHES 36
+#if defined(ZYNAPTIK_CONFIG)
+	#define MAX_NUM_ZYNSWITCHES 48
+#else
+	#define MAX_NUM_ZYNSWITCHES 32
+#endif
 
 typedef struct zynswitch_st {
 	uint8_t enabled;

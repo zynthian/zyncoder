@@ -48,12 +48,14 @@
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
 
+int zynaptik_mcp23017_index;
+
 // two ISR routines for the two banks
 void zynaptik_mcp23017_bankA_ISR() {
-	zynmcp23017_ISR(1, 0);
+	zynmcp23017_ISR(zynaptik_mcp23017_index, 0);
 }
 void zynaptik_mcp23017_bankB_ISR() {
-	zynmcp23017_ISR(1, 1);
+	zynmcp23017_ISR(zynaptik_mcp23017_index, 1);
 }
 void (*zynaptik_mcp23017_bank_ISRs[2])={
 	zynaptik_mcp23017_bankA_ISR,
@@ -372,10 +374,12 @@ int init_zynaptik() {
 	mcp4728_chip = NULL;
 
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
-		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
-		fprintf(stderr, "Setting-up %d x Zynaptik Switches...\n", 16);
+		zynaptik_mcp23017_index = get_last_zynmcp23017_index() + 1;
+		setup_zynmcp23017(zynaptik_mcp23017_index, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
+		int zynswitch_start_index = get_last_zynswitch_index() + 1;
+		fprintf(stderr, "Setting-up %d x Zynaptik Switches starting at %d...\n", 16, zynswitch_start_index + 1);
 		for (i=0;i<16;i++) {
-			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i, 0);
+			setup_zynswitch(zynswitch_start_index+i, ZYNAPTIK_MCP23017_BASE_PIN+i, 0);
 		}
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {
