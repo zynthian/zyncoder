@@ -90,7 +90,7 @@ void zynaptik_disable_cvin(uint8_t i) {
 }
 
 void zynaptik_cvin_set_volts_octave(float vo) { k_cvin = K_CVIN_VOLT_OCTAVE / vo; }
-float zynaptik_cvin_get_volts_octave() {  K_CVIN_VOLT_OCTAVE / k_cvin; }
+float zynaptik_cvin_get_volts_octave() {  return K_CVIN_VOLT_OCTAVE / k_cvin; }
 void zynaptik_cvin_set_note0(int note0) { note0_cvin = note0; }
 int zynaptik_cvin_get_note0() { return note0_cvin; }
 
@@ -187,7 +187,7 @@ void zynaptik_disable_cvout(uint8_t i) {
 }
 
 void zynaptik_cvout_set_volts_octave(float vo) { k_cvout = K_CVOUT_VOLT_OCTAVE / vo; }
-float zynaptik_cvout_get_volts_octave() {  K_CVOUT_VOLT_OCTAVE / k_cvout; }
+float zynaptik_cvout_get_volts_octave() {  return K_CVOUT_VOLT_OCTAVE / k_cvout; }
 void zynaptik_cvout_set_note0(int note0) { note0_cvout = note0; }
 int zynaptik_cvout_get_note0() { return note0_cvout; }
 
