@@ -342,6 +342,17 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zsw->midi_event.chan, zsw->midi_event.num);
 		}
 	}
+	else if (zsw->midi_event.type==TIME_CLOCK || zsw->midi_event.type==TRANSPORT_START || zsw->midi_event.type==TRANSPORT_CONTINUE || zsw->midi_event.type==TRANSPORT_STOP) {
+		//Send MIDI event to engines and ouput (ZMOPS)
+		uint8_t buffer[3];
+		buffer[0] = zsw->midi_event.type;
+		buffer[1] = 0;
+		buffer[2] = 0;
+		write_internal_midi_event(buffer);
+		//Send MIDI event to UI
+		write_zynmidi((uint32_t)zsw->midi_event.type << 16);
+		//fprintf(stderr, "ZynCore: Zynswitch MIDI SYSTEM RT event=> %d\n", zsw->midi_event.type);
+	}
 }
 
 //-----------------------------------------------------------------------------

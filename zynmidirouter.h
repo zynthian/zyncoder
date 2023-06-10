@@ -349,8 +349,7 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 //-----------------------------------------------------
 
 jack_ringbuffer_t *jack_ring_internal_buffer;
-int write_internal_event(uint8_t *event, int event_size);
-int forward_internal_midi_data();
+int write_internal_midi_event(uint8_t *event);
 
 int internal_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int internal_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
@@ -365,7 +364,6 @@ int internal_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 jack_ringbuffer_t *jack_ring_ui_buffer;
 int write_ui_event(uint8_t *event, int event_size);
-int forward_ui_midi_data();
 
 int ui_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ui_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
@@ -383,7 +381,6 @@ int ui_send_all_notes_off_chan(uint8_t chan);
 
 jack_ringbuffer_t *jack_ring_ctrlfb_buffer;
 int write_ctrlfb_event(uint8_t *event, int event_size);
-int forward_ctrlfb_midi_data();
 
 int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
