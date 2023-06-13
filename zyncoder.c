@@ -78,6 +78,7 @@ void reset_zynswitches() {
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		zynswitches[i].enabled = 0;
 		zynswitches[i].midi_event.type = NONE_EVENT;
+		zynswitches[i].last_cvgate_note = -1;
 	}
 }
 
@@ -209,7 +210,7 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	zsw->midi_event.val = midi_val;
 	//fprintf(stderr, "Zyncoder: Set Zynswitch %u MIDI %d: %u, %u, %u\n", i, midi_evt, midi_chan, midi_num, midi_val);
 
-	zsw->last_cvgate_note = -1;
+	//zsw->last_cvgate_note = -1;
 
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
@@ -309,6 +310,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 	}
 	#ifdef ZYNAPTIK_CONFIG
 	else if (zsw->midi_event.type==CVGATE_IN_EVENT && zsw->midi_event.num<4) {
+		//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN EVENT (PIN %d) => %d\n",zsw->pin, zsw->status);
 		if (zsw->status!=zsw->off_state) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
 			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zsw->midi_event.num);
@@ -322,14 +324,14 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 			internal_send_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
-			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-ON (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
+			internal_send_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
 			//Send MIDI event to UI
-			write_zynmidi_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
-			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
+			write_zynmidi_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-OFF (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
 		}
 	}
 	#endif
