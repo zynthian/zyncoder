@@ -192,7 +192,7 @@ void set_midi_filter_system_events(int mfse);
 
 // MIDI Thru enable/disable => Route MIDI input to output
 int midi_thru_enabled;
-int set_midi_thru(int enabled);
+int set_midi_thru(int flag);
 int get_midi_thru();
 
 //MIDI Learning Mode
@@ -260,8 +260,9 @@ int get_midi_learning_mode();
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_DROPCC 2
 #define FLAG_ZMOP_DROPSYS 4
-#define FLAG_ZMOP_TUNING 8
-#define FLAG_ZMOP_NOTERANGE 16
+#define FLAG_ZMOP_DROPNOTE 8
+#define FLAG_ZMOP_TUNING 16
+#define FLAG_ZMOP_NOTERANGE 32
 
 #define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPSYS)
 
@@ -323,6 +324,7 @@ uint8_t ctrlfb_buffer[3]; // Buffer for processing ctrl fb MIDI events
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
+int zmip_set_route_extdev(int iz, int route);
 
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
@@ -346,8 +348,7 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 //-----------------------------------------------------
 
 jack_ringbuffer_t *jack_ring_internal_buffer;
-int write_internal_event(uint8_t *event, int event_size);
-int forward_internal_midi_data();
+int write_internal_midi_event(uint8_t *event);
 
 int internal_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int internal_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
@@ -362,7 +363,6 @@ int internal_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 jack_ringbuffer_t *jack_ring_ui_buffer;
 int write_ui_event(uint8_t *event, int event_size);
-int forward_ui_midi_data();
 
 int ui_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ui_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
@@ -380,7 +380,6 @@ int ui_send_all_notes_off_chan(uint8_t chan);
 
 jack_ringbuffer_t *jack_ring_ctrlfb_buffer;
 int write_ctrlfb_event(uint8_t *event, int event_size);
-int forward_ctrlfb_midi_data();
 
 int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);

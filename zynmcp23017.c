@@ -141,6 +141,15 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	return 1;
 }
 
+int get_last_zynmcp23017_index() {
+	int i;
+	int li = 0;
+	for (i=0;i<MAX_NUM_MCP23017;i++) {
+		if (zynmcp23017s[i].enabled!=0) li = i;
+	}
+	return li;
+}
+
 int pin2index_zynmcp23017(uint16_t pin) {
 	int i;
 	for (i=0;i<MAX_NUM_MCP23017;i++) {

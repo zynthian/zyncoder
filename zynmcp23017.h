@@ -58,6 +58,7 @@ zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
 
 void reset_zynmcp23017s();
 int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t intA_pin, uint8_t intB_pin, void (*isrs[2]));
+int get_last_zynmcp23017_index();
 
 int pin2index_zynmcp23017(uint16_t pin);
 int setup_pin_action_zynmcp23017(uint16_t pin, zynmcp23017_pin_action_t action, uint16_t num);

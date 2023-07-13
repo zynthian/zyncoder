@@ -47,7 +47,7 @@
 // Function headers
 //-----------------------------------------------------------------------------
 
-void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status);
+void send_zynswitch_midi(zynswitch_t *zsw);
 
 void zynswitch_rbpi_ISR(uint8_t i);
 void (*zynswitch_rbpi_ISRs[]);
@@ -78,6 +78,7 @@ void reset_zynswitches() {
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		zynswitches[i].enabled = 0;
 		zynswitches[i].midi_event.type = NONE_EVENT;
+		zynswitches[i].last_cvgate_note = -1;
 	}
 }
 
@@ -120,22 +121,22 @@ void update_zynswitch(uint8_t i, uint8_t status) {
 		if (dtus<1000) return;
 
 		//Release
-		if (zsw->status==1) {
+		if (zsw->status==zsw->off_state) {
 			zsw->tsus=0;
 			//fprintf(stderr, "Debounced Switch %d\n",i);
 			zsw->dtus=dtus;
 		}
 	}
 	//Push
-	else if (zsw->status==0) {
+	else if (zsw->status!=zsw->off_state) {
 		zsw->push=1;
 		zsw->tsus=tsus;		// Save push timestamp
 	}
 	//Send MIDI
-	send_zynswitch_midi(zsw, status);
+	send_zynswitch_midi(zsw);
 }
 
-int setup_zynswitch(uint8_t i, uint16_t pin) {
+int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 	if (i >= MAX_NUM_ZYNSWITCHES) {
 		fprintf(stderr, "ZynCore->setup_zynswitch(%d, ...): Invalid index!\n", i);
 		return 0;
@@ -150,7 +151,13 @@ int setup_zynswitch(uint8_t i, uint16_t pin) {
 
 	if (pin>0) {
 		pinMode(pin, INPUT);
-		pullUpDnControl(pin, PUD_UP);
+		if (off_state) {
+			pullUpDnControl(pin, PUD_UP);
+			zsw->off_state = 1;
+		} else {
+			pullUpDnControl(pin, PUD_DOWN);
+			zsw->off_state = 0;
+		}
 
 		// RBPi GPIO pin
 		if (pin<100) {
@@ -175,12 +182,12 @@ int setup_zynswitch(uint8_t i, uint16_t pin) {
 						zynswitch_update_zynmcp23017(i);
 					}
 					else {
-						fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d): Pin out of range!\n",i, pin);
+						fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Pin out of range!\n",i, pin);
 						return 0;
 					}
 				}
 				else {
-					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d): Pin is not a MPC23017 pin!\n",i, pin);
+					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Pin is not a MPC23017 pin!\n",i, pin);
 					return 0;
 				}
 			#endif
@@ -203,16 +210,18 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 	zsw->midi_event.val = midi_val;
 	//fprintf(stderr, "Zyncoder: Set Zynswitch %u MIDI %d: %u, %u, %u\n", i, midi_evt, midi_chan, midi_num, midi_val);
 
-	zsw->last_cvgate_note = -1;
+	//zsw->last_cvgate_note = -1;
 
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
-		setup_zynaptik_cvout(midi_num, midi_evt, midi_chan, i);
+		digitalWrite(zsw->pin, zsw->off_state);
+		zynaptik_setup_cvout(midi_num, midi_evt, midi_chan, i);
 	}
 	else if (midi_evt==GATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
-		setup_zynaptik_gateout(i, midi_evt, midi_chan, midi_num);
+		digitalWrite(zsw->pin, zsw->off_state);
+		zynaptik_setup_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
 
@@ -258,11 +267,11 @@ int get_next_pending_zynswitch(uint8_t i) {
 	return -1;
 }
 
-void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
+void send_zynswitch_midi(zynswitch_t *zsw) {
 
 	if (zsw->midi_event.type==CTRL_CHANGE) {
 		uint8_t val;
-		if (status==0) val=zsw->midi_event.val;
+		if (zsw->status!=zsw->off_state) val=zsw->midi_event.val;
 		else val=0;
 		//Send MIDI event to engines and ouput (ZMOPS)
 		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
@@ -271,7 +280,7 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		//fprintf(stderr, "ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
 	}
 	else if (zsw->midi_event.type==CTRL_SWITCH_EVENT) {
-		if (status==0) {
+		if (zsw->status!=zsw->off_state) {
 			uint8_t val;
 			uint8_t last_val = midi_filter.last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
 			if (last_val>=64) val = 0;
@@ -284,7 +293,7 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 		}
 	}
 	else if (zsw->midi_event.type==NOTE_ON) {
-		if (status==0) {
+		if (zsw->status!=zsw->off_state) {
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_note_on(zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 			//Send MIDI event to UI
@@ -301,36 +310,50 @@ void send_zynswitch_midi(zynswitch_t *zsw, uint8_t status) {
 	}
 	#ifdef ZYNAPTIK_CONFIG
 	else if (zsw->midi_event.type==CVGATE_IN_EVENT && zsw->midi_event.num<4) {
-		if (status==0) {
+		//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN EVENT (PIN %d) => %d\n",zsw->pin, zsw->status);
+		if (zsw->status!=zsw->off_state) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
 			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zsw->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
-			zsw->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
+			//zsw->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
+
+			zsw->last_cvgate_note = note0_cvin + (int)(k_cvin * val);
 			if (zsw->last_cvgate_note>127) zsw->last_cvgate_note=127;
 			else if (zsw->last_cvgate_note<0) zsw->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
-			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN event (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-ON (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
+			internal_send_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
 			//Send MIDI event to UI
-			write_zynmidi_note_off(zsw->midi_event.chan, zsw->last_cvgate_note, 0);
-			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
+			write_zynmidi_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
+			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-OFF (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
 		}
 	}
 	#endif
 	else if (zsw->midi_event.type==PROG_CHANGE) {
-		if (status==0) {
+		if (zsw->status!=zsw->off_state) {
 			//Send MIDI event to engines and ouput (ZMOPS)
 			internal_send_program_change(zsw->midi_event.chan, zsw->midi_event.num);
 			//Send MIDI event to UI
 			write_zynmidi_program_change(zsw->midi_event.chan, zsw->midi_event.num);
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zsw->midi_event.chan, zsw->midi_event.num);
 		}
+	}
+	else if (zsw->midi_event.type==TIME_CLOCK || zsw->midi_event.type==TRANSPORT_START || zsw->midi_event.type==TRANSPORT_CONTINUE || zsw->midi_event.type==TRANSPORT_STOP) {
+		//Send MIDI event to engines and ouput (ZMOPS)
+		uint8_t buffer[3];
+		buffer[0] = zsw->midi_event.type;
+		buffer[1] = 0;
+		buffer[2] = 0;
+		write_internal_midi_event(buffer);
+		//Send MIDI event to UI
+		write_zynmidi((uint32_t)zsw->midi_event.type << 16);
+		//fprintf(stderr, "ZynCore: Zynswitch MIDI SYSTEM RT event=> %d\n", zsw->midi_event.type);
 	}
 }
 

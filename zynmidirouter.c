@@ -708,6 +708,21 @@ int zmip_has_flags(int iz, uint32_t flags) {
 	return (zmips[iz].flags & flags) == flags;
 }
 
+
+//Route/unroute external MIDI device to zmops
+int zmip_set_route_extdev(int iz, int route) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	for (int i = 0; i < ZMOP_CTRL; i++) {
+		if (i != ZMOP_MIDI && i != ZMOP_NET) {
+			if (!zmop_set_route_from(i, iz, route)) return 0;
+		}
+	}
+	return 1;
+}
+
 //-----------------------------------------------------------------------------
 // Jack MIDI processing
 //-----------------------------------------------------------------------------
@@ -850,14 +865,27 @@ void populate_zmip_event(struct zmip_st * zmip) {
 	}
 }
 
-int set_midi_thru(int enabled) {
+int set_midi_thru(int flag) {
 	int j;
 	for (j = 0; j < NUM_ZMIP_DEVS; j++) {
-		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, enabled)) return 0;
-		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, enabled)) return 0;
+		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, flag)) return 0;
+		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, flag)) return 0;
 	}
-	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", enabled);
-	midi_thru_enabled = enabled;
+	//if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_STEP, flag)) return 0;
+	//if (!zmop_set_route_from(ZMOP_NET, ZMIP_STEP, flag)) return 0;
+	if (flag) {
+		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPCC;
+		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPCC;
+	} else {
+		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPCC;
+		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPNOTE;
+		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPCC;
+	}
+	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", flag);
+	midi_thru_enabled = flag;
 	return 1;
 }
 
@@ -893,6 +921,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		populate_zmip_event(zmip);
 	}
 
+	uint8_t event_idev;
 	uint8_t event_type;
 	uint8_t event_chan;
 	uint8_t event_num;
@@ -918,6 +947,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		zmip = zmips + izmip;
 		jack_midi_event_t * ev = &(zmip->event);
 		//fprintf(stderr, "Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
+
+		// MIDI device index
+		event_idev = (uint8_t)(izmip + 1);
 
 		// Ignore Active Sense & SysEx messages
 		if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE)
@@ -989,7 +1021,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Capture MASTER CHANNEL events for UI just after mapping
 		if (zmip->flags & FLAG_ZMIP_UI && event_chan == midi_filter.master_chan) {
-			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+			write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 			goto event_processed;
 		}
 
@@ -1081,7 +1113,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Capture events for UI after full processing => [Note-Off, Note-On, Control-Change, Pitch-Bend, Prog-Change, System]
 		if ((zmip->flags & FLAG_ZMIP_UI) && (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type == PROG_CHANGE || event_type >= SYSTEM_EXCLUSIVE)) {
-			write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+			write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 		}
 
 		// Here was placed the CC-swap code. See zynmidiswap.c
@@ -1111,6 +1143,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 				// Drop "Program Change" if configured in zmop options, except from internal sources (UI)
 				if (event_type == PROG_CHANGE && (zmop->flags & FLAG_ZMOP_DROPPC) && izmip != ZMIP_FAKE_UI)
+					continue;
+
+				// Drop "Note On/Off" if configured in zmop options, except from internal sources (UI)
+				if ((zmop->flags & FLAG_ZMOP_DROPNOTE) && (event_type == NOTE_ON || event_type == NOTE_OFF) && izmip != ZMIP_FAKE_UI)
 					continue;
 			}
 			// Drop "System messages" if configured in zmop options, except from internal sources (UI)
@@ -1148,7 +1184,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 						continue;
 					// Capture cloned CC events for UI, but not if MIDI learning mode
 					if (zmip->flags & FLAG_ZMIP_UI && !midi_learning_mode) {
-						write_zynmidi((ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+						write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 					}
 					// Drop CC to chains except from internal sources - all engine CC goes via MIDI learn mechanism
 					if (izmip <= ZMIP_CTRL)

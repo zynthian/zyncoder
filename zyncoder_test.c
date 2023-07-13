@@ -32,6 +32,10 @@
 #include "zyncoder.h"
 #include "zyncontrol.h"
 
+#if !defined(ZYNAPTIK_ADS1115_BASE_PIN)
+	#define ZYNAPTIK_ADS1115_BASE_PIN 300
+#endif
+
 //-----------------------------------------------------------------------------
 // Callback function
 //-----------------------------------------------------------------------------
@@ -85,8 +89,14 @@ int main() {
 				printf("PT-%d = %d\n", i, val);
 			}
 		}
+		#ifdef ZYNAPTIK_CONFIG
+		for (i=0;i<4;i++) {
+			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + i);
+			printf("AD-%d = %d\n", i, (int)(val*12*6.144/32767));
+			usleep(100000);
+		}
+		#endif
 		*/
-		usleep(1000);
 	}
 
 	return 0;

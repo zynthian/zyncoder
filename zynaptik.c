@@ -48,12 +48,14 @@
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
 
+int zynaptik_mcp23017_index;
+
 // two ISR routines for the two banks
 void zynaptik_mcp23017_bankA_ISR() {
-	zynmcp23017_ISR(1, 0);
+	zynmcp23017_ISR(zynaptik_mcp23017_index, 0);
 }
 void zynaptik_mcp23017_bankB_ISR() {
-	zynmcp23017_ISR(1, 1);
+	zynmcp23017_ISR(zynaptik_mcp23017_index, 1);
 }
 void (*zynaptik_mcp23017_bank_ISRs[2])={
 	zynaptik_mcp23017_bankA_ISR,
@@ -88,7 +90,7 @@ void zynaptik_disable_cvin(uint8_t i) {
 }
 
 void zynaptik_cvin_set_volts_octave(float vo) { k_cvin = K_CVIN_VOLT_OCTAVE / vo; }
-float zynaptik_cvin_get_volts_octave() {  K_CVIN_VOLT_OCTAVE / k_cvin; }
+float zynaptik_cvin_get_volts_octave() {  return K_CVIN_VOLT_OCTAVE / k_cvin; }
 void zynaptik_cvin_set_note0(int note0) { note0_cvin = note0; }
 int zynaptik_cvin_get_note0() { return note0_cvin; }
 
@@ -186,7 +188,7 @@ void zynaptik_disable_cvout(uint8_t i) {
 }
 
 void zynaptik_cvout_set_volts_octave(float vo) { k_cvout = K_CVOUT_VOLT_OCTAVE / vo; }
-float zynaptik_cvout_get_volts_octave() {  K_CVOUT_VOLT_OCTAVE / k_cvout; }
+float zynaptik_cvout_get_volts_octave() {  return K_CVOUT_VOLT_OCTAVE / k_cvout; }
 void zynaptik_cvout_set_note0(int note0) { note0_cvout = note0; }
 int zynaptik_cvout_get_note0() { return note0_cvout; }
 
@@ -205,18 +207,10 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 		if (event_type==NOTE_ON && ev->buffer[2]>0) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-ON => %d, %d\n", zyncvouts[i].midi_num, ev->buffer[1], ev->buffer[2]);
 			zsw = &zynswitches[zyncvouts[i].midi_num];
-			uint8_t held = 0;
-			for (int j=0; j<128; ++j) {
-				if (zyncvouts[i].note[j]) {
-					held = 1;
-					break;
-				}
-			}
-			if (held == 0 && zsw->status != zsw->off_state) {
+			if (zsw->status!=zsw->off_state) {
 				digitalWrite(zsw->pin, zsw->off_state);
 				zsw->status = zsw->off_state;
 			}
-			zyncvouts[i].note[ev->buffer[1]] = 1;
 			zyncvouts[i].val = (int)(((ev->buffer[1]-note0_cvout)<<7)/k_cvout);
 			//set_zynaptik_cvout(i, zyncvouts[i].val);
 			zynaptik_refresh_cvouts();
@@ -226,14 +220,6 @@ void zynaptik_midi_to_cvout(jack_midi_event_t *ev) {
 		}
 		else if (event_type==NOTE_OFF || event_type==NOTE_ON) {
 			//fprintf(stderr, "ZYNAPTIK MIDI TO CVGATE-OUT %d NOTE-OFF => %d\n", zyncvouts[i].midi_num, ev->buffer[1]);
-			zyncvouts[i].note[ev->buffer[1]] = 0;
-			for (int j=0; j < 128; ++j) {
-				if (zyncvouts[i].note[j]) {
-					zyncvouts[i].val = (int)(((j - note0_cvout) << 7) / k_cvout);
-					zynaptik_refresh_cvouts();
-					return;
-				}
-			}
 			zsw = &zynswitches[zyncvouts[i].midi_num];
 			digitalWrite(zsw->pin, zsw->off_state);
 			zsw->status = zsw->off_state;
@@ -389,10 +375,12 @@ int init_zynaptik() {
 	mcp4728_chip = NULL;
 
 	if (strstr(ZYNAPTIK_CONFIG, "16xDIO")) {
-		setup_zynmcp23017(1, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
-		fprintf(stderr, "Setting-up %d x Zynaptik Switches...\n", 16);
+		zynaptik_mcp23017_index = get_last_zynmcp23017_index() + 1;
+		setup_zynmcp23017(zynaptik_mcp23017_index, ZYNAPTIK_MCP23017_BASE_PIN, ZYNAPTIK_MCP23017_I2C_ADDRESS, ZYNAPTIK_MCP23017_INTA_PIN, ZYNAPTIK_MCP23017_INTB_PIN, zynaptik_mcp23017_bank_ISRs);
+		int zynswitch_start_index = get_last_zynswitch_index() + 1;
+		fprintf(stderr, "Setting-up %d x Zynaptik Switches starting at %d...\n", 16, zynswitch_start_index + 1);
 		for (i=0;i<16;i++) {
-			setup_zynswitch(8+i, ZYNAPTIK_MCP23017_BASE_PIN+i, 0);
+			setup_zynswitch(zynswitch_start_index+i, ZYNAPTIK_MCP23017_BASE_PIN+i, 0);
 		}
 	}
 	if (strstr(ZYNAPTIK_CONFIG, "4xAD")) {

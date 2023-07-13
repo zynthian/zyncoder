@@ -28,6 +28,15 @@
 
 #include "zynpot.h"
 #include "zyncoder.h"
+#include "tpa6130.h"
+
+//-----------------------------------------------------------------------------
+// Zynface V5
+//-----------------------------------------------------------------------------
+
+#ifdef ZYNAPTIK_CONFIG
+#include "zynaptik.h"
+#endif
 
 //-----------------------------------------------------------------------------
 // GPIO Expander 1
@@ -93,8 +102,8 @@ void init_zynswitches() {
 	reset_zynswitches();
 	int i;
 	fprintf(stderr, "ZynCore: Setting-up 20+4 x Zynswitches...\n");
-	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i);
-	for (i=0;i<8;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i);
+	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i, 1);
+	for (i=0;i<8;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i, 1);
 }
 
 //-----------------------------------------------------------------------------
@@ -124,19 +133,31 @@ void end_zynpots() {
 // Zyncontrol Initialization
 //-----------------------------------------------------------------------------
 
+uint8_t set_hpvol(uint8_t vol) { return tpa6130_set_volume(vol); }
+uint8_t get_hpvol() { return tpa6130_get_volume(); }
+uint8_t get_hpvol_max() { return tpa6130_get_volume_max(); }
+
 int init_zyncontrol() {
 	wiringPiSetup();
+	tpa6130_init();
 	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
+	#ifdef ZYNAPTIK_CONFIG
+		init_zynaptik();
+	#endif
 	return 1;
 }
 
 int end_zyncontrol() {
+	#ifdef ZYNAPTIK_CONFIG
+		end_zynaptik();
+	#endif
 	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
 	reset_zynmcp23017s();
+	tpa6130_end();
 	return 1;
 }
 
