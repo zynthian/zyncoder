@@ -127,7 +127,6 @@ typedef struct midi_filter_st {
 
 	uint8_t note_state[16][128];
 } midi_filter_t;
-midi_filter_t midi_filter;
 
 //-----------------------------------------------------------------------------
 // MIDI Filter Functions
@@ -192,12 +191,10 @@ void set_midi_filter_cc_automode(int mfccam);
 void set_midi_filter_system_events(int mfse);
 
 // MIDI Thru enable/disable => Route MIDI input to output
-int midi_thru_enabled;
 int set_midi_thru(int flag);
 int get_midi_thru();
 
 //MIDI Learning Mode
-int midi_learning_mode;
 void set_midi_learning_mode(int mlm);
 int get_midi_learning_mode();
 
@@ -288,7 +285,6 @@ struct zmop_st {
 	uint32_t flags;        // Bitwise flags influencing output behaviour
 	int n_connections;     // Quantity of jack connections (used for optimisation)
 };
-struct zmop_st zmops[MAX_NUM_ZMOPS];
 
 int zmop_init(int iz, char *name, int midi_chan, uint32_t flags);
 int zmop_set_flags(int iz, uint32_t flags);
@@ -316,11 +312,6 @@ struct zmip_st {
 	uint32_t next_event; // Index of the next event to be processed (not fake queues)
 	jack_midi_event_t event; // Event currently being processed
 };
-struct zmip_st zmips[MAX_NUM_ZMIPS];
-
-uint8_t int_buffer[3]; // Buffer for processing internal MIDI events
-uint8_t ui_buffer[3]; // Buffer for processing ui MIDI events
-uint8_t ctrlfb_buffer[3]; // Buffer for processing ctrl fb MIDI events
 
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
@@ -330,8 +321,6 @@ int zmip_set_route_extdev(int iz, int route);
 //-----------------------------------------------------------------------------
 // Jack MIDI Process
 //-----------------------------------------------------------------------------
-
-jack_client_t *jack_client;
 
 int init_jack_midi(char *name);
 int end_jack_midi();
@@ -348,7 +337,6 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 // MIDI Internal Input <= internal (zyncoder)
 //-----------------------------------------------------
 
-jack_ringbuffer_t *jack_ring_internal_buffer;
 int write_internal_midi_event(uint8_t *event);
 
 int internal_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
@@ -362,7 +350,6 @@ int internal_send_pitchbend_change(uint8_t chan, uint16_t pb);
 // MIDI UI Input <= UI
 //-----------------------------------------------------
 
-jack_ringbuffer_t *jack_ring_ui_buffer;
 int write_ui_event(uint8_t *event, int event_size);
 
 int ui_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
@@ -379,7 +366,6 @@ int ui_send_all_notes_off_chan(uint8_t chan);
 // MIDI Controller Feedback <= UI & internal (zyncoder)
 //-----------------------------------------------------
 
-jack_ringbuffer_t *jack_ring_ctrlfb_buffer;
 int write_ctrlfb_event(uint8_t *event, int event_size);
 
 int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
@@ -393,7 +379,6 @@ int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
-jack_ringbuffer_t * zynmidi_buffer;
 int init_zynmidi_buffer();
 int end_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);

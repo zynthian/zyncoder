@@ -95,7 +95,6 @@ struct zyncvin_st {
 	uint8_t midi_num;
 	uint16_t midi_val;
 };
-struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
 
 float k_cvin;
 int note0_cvin;
@@ -139,7 +138,6 @@ struct zyncvout_st {
 
 	uint16_t val;
 };
-struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
 
 float k_cvout;
 int note0_cvout;
@@ -173,7 +171,6 @@ struct zyngateout_st {
 	uint16_t midi_event_temp;
 	uint16_t midi_event_mask;
 };
-struct zyngateout_st zyngateouts[MAX_NUM_ZYNGATEOUTS];
 
 void zynaptik_setup_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void zynaptik_disable_gateout(uint8_t i);

@@ -42,9 +42,9 @@
 //-----------------------------------------------------------------------------
 
 #if defined(ZYNAPTIK_CONFIG)
-	#define MAX_NUM_ZYNSWITCHES 48
+	#define MAX_NUM_ZYNSWITCHES 52
 #else
-	#define MAX_NUM_ZYNSWITCHES 32
+	#define MAX_NUM_ZYNSWITCHES 36
 #endif
 
 typedef struct zynswitch_st {
@@ -59,7 +59,6 @@ typedef struct zynswitch_st {
 	midi_event_t midi_event;
 	int last_cvgate_note;
 } zynswitch_t;
-zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 
 void reset_zynswitches();
 int get_num_zynswitches();
@@ -94,8 +93,6 @@ typedef struct zyncoder_st {
 
 	uint64_t tsms;				// Absolute time of last encoder change in milliseconds
 } zyncoder_t;
-
-zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
 
 //-----------------------------------------------------------------------------
 // Zyncoder's zynpot API

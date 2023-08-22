@@ -35,9 +35,29 @@
 #include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------
-// Library Initialization
+// Global variables
 //-----------------------------------------------------------------------------
 
+midi_filter_t midi_filter;
+int midi_thru_enabled;
+int midi_learning_mode;
+
+struct zmop_st zmops[MAX_NUM_ZMOPS];
+struct zmip_st zmips[MAX_NUM_ZMIPS];
+
+uint8_t int_buffer[3];		// Buffer for processing internal MIDI events
+uint8_t ui_buffer[3];		// Buffer for processing ui MIDI events
+uint8_t ctrlfb_buffer[3];	// Buffer for processing ctrl fb MIDI events
+
+jack_client_t * jack_client;
+jack_ringbuffer_t * jack_ring_internal_buffer;
+jack_ringbuffer_t * jack_ring_ui_buffer;
+jack_ringbuffer_t * jack_ring_ctrlfb_buffer;
+jack_ringbuffer_t * zynmidi_buffer;
+
+//-----------------------------------------------------------------------------
+// Library Initialization
+//-----------------------------------------------------------------------------
 
 int init_zynmidirouter() {
 	if (!init_zynmidi_buffer())

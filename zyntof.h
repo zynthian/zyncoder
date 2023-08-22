@@ -59,7 +59,6 @@ struct zyntof_st {
 	uint8_t midi_num;
 	uint8_t midi_val;
 };
-struct zyntof_st zyntofs[MAX_NUM_ZYNTOFS];
 
 void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void disable_zyntof(uint8_t i);
