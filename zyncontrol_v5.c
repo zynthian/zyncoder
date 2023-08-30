@@ -133,31 +133,37 @@ void end_zynpots() {
 // Zyncontrol Initialization
 //-----------------------------------------------------------------------------
 
+#ifdef TPA6130_DRIVER
 uint8_t set_hpvol(uint8_t vol) { return tpa6130_set_volume(vol); }
 uint8_t get_hpvol() { return tpa6130_get_volume(); }
 uint8_t get_hpvol_max() { return tpa6130_get_volume_max(); }
+#endif
 
 int init_zyncontrol() {
 	wiringPiSetup();
+	#ifdef TPA6130_DRIVER
 	tpa6130_init();
+	#endif
 	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
 	#ifdef ZYNAPTIK_CONFIG
-		init_zynaptik();
+	init_zynaptik();
 	#endif
 	return 1;
 }
 
 int end_zyncontrol() {
 	#ifdef ZYNAPTIK_CONFIG
-		end_zynaptik();
+	end_zynaptik();
 	#endif
 	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();
 	reset_zynmcp23017s();
+	#ifdef TPA6130_DRIVER
 	tpa6130_end();
+	#endif
 	return 1;
 }
 

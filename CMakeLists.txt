@@ -180,10 +180,16 @@ else()
 endif()
 
 
-
 if (DEFINED ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU})
 	message("++ Forced wiringPiEmu")
 	set(ZYNTHIAN_FORCE_WIRINGPI_EMU "$ENV{ZYNTHIAN_FORCE_WIRINGPI_EMU}")
+endif()
+
+if (DEFINED ENV{TPA6130_KERNEL_DRIVER_LOADED})
+	message("++ TPA6130 kernel driver LOADED. Omitting user space driver.")
+else()
+	message("++ TPA6130 kernel driver NOT LOADED. Using TPA6130 user space driver if needed.")
+	add_definitions(-DTPA6130_DRIVER)
 endif()
 
 message("++ Building for Wiring Layout $ENV{ZYNTHIAN_WIRING_LAYOUT}")
