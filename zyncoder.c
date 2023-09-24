@@ -57,6 +57,16 @@ void (*zyncoder_rbpi_ISRs[]);
 extern void (*zynpot_cb)(int8_t, int32_t);
 
 //-----------------------------------------------------------------------------
+// Global variables
+//-----------------------------------------------------------------------------
+
+extern zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
+extern midi_filter_t midi_filter;
+
+zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
+zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
+
+//-----------------------------------------------------------------------------
 // Helper functions
 //-----------------------------------------------------------------------------
 

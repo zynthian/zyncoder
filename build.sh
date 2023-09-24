@@ -7,6 +7,14 @@ pushd $DIR
 		mkdir build
 	fi
 	pushd build
+
+		# Detect headphones amplifier kernel driver
+		if lsmod | grep -wq "^snd_soc_tpa6130a2"; then
+			export TPA6130_KERNEL_DRIVER_LOADED=1
+		else
+			export TPA6130_KERNEL_DRIVER_LOADED=0
+		fi
+
 		if [ "$1" == "debug" ]; then
 			cmake -DCMAKE_BUILD_TYPE=Debug ..
 		else

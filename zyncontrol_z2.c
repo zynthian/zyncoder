@@ -113,6 +113,8 @@ void init_zynswitches() {
 #define RV112_ADS1115_RATE ADS1115_RATE_475SPS
 //#define RV112_ADS1115_RATE ADS1115_RATE_860SPS
 
+extern struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
+
 void init_zynpots() {
 	reset_zyncoders();
 	reset_zynpots();

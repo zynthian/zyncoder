@@ -45,6 +45,16 @@
 #include "zynads1115.h"
 
 //-----------------------------------------------------------------------------
+// Global variables
+//-----------------------------------------------------------------------------
+
+extern zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
+
+struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
+struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
+struct zyngateout_st zyngateouts[MAX_NUM_ZYNGATEOUTS];
+
+//-----------------------------------------------------------------------------
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
 

@@ -53,7 +53,6 @@ typedef struct zynmcp23017_st {
 	uint16_t pin_action_num[16];
 
 } zynmcp23017_t;
-zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
 
 
 void reset_zynmcp23017s();

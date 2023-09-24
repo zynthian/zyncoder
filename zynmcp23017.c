@@ -47,6 +47,15 @@
 #define bitWrite(value, bit, bitvalue) (bitvalue ? bitSet(value, bit) : bitClear(value, bit))
 
 //-----------------------------------------------------------------------------
+// Global variables
+//-----------------------------------------------------------------------------
+
+extern zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
+extern zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
+
+zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
+
+//-----------------------------------------------------------------------------
 // MCP23017 functions
 //-----------------------------------------------------------------------------
 
