@@ -220,14 +220,31 @@ int get_midi_learning_mode();
 #define ZMOP_CH13 13
 #define ZMOP_CH14 14
 #define ZMOP_CH15 15
-#define ZMOP_MAIN 16
-#define ZMOP_MOD 17
-#define ZMOP_MIDI 18
-#define ZMOP_NET 19
-#define ZMOP_STEP 20
-#define ZMOP_CTRL 21
-#define MAX_NUM_ZMOPS 22
+#define ZMOP_MAIN 16				// All channels
+#define ZMOP_MOD 17					// MOD-UI
+#define ZMOP_MIDI 18				// MIDI-OUT (DIN-5)
+#define ZMOP_NET 19					// Network Output (qmidinet, rtpmidi, touchosc, etc.)
+#define ZMOP_STEP 20				// StepSeq
+#define ZMOP_CTRL 21				// Controller Feedback => To replace!
+#define ZMOP_DEV0 22
+#define ZMOP_DEV1 23
+#define ZMOP_DEV2 24
+#define ZMOP_DEV3 25
+#define ZMOP_DEV4 26
+#define ZMOP_DEV5 27
+#define ZMOP_DEV6 28
+#define ZMOP_DEV7 29
+#define ZMOP_DEV8 30
+#define ZMOP_DEV9 31
+#define ZMOP_DEV10 32
+#define ZMOP_DEV11 33
+#define ZMOP_DEV12 34
+#define ZMOP_DEV13 35
+#define ZMOP_DEV14 36
+#define ZMOP_DEV15 37
+#define MAX_NUM_ZMOPS 38
 #define NUM_ZMOP_CHAINS 16
+#define NUM_ZMOP_DEVS 16
 
 #define ZMIP_DEV0 0
 #define ZMIP_DEV1 1
@@ -245,30 +262,33 @@ int get_midi_learning_mode();
 #define ZMIP_DEV13 13
 #define ZMIP_DEV14 14
 #define ZMIP_DEV15 15
-#define ZMIP_NET 16
-#define ZMIP_SEQ 17
-#define ZMIP_STEP 18
-#define ZMIP_CTRL 19
-#define ZMIP_FAKE_INT 20
-#define ZMIP_FAKE_UI 21
-#define ZMIP_FAKE_CTRL_FB 22
-#define MAX_NUM_ZMIPS 23
+#define ZMIP_NET 16				// MIDI from network interfaces (qmidinet, rtpmidi, touchosc, etc.)
+#define ZMIP_SEQ 17				// MIDI from SMF player
+#define ZMIP_STEP 18			// MIDI from StepSeq
+#define ZMIP_CTRL 19			// Engine's controller feedback (setBfree, others?) => TO IMPROVE!
+#define ZMIP_FAKE_INT 20		// BUFFER: Internal MIDI (to ALL zmops)
+#define ZMIP_FAKE_UI 21			// BUFFER: MIDI from UI (to Chain zmops)
+#define MAX_NUM_ZMIPS 22
 #define NUM_ZMIP_DEVS 16
 
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_DROPCC 2
 #define FLAG_ZMOP_DROPSYS 4
-#define FLAG_ZMOP_DROPNOTE 8
-#define FLAG_ZMOP_TUNING 16
-#define FLAG_ZMOP_NOTERANGE 32
+#define FLAG_ZMOP_DROPSYSEX 8
+#define FLAG_ZMOP_DROPNOTE 16
+#define FLAG_ZMOP_TUNING 32
+#define FLAG_ZMOP_NOTERANGE 64
+#define FLAG_ZMOP_DIRECTOUT 128
 
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPSYS)
+#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX)
+#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPCC|FLAG_ZMOP_DROPPC|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX)
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_CLONE 2
 #define FLAG_ZMIP_FILTER 4
 #define FLAG_ZMIP_ACTIVE_CHAN 8
 #define FLAG_ZMIP_CC_AUTO_MODE 16
+#define FLAG_ZMIP_DIRECTIN 32
 
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_CC_AUTO_MODE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI)
@@ -280,6 +300,7 @@ int get_midi_learning_mode();
 struct zmop_st {
 	jack_port_t *jport;    // jack midi port
 	void * buffer;         // pointer to jack midi output buffer
+	jack_ringbuffer_t * rbuffer;	// direct output ring buffer (optional)
 	int midi_chans[16];    // MIDI channel translation map (-1 to disable a MIDI channel)
 	int route_from_zmips[MAX_NUM_ZMIPS]; // Flags indicating which inputs to route to this output
 	uint32_t flags;        // Bitwise flags influencing output behaviour
@@ -306,7 +327,8 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev); // Add even
 // Structure describing a MIDI input
 struct zmip_st {
 	jack_port_t *jport; // jack midi port
-	void * buffer;      // Pointer to the jack midi buffer 
+	void * buffer;      // Pointer to the jack midi buffer
+	jack_ringbuffer_t * rbuffer;	// direct input ring buffer (optional)
 	uint32_t flags;     // Bitwise flags influencing input behaviour
 	uint32_t event_count; // Quantity of events in input event queue (not fake queues)
 	uint32_t next_event; // Index of the next event to be processed (not fake queues)
@@ -328,52 +350,78 @@ int jack_process(jack_nframes_t nframes, void *arg);
 void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg);
 
 //-----------------------------------------------------------------------------
-// MIDI Input Events Buffer Management and Send functions
+// MIDI Events Buffer Management and Direct Send functions
 //-----------------------------------------------------------------------------
 
 #define ZYNMIDI_BUFFER_SIZE 4096
 
-//-----------------------------------------------------
-// MIDI Internal Input <= internal (zyncoder)
-//-----------------------------------------------------
+//---------------------------------------------------------
+// Direct Send Event Ring-Buffer write
+//---------------------------------------------------------
 
-int write_internal_midi_event(uint8_t *event);
+int write_rb_midi_event(jack_ringbuffer_t *rb, uint8_t *event_buffer, int event_size);
 
-int internal_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
-int internal_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
-int internal_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
-int internal_send_program_change(uint8_t chan, uint8_t prgm);
-int internal_send_chan_press(uint8_t chan, uint8_t val);
-int internal_send_pitchbend_change(uint8_t chan, uint16_t pb);
+//---------------------------------------------------------
+// ZMIP Direct Send Functions
+//---------------------------------------------------------
 
-//-----------------------------------------------------
-// MIDI UI Input <= UI
-//-----------------------------------------------------
+int zmip_send_midi_event(int iz, uint8_t *event_buffer, int event_size);
+int zmip_send_note_off(uint8_t iz, uint8_t chan, uint8_t note, uint8_t vel);
+int zmip_send_note_on(uint8_t iz, uint8_t chan, uint8_t note, uint8_t vel);
+int zmip_send_ccontrol_change(uint8_t iz, uint8_t chan, uint8_t ctrl, uint8_t val);
+int zmip_send_master_ccontrol_change(uint8_t iz, uint8_t ctrl, uint8_t val);
+int zmip_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm);
+int zmip_send_chan_press(uint8_t iz, uint8_t chan, uint8_t val);
+int zmip_send_pitchbend_change(uint8_t iz, uint8_t chan, uint16_t pb);
+int zmip_send_all_notes_off(uint8_t iz);
+int zmip_send_all_notes_off_chan(uint8_t iz, uint8_t chan);
 
-int write_ui_event(uint8_t *event, int event_size);
+//---------------------------------------------------------
+// ZMIP_FAKE_UI Direct Send Functions
+//---------------------------------------------------------
 
+int ui_send_midi_event(uint8_t *event_buffer, int event_size);
 int ui_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ui_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int ui_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int ui_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
 int ui_send_program_change(uint8_t chan, uint8_t prgm);
 int ui_send_chan_press(uint8_t chan, uint8_t val);
 int ui_send_pitchbend_change(uint8_t chan, uint16_t pb);
-int ui_send_master_ccontrol_change(uint8_t ctrl, uint8_t val);
 int ui_send_all_notes_off();
 int ui_send_all_notes_off_chan(uint8_t chan);
 
-//-----------------------------------------------------
-// MIDI Controller Feedback <= UI & internal (zyncoder)
-//-----------------------------------------------------
+//---------------------------------------------------------
+// ZMOP Direct Send Functions
+//---------------------------------------------------------
 
-int write_ctrlfb_event(uint8_t *event, int event_size);
+int zmop_send_midi_event(int iz, uint8_t *event_buffer, int event_size);
+int zmop_send_note_off(uint8_t iz, uint8_t chan, uint8_t note, uint8_t vel);
+int zmop_send_note_on(uint8_t iz, uint8_t chan, uint8_t note, uint8_t vel);
+int zmop_send_ccontrol_change(uint8_t iz, uint8_t chan, uint8_t ctrl, uint8_t val);
+int zmop_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm);
+int zmop_send_chan_press(uint8_t iz, uint8_t chan, uint8_t val);
+int zmop_send_pitchbend_change(uint8_t iz, uint8_t chan, uint16_t pb);
 
+//---------------------------------------------------------
+// ZMOP_CTRL Direct Send Functions
+//---------------------------------------------------------
+
+int ctrlfb_send_midi_event(uint8_t *event_buffer, int event_size);
 int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm);
-int ctrlfb_send_chan_press(uint8_t chan, uint8_t val);
-int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
+
+//---------------------------------------------------------
+// ZMOP_DEV Direct Send Functions
+//---------------------------------------------------------
+
+int dev_send_midi_event(uint8_t idev, uint8_t *event_buffer, int event_size);
+int dev_send_note_off(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel);
+int dev_send_note_on(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel);
+int dev_send_ccontrol_change(uint8_t idev, uint8_t chan, uint8_t ctrl, uint8_t val);
+int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm);
 
 //-----------------------------------------------------------------------------
 // MIDI Internal Ouput Events Buffer => UI
@@ -384,9 +432,9 @@ int end_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
 
-int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
-int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
+int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);
+int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_program_change(uint8_t chan, uint8_t num);
 
 //-----------------------------------------------------------------------------

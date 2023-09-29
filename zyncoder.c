@@ -284,7 +284,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 		if (zsw->status!=zsw->off_state) val=zsw->midi_event.val;
 		else val=0;
 		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+		zmip_send_ccontrol_change(ZMIP_FAKE_INT, zsw->midi_event.chan, zsw->midi_event.num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 		//fprintf(stderr, "ZynCore: Zynswitch MIDI CC event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
@@ -296,7 +296,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 			if (last_val>=64) val = 0;
 			else val = 127;
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
+			zmip_send_ccontrol_change(ZMIP_FAKE_INT, zsw->midi_event.chan, zsw->midi_event.num, val);
 			//Send MIDI event to UI
 			write_zynmidi_ccontrol_change(zsw->midi_event.chan, zsw->midi_event.num, val);
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI CC-Switch event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, val);
@@ -305,14 +305,14 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 	else if (zsw->midi_event.type==NOTE_ON) {
 		if (zsw->status!=zsw->off_state) {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_on(zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
+			zmip_send_note_on(ZMIP_FAKE_INT, zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI Note-On event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_off(zsw->midi_event.chan, zsw->midi_event.num, 0);
+			zmip_send_note_off(ZMIP_FAKE_INT, zsw->midi_event.chan, zsw->midi_event.num, 0);
 			//Send MIDI event to UI
 			write_zynmidi_note_off(zsw->midi_event.chan, zsw->midi_event.num, 0);
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI Note-Off event (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->midi_event.num, 0);
@@ -331,14 +331,14 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 			if (zsw->last_cvgate_note>127) zsw->last_cvgate_note=127;
 			else if (zsw->last_cvgate_note<0) zsw->last_cvgate_note=0;
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
+			zmip_send_note_on(ZMIP_FAKE_INT, zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
 			//Send MIDI event to UI
 			write_zynmidi_note_on(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, zsw->midi_event.val);
 			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-ON (chan=%d, raw=%d, num=%d) => %d\n",zsw->midi_event.chan, val, zsw->last_cvgate_note, zsw->midi_event.val);
 		}
 		else {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
+			zmip_send_note_off(ZMIP_FAKE_INT, zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
 			//Send MIDI event to UI
 			write_zynmidi_note_off(zsw->midi_event.chan, (uint8_t)zsw->last_cvgate_note, 0);
 			//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN NOTE-OFF (chan=%d, num=%d) => %d\n",zsw->midi_event.chan, zsw->last_cvgate_note, 0);
@@ -348,7 +348,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 	else if (zsw->midi_event.type==PROG_CHANGE) {
 		if (zsw->status!=zsw->off_state) {
 			//Send MIDI event to engines and ouput (ZMOPS)
-			internal_send_program_change(zsw->midi_event.chan, zsw->midi_event.num);
+			zmip_send_program_change(ZMIP_FAKE_INT, zsw->midi_event.chan, zsw->midi_event.num);
 			//Send MIDI event to UI
 			write_zynmidi_program_change(zsw->midi_event.chan, zsw->midi_event.num);
 			//fprintf(stderr, "ZynCore: Zynswitch MIDI Program Change event (chan=%d, num=%d)\n",zsw->midi_event.chan, zsw->midi_event.num);
@@ -360,7 +360,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 		buffer[0] = zsw->midi_event.type;
 		buffer[1] = 0;
 		buffer[2] = 0;
-		write_internal_midi_event(buffer);
+		zmip_send_midi_event(ZMIP_FAKE_INT, buffer, 3);
 		//Send MIDI event to UI
 		write_zynmidi((uint32_t)zsw->midi_event.type << 16);
 		//fprintf(stderr, "ZynCore: Zynswitch MIDI SYSTEM RT event=> %d\n", zsw->midi_event.type);
