@@ -310,9 +310,9 @@ struct zmop_st {
 int zmop_init(int iz, char *name, int midi_chan, uint32_t flags);
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
-int zmop_chain_set_flag_droppc(int iz, uint8_t flag);
+int zmop_chain_set_flag_droppc(int ch, uint8_t flag);
 int zmop_chain_get_flag_droppc(int ch);
-int zmop_chain_set_flag_dropcc(int iz, uint8_t flag);
+int zmop_chain_set_flag_dropcc(int ch, uint8_t flag);
 int zmop_chain_get_flag_dropcc(int ch);
 int zmop_reset_midi_chans(int iz);
 int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to);
@@ -338,6 +338,9 @@ struct zmip_st {
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
+int zmip_set_flag_active_chan(int iz, uint8_t flag);
+int zmip_get_flag_active_chan(int iz);
+int zmip_toggle_flag_active_chan(int iz);
 int zmip_set_route_extdev(int iz, int route);
 
 //-----------------------------------------------------------------------------

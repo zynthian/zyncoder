@@ -777,6 +777,41 @@ int zmip_has_flags(int iz, uint32_t flags) {
 	return (zmips[iz].flags & flags) == flags;
 }
 
+int zmip_set_flag_active_chan(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	if (flag)
+		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+	else
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+	return 1;
+}
+
+
+int zmip_get_flag_active_chan(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return -1;
+	}
+	return zmips[iz].flags & (uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+}
+
+
+int zmip_toggle_flag_active_chan(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return -1;
+	}
+	if (zmips[iz].flags & (uint32_t)FLAG_ZMIP_ACTIVE_CHAN) {
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+		return 0;
+	} else {
+		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+		return 1;
+	}
+}
 
 //Route/unroute external MIDI device to zmops
 int zmip_set_route_extdev(int iz, int route) {
