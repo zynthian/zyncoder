@@ -287,8 +287,9 @@ int get_midi_learning_mode();
 #define FLAG_ZMIP_CLONE 2
 #define FLAG_ZMIP_FILTER 4
 #define FLAG_ZMIP_ACTIVE_CHAN 8
-#define FLAG_ZMIP_CC_AUTO_MODE 16
-#define FLAG_ZMIP_DIRECTIN 32
+#define FLAG_ZMIP_OMNI_CHAN 16
+#define FLAG_ZMIP_CC_AUTO_MODE 32
+#define FLAG_ZMIP_DIRECTIN 64
 
 #define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_CC_AUTO_MODE)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI)
@@ -340,7 +341,9 @@ int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
 int zmip_set_flag_active_chan(int iz, uint8_t flag);
 int zmip_get_flag_active_chan(int iz);
-int zmip_toggle_flag_active_chan(int iz);
+int zmip_set_flag_omni_chan(int iz, uint8_t flag);
+int zmip_get_flag_omni_chan(int iz);
+int zmip_rotate_flags_active_omni_chan(int iz);
 int zmip_set_route_extdev(int iz, int route);
 
 //-----------------------------------------------------------------------------

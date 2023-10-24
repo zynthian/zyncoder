@@ -799,15 +799,46 @@ int zmip_get_flag_active_chan(int iz) {
 }
 
 
-int zmip_toggle_flag_active_chan(int iz) {
+int zmip_set_flag_omni_chan(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	if (flag)
+		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_OMNI_CHAN;
+	else
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
+	return 1;
+}
+
+
+int zmip_get_flag_omni_chan(int iz) {
 	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
 		return -1;
 	}
+	return zmips[iz].flags & (uint32_t)FLAG_ZMIP_OMNI_CHAN;
+}
+
+
+int zmip_rotate_flags_active_omni_chan(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return -1;
+	}
+	// ACTIVE => OMNI
 	if (zmips[iz].flags & (uint32_t)FLAG_ZMIP_ACTIVE_CHAN) {
 		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_OMNI_CHAN;
 		return 0;
+	// OMNI => MULTI
+	} else if (zmips[iz].flags & (uint32_t)FLAG_ZMIP_OMNI_CHAN) {
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
+		return 0;
+	// MULTI => ACTIVE
 	} else {
+		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
 		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
 		return 1;
 	}
@@ -1024,7 +1055,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	uint8_t event_val;
 	uint32_t ui_event;
 	int j, xch;
-	int discard_note = 0;
 
 	// Process MIDI input messages in the order they were received
 	while (1) {
@@ -1214,13 +1244,16 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		else if (event_type == NOTE_OFF)
 			midi_filter.note_state[event_chan][event_num] = 0;
 
-		// Capture events for UI after full processing => [Note-Off, Note-On, Control-Change, Pitch-Bend, Prog-Change, System]
+		// Capture system events for UI ...
+		int ui_captured = 0;
 		if (zmip->flags & FLAG_ZMIP_UI) {
-			if (event_type == NOTE_OFF || event_type == NOTE_ON || event_type == CTRL_CHANGE || event_type == PITCH_BEND || event_type == PROG_CHANGE || event_type > SYSTEM_EXCLUSIVE) {
+			if (event_type > SYSTEM_EXCLUSIVE) {
 				write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+				ui_captured ++;
 			} else if (event_type == SYSTEM_EXCLUSIVE) {
 				// Capture System Exclusive not currently working => message size is 4 bytes only!!
 				// TODO: Send fragments??
+				ui_captured ++;
 			}
 		}
 
@@ -1240,9 +1273,29 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Channel messages ...
 			if (event_type < SYSTEM_EXCLUSIVE) {
+				// Omni channel (translate events to zmop channel )
+				if (zmip->flags & FLAG_ZMIP_OMNI_CHAN) {
+					if (izmop <= ZMOP_CH15) {
+						ev->buffer[0] = (ev->buffer[0] & 0xF0) | (izmop & 0x0F);
+					} else {
+						// Filter MIDI channels not registered by zmop
+						if ((zmop->flags & FLAG_ZMOP_DROPSYS)  && izmip != ZMIP_FAKE_UI) {
+			 				continue;
+			 			// Set original channel
+			 			} else {
+							ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan & 0x0F);
+						}
+					}
+				}
 				// Filter MIDI channels not registered by zmop
-				if (zmop->midi_chans[event_chan] == -1)
+				else if (zmop->midi_chans[event_chan] == -1)
 					continue;
+
+				// Capture channel events for UI after full processing, for every chain
+				if (zmip->flags & FLAG_ZMIP_UI && izmop <= ZMOP_CH15) {
+					write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+					ui_captured ++;
+				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
 				// Channel mode messages (ccnum>120) are also dropped, as they must be processed by UI.
@@ -1268,6 +1321,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Add processed event to MIDI outputs
 			zmop_push_event(zmop, ev);
+		}
+
+		// If not already captured, capture event for UI after full processing
+		if (zmip->flags & FLAG_ZMIP_UI && !ui_captured) {
+			write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 		}
 
 		// Handle cloned events
