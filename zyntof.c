@@ -40,6 +40,12 @@
 #include "zyntof.h"
 
 //-----------------------------------------------------------------------------
+// Global variables
+//-----------------------------------------------------------------------------
+
+struct zyntof_st zyntofs[MAX_NUM_ZYNTOFS];
+
+//-----------------------------------------------------------------------------
 // TCA954X (43/44/48) Stuff => I2C Multiplexer
 //-----------------------------------------------------------------------------
 
@@ -110,7 +116,7 @@ void send_zyntof_midi(uint8_t i) {
 	}
 	if (zyntofs[i].midi_evt==PITCH_BEND) {
 		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_pitchbend_change(zyntofs[i].midi_chan, v);
+		zmip_send_pitchbend_change(ZMIP_FAKE_INT, zyntofs[i].midi_chan, v);
 		//fprintf(stderr, "ZYNTOF [%d] => MIDI %d\n", i, v);
 	} else {
 		uint8_t mv = v>>7;
@@ -119,12 +125,12 @@ void send_zyntof_midi(uint8_t i) {
 			zyntofs[i].midi_val = mv;
 			if (zyntofs[i].midi_evt==CTRL_CHANGE) {
 				//Send MIDI event to engines and output (ZMOPS)
-				internal_send_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
+				zmip_send_ccontrol_change(ZMIP_FAKE_INT, zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 				//Send MIDI event to UI
 				write_zynmidi_ccontrol_change(zyntofs[i].midi_chan, zyntofs[i].midi_num, mv);
 			} else if (zyntofs[i].midi_evt==CHAN_PRESS) {
 				//Send MIDI event to engines and ouput (ZMOPS)
-				internal_send_chan_press(zyntofs[i].midi_chan, mv);
+				zmip_send_chan_press(ZMIP_FAKE_INT, zyntofs[i].midi_chan, mv);
 			} 
 		}
 	}

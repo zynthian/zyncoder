@@ -45,6 +45,16 @@
 #include "zynads1115.h"
 
 //-----------------------------------------------------------------------------
+// Global variables
+//-----------------------------------------------------------------------------
+
+extern zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
+
+struct zyncvin_st zyncvins[MAX_NUM_ZYNCVINS];
+struct zyncvout_st zyncvouts[MAX_NUM_ZYNCVOUTS];
+struct zyngateout_st zyngateouts[MAX_NUM_ZYNGATEOUTS];
+
+//-----------------------------------------------------------------------------
 // MCP23017 Stuff
 //-----------------------------------------------------------------------------
 
@@ -98,7 +108,7 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	if (zyncvins[i].midi_evt==PITCH_BEND) {
 		val>>=1;
 		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_pitchbend_change(zyncvins[i].midi_chan, val);
+		zmip_send_pitchbend_change(ZMIP_FAKE_INT, zyncvins[i].midi_chan, val);
 		zyncvins[i].midi_val=val;
 		return;
 	}
@@ -107,13 +117,13 @@ void zynaptik_cvin_to_midi(uint8_t i, uint16_t val) {
 	//fprintf(stderr, "ZYNAPTIK CV-IN [%d] => MIDI event %d, %d, %d\n", i, zyncvins[i].midi_evt, zyncvins[i].midi_num, val);
 	if (zyncvins[i].midi_evt==CTRL_CHANGE) {
 		//Send MIDI event to engines and output (ZMOPS)
-		internal_send_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
+		zmip_send_ccontrol_change(ZMIP_FAKE_INT, zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 		//Send MIDI event to UI
 		write_zynmidi_ccontrol_change(zyncvins[i].midi_chan, zyncvins[i].midi_num, val);
 	}
 	else if (zyncvins[i].midi_evt==CHAN_PRESS) {
 		//Send MIDI event to engines and ouput (ZMOPS)
-		internal_send_chan_press(zyncvins[i].midi_chan, val);
+		zmip_send_chan_press(ZMIP_FAKE_INT, zyncvins[i].midi_chan, val);
 	} 
 	zyncvins[i].midi_val = val;
 }
