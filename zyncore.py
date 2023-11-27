@@ -48,6 +48,17 @@ def lib_zyncore_init():
 
 	return lib_zyncore
 
+def lib_zyncore_init_minimal():
+	global lib_zyncore
+	try:
+		lib_zyncore = cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
+		lib_zyncore.init_zyncore_minimal()
+
+	except Exception as e:
+		lib_zyncore = None
+		print("Can't init minimal zyncore library: %s" % str(e))
+
+	return lib_zyncore
 
 def get_lib_zyncore():
 	return lib_zyncore

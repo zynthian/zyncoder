@@ -23,6 +23,7 @@
  * ******************************************************************
  */
 
+#include <wiringPi.h>
 #include "zyncontrol.h"
 #include "zynmidirouter.h"
 #include "zynmaster.h"
@@ -33,6 +34,11 @@ int init_zyncore() {
 	if (!init_zyncontrol()) return 0;
 	if (!init_zynmidirouter()) return 0;
 	if (!init_zynmaster_jack()) return 0;
+	return 1;
+}
+
+int init_zyncore_minimal() {
+	wiringPiSetup();
 	return 1;
 }
 
