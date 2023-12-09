@@ -189,10 +189,6 @@ void set_midi_filter_cc_automode(int mfccam);
 // MIDI System Events enable/disable
 void set_midi_filter_system_events(int mfse);
 
-// MIDI Thru enable/disable => Route MIDI input to output
-int set_midi_thru(int flag);
-int get_midi_thru();
-
 //MIDI Learning Mode
 void set_midi_learning_mode(int mlm);
 int get_midi_learning_mode();
@@ -219,31 +215,36 @@ int get_midi_learning_mode();
 #define ZMOP_CH13 13
 #define ZMOP_CH14 14
 #define ZMOP_CH15 15
-#define ZMOP_MAIN 16				// All channels
-#define ZMOP_MOD 17					// MOD-UI
-#define ZMOP_MIDI 18				// MIDI-OUT (DIN-5)
-#define ZMOP_NET 19					// Network Output (qmidinet, rtpmidi, touchosc, etc.)
-#define ZMOP_STEP 20				// StepSeq
-#define ZMOP_CTRL 21				// Controller Feedback => To replace!
-#define ZMOP_DEV0 22
-#define ZMOP_DEV1 23
-#define ZMOP_DEV2 24
-#define ZMOP_DEV3 25
-#define ZMOP_DEV4 26
-#define ZMOP_DEV5 27
-#define ZMOP_DEV6 28
-#define ZMOP_DEV7 29
-#define ZMOP_DEV8 30
-#define ZMOP_DEV9 31
-#define ZMOP_DEV10 32
-#define ZMOP_DEV11 33
-#define ZMOP_DEV12 34
-#define ZMOP_DEV13 35
-#define ZMOP_DEV14 36
-#define ZMOP_DEV15 37
-#define MAX_NUM_ZMOPS 38
+#define ZMOP_MOD 16					// MOD-UI
+#define ZMOP_STEP 17				// StepSeq
+#define ZMOP_CTRL 18				// Controller Feedback => To replace!
+#define ZMOP_DEV0 19
+#define ZMOP_DEV1 20
+#define ZMOP_DEV2 21
+#define ZMOP_DEV3 22
+#define ZMOP_DEV4 23
+#define ZMOP_DEV5 24
+#define ZMOP_DEV6 25
+#define ZMOP_DEV7 26
+#define ZMOP_DEV8 27
+#define ZMOP_DEV9 28
+#define ZMOP_DEV10 29
+#define ZMOP_DEV11 30
+#define ZMOP_DEV12 31
+#define ZMOP_DEV13 32
+#define ZMOP_DEV14 33
+#define ZMOP_DEV15 34
+#define ZMOP_DEV16 35
+#define ZMOP_DEV17 36
+#define ZMOP_DEV18 37
+#define ZMOP_DEV19 38
+#define ZMOP_DEV20 39
+#define ZMOP_DEV21 40
+#define ZMOP_DEV22 41
+#define ZMOP_DEV23 42
+#define MAX_NUM_ZMOPS 43
 #define NUM_ZMOP_CHAINS 16
-#define NUM_ZMOP_DEVS 16
+#define NUM_ZMOP_DEVS 24
 
 #define ZMIP_DEV0 0
 #define ZMIP_DEV1 1
@@ -261,14 +262,21 @@ int get_midi_learning_mode();
 #define ZMIP_DEV13 13
 #define ZMIP_DEV14 14
 #define ZMIP_DEV15 15
-#define ZMIP_NET 16				// MIDI from network interfaces (qmidinet, rtpmidi, touchosc, etc.)
-#define ZMIP_SEQ 17				// MIDI from SMF player
-#define ZMIP_STEP 18			// MIDI from StepSeq
-#define ZMIP_CTRL 19			// Engine's controller feedback (setBfree, others?) => TO IMPROVE!
-#define ZMIP_FAKE_INT 20		// BUFFER: Internal MIDI (to ALL zmops => MUST BE CHANGED!!) => Used by zyncoder, zynaptik (CV/Gate), zyntof, etc.
-#define ZMIP_FAKE_UI 21			// BUFFER: MIDI from UI (to Chain zmops)
-#define MAX_NUM_ZMIPS 22
-#define NUM_ZMIP_DEVS 16
+#define ZMIP_DEV16 16
+#define ZMIP_DEV17 17
+#define ZMIP_DEV18 18
+#define ZMIP_DEV19 19
+#define ZMIP_DEV20 20
+#define ZMIP_DEV21 21
+#define ZMIP_DEV22 22
+#define ZMIP_DEV23 23
+#define ZMIP_SEQ 24				// MIDI from SMF player
+#define ZMIP_STEP 25			// MIDI from StepSeq
+#define ZMIP_CTRL 26			// Engine's controller feedback (setBfree, others?) => TO IMPROVE!
+#define ZMIP_FAKE_INT 27		// BUFFER: Internal MIDI (to ALL zmops => MUST BE CHANGED!!) => Used by zyncoder, zynaptik (CV/Gate), zyntof, etc.
+#define ZMIP_FAKE_UI 28			// BUFFER: MIDI from UI (to Chain zmops)
+#define MAX_NUM_ZMIPS 29
+#define NUM_ZMIP_DEVS 24
 
 #define FLAG_ZMOP_DROPPC 1
 #define FLAG_ZMOP_DROPCC 2
@@ -279,7 +287,6 @@ int get_midi_learning_mode();
 #define FLAG_ZMOP_NOTERANGE 64
 #define FLAG_ZMOP_DIRECTOUT 128
 
-#define ZMOP_MAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX)
 #define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX)
 
 #define FLAG_ZMIP_UI 1
@@ -290,7 +297,7 @@ int get_midi_learning_mode();
 #define FLAG_ZMIP_CC_AUTO_MODE 32
 #define FLAG_ZMIP_DIRECTIN 64
 
-#define ZMIP_MAIN_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_CC_AUTO_MODE)
+#define ZMIP_DEV_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_CC_AUTO_MODE)
 #define ZMIP_INT_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAN|FLAG_ZMIP_DIRECTIN)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI)
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_CLONE|FLAG_ZMIP_FILTER)
@@ -309,6 +316,9 @@ struct zmop_st {
 };
 
 int zmop_init(int iz, char *name, int midi_chan, uint32_t flags);
+int zmop_end(int iz);
+int zmop_get_num_chains();
+int zmop_get_num_devs();
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
 int zmop_chain_set_flag_droppc(int ch, uint8_t flag);
@@ -337,6 +347,8 @@ struct zmip_st {
 };
 
 int zmip_init(int iz, char *name, uint32_t flags);
+int zmip_end(int iz);
+int zmip_get_num_devs();
 int zmip_set_flags(int iz, uint32_t flags);
 int zmip_has_flags(int iz, uint32_t flag);
 int zmip_set_flag_active_chan(int iz, uint8_t flag);

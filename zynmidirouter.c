@@ -39,7 +39,6 @@
 //-----------------------------------------------------------------------------
 
 midi_filter_t midi_filter;
-int midi_thru_enabled;
 int midi_learning_mode;
 
 struct zmop_st zmops[MAX_NUM_ZMOPS];
@@ -555,6 +554,14 @@ int zmop_end(int iz) {
 	return 1;
 }
 
+int zmop_get_num_chains() {
+	return NUM_ZMOP_CHAINS;
+}
+
+int zmop_get_num_devs() {
+	return NUM_ZMOP_DEVS;
+}
+
 int zmop_set_flags(int iz, uint32_t flags) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
@@ -743,6 +750,10 @@ int zmip_end(int iz) {
 	return 1;
 }
 
+int zmip_get_num_devs() {
+	return NUM_ZMIP_DEVS;
+}
+
 int zmip_set_flags(int iz, uint32_t flags) {
 	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
@@ -834,9 +845,7 @@ int zmip_set_route_extdev(int iz, int route) {
 		return 0;
 	}
 	for (int i = 0; i < ZMOP_CTRL; i++) {
-		if (i != ZMOP_MIDI && i != ZMOP_NET) {
-			if (!zmop_set_route_from(i, iz, route)) return 0;
-		}
+		if (!zmop_set_route_from(i, iz, route)) return 0;
 	}
 	return 1;
 }
@@ -859,10 +868,7 @@ int init_jack_midi(char *name) {
 		sprintf(port_name, "ch%d_out", i);
 		if (!zmop_init(ZMOP_CH0 + i, port_name, i, ZMOP_CHAIN_FLAGS)) return 0;
 	}
-	if (!zmop_init(ZMOP_MAIN, "main_out", -1, ZMOP_MAIN_FLAGS)) return 0;
-	if (!zmop_init(ZMOP_MOD, "mod_out", -1, ZMOP_MAIN_FLAGS)) return 0;
-	if (!zmop_init(ZMOP_MIDI, "midi_out", -1, FLAG_ZMOP_DROPSYSEX)) return 0;
-	if (!zmop_init(ZMOP_NET, "net_out", -1, FLAG_ZMOP_DROPSYSEX)) return 0;
+	if (!zmop_init(ZMOP_MOD, "mod_out", -1, ZMOP_CHAIN_FLAGS)) return 0;
 	if (!zmop_init(ZMOP_STEP, "step_out", -1, FLAG_ZMOP_DROPSYSEX)) return 0;
 	if (!zmop_init(ZMOP_CTRL, "ctrl_out", -1, FLAG_ZMOP_DIRECTOUT)) return 0;
 	for (i = 0; i < NUM_ZMOP_DEVS; i++) {
@@ -873,9 +879,8 @@ int init_jack_midi(char *name) {
 	//Init Input Ports
 	for (i = 0; i < NUM_ZMIP_DEVS; i++) {
 		sprintf(port_name, "dev%d_in", i);
-		if (!zmip_init(ZMIP_DEV0 + i, port_name, ZMIP_MAIN_FLAGS)) return 0;
+		if (!zmip_init(ZMIP_DEV0 + i, port_name, ZMIP_DEV_FLAGS)) return 0;
 	}
-	if (!zmip_init(ZMIP_NET, "net_in", ZMIP_MAIN_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_SEQ, "seq_in", ZMIP_SEQ_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_STEP, "step_in", ZMIP_STEP_FLAGS)) return 0;
 	if (!zmip_init(ZMIP_CTRL, "ctrl_in", ZMIP_CTRL_FLAGS)) return 0;
@@ -884,18 +889,12 @@ int init_jack_midi(char *name) {
 
 	//Route Input to Output Ports
 	for (i = 0; i < ZMOP_CTRL; i++) {
-		//External Devices to all ZMOPS except MIDI OUT (ZMOP_MIDI & ZMOP_NET)
-		if (i != ZMOP_MIDI && i != ZMOP_NET) {
-			for (j = 0; j < NUM_ZMIP_DEVS; j++) {
-				if (!zmop_set_route_from(i, ZMIP_DEV0 + j, 1)) return 0;
-			}
+		//External Devices to all ZMOPS => By default, all chains receive from all devices
+		for (j = 0; j < NUM_ZMIP_DEVS; j++) {
+			if (!zmop_set_route_from(i, ZMIP_DEV0 + j, 1)) return 0;
 		}
 		//MIDI player to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
-		//Network input to all ZMOPS except Network output
-		if (i != ZMOP_NET) {
-			if (!zmop_set_route_from(i, ZMIP_NET, 1)) return 0;
-		}
 		//Sequencer input to all ZMOPS except Sequencer output
 		if (i != ZMOP_STEP) {
 			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
@@ -903,13 +902,10 @@ int init_jack_midi(char *name) {
 		//Internal MIDI to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
 		//MIDI from UI to Chain's ZMOPS 
-		if (i == ZMOP_MAIN || (i >= ZMOP_CH0 && i <= ZMOP_CH15)) {
+		if (i >= ZMOP_CH0 && i <= ZMOP_CH0 + NUM_ZMOP_CHAINS) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
 	}
-	//External Devices to MIDI OUT (ZMOP_MIDI & ZMOP_NET) => Not routed by default!
-	if (!set_midi_thru(0)) return 0;
-
 	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI
 
 	//Init Jack Process
@@ -975,39 +971,6 @@ void populate_zmip_event(struct zmip_st * zmip) {
 	}
 }
 
-int set_midi_thru(int flag) {
-	int j;
-	int res = 1;
-	for (j = 0; j < NUM_ZMIP_DEVS; j++) {
-		if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_DEV0 + j, flag)) res = 0;
-		if (!zmop_set_route_from(ZMOP_NET, ZMIP_DEV0 + j, flag)) res = 0;
-	}
-	//if (!zmop_set_route_from(ZMOP_MIDI, ZMIP_STEP, flag)) res = 0;
-	//if (!zmop_set_route_from(ZMOP_NET, ZMIP_STEP, flag)) res = 0;
-	if (flag) {
-		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPNOTE;
-		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPCC;
-		zmops[ZMOP_MIDI].flags &= ~FLAG_ZMOP_DROPPC;
-		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPNOTE;
-		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPCC;
-		zmops[ZMOP_NET].flags &= ~FLAG_ZMOP_DROPPC;
-	} else {
-		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPNOTE;
-		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPCC;
-		zmops[ZMOP_MIDI].flags |= FLAG_ZMOP_DROPPC;
-		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPNOTE;
-		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPCC;
-		zmops[ZMOP_NET].flags |= FLAG_ZMOP_DROPPC;
-	}
-	//fprintf(stderr, "ZynMidiRouter: MIDI-THRU = %d.\n", flag);
-	midi_thru_enabled = flag;
-	return res;
-}
-
-int get_midi_thru() {
-	return midi_thru_enabled;
-}
-
 //-----------------------------------------------------
 // Jack Process
 //-----------------------------------------------------
@@ -1064,7 +1027,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		//fprintf(stderr, "Found earliest event %0X at time %u:%u from input %d\n", ev->buffer[0], jack_last_frame_time(jack_client), ev->time, izmip);
 
 		// MIDI device index
-		event_idev = (uint8_t)(izmip + 1);
+		event_idev = (uint8_t)izmip;
 
 		// Ignore Active Sense
 		//if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE) // and SysEx messages
@@ -1332,9 +1295,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				else if ((zmop->flags & FLAG_ZMOP_DROPNOTE) && (event_type == NOTE_ON || event_type == NOTE_OFF) && izmip != ZMIP_FAKE_UI)
 					continue;
 
-				// Add cloned event to MIDI outputs: ZMOP_CH? & ZMOP_MAIN
+				// Add cloned event to MIDI outputs: ZMOP_CH??
 				zmop_push_event(zmop, ev);
-				zmop_push_event(zmops + ZMOP_MAIN, ev);
 			}
 		}
 
@@ -1710,23 +1672,23 @@ int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm) {
 //-----------------------------------------------------------------------------
 
 int dev_send_midi_event(uint8_t idev, uint8_t *event_buffer, int event_size) {
-	zmop_send_midi_event(ZMOP_CTRL + idev, event_buffer, event_size);
+	zmop_send_midi_event(ZMOP_DEV0 + idev, event_buffer, event_size);
 }
 
 int dev_send_note_off(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel) {
-	zmop_send_note_off(ZMOP_CTRL + idev, chan, note, vel);
+	zmop_send_note_off(ZMOP_DEV0 + idev, chan, note, vel);
 }
 
 int dev_send_note_on(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel) {
-	zmop_send_note_on(ZMOP_CTRL + idev, chan, note, vel);
+	zmop_send_note_on(ZMOP_DEV0 + idev, chan, note, vel);
 }
 
 int dev_send_ccontrol_change(uint8_t idev, uint8_t chan, uint8_t ctrl, uint8_t val) {
-	zmop_send_ccontrol_change(ZMOP_CTRL + idev, chan, ctrl, val);
+	zmop_send_ccontrol_change(ZMOP_DEV0 + idev, chan, ctrl, val);
 }
 
 int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm) {
-	zmop_send_program_change(ZMOP_CTRL + idev, chan, prgm);
+	zmop_send_program_change(ZMOP_DEV0 + idev, chan, prgm);
 }
 
 //-----------------------------------------------------------------------------
