@@ -371,8 +371,6 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 // MIDI Events Buffer Management and Direct Send functions
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 4096
-
 //---------------------------------------------------------
 // Direct Send Event Ring-Buffer write
 //---------------------------------------------------------
@@ -445,10 +443,16 @@ int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm);
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
 
+// Size in bytes. Each message is 4-bytes long (uint32_t)
+#define ZYNMIDI_BUFFER_SIZE 4096
+
 int init_zynmidi_buffer();
 int end_zynmidi_buffer();
 int write_zynmidi(uint32_t ev);
 uint32_t read_zynmidi();
+int read_zynmidi_buffer(uint32_t *buffer, int n);
+int get_zynmidi_num_max();
+int get_zynmidi_num_pending();
 
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val);
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val);

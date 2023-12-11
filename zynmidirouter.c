@@ -1730,6 +1730,24 @@ uint32_t read_zynmidi() {
 	return ev;
 }
 
+int read_zynmidi_buffer(uint32_t *buffer, int n) {
+	int nr = jack_ringbuffer_read_space(zynmidi_buffer) >> 2;
+	if (n > nr) n = nr;
+	if (n > 0) {
+		jack_ringbuffer_read(zynmidi_buffer, (uint8_t *)buffer, n << 2);
+	}
+	return n;
+}
+
+// Returns the max number of 4-bytes MIDI messages (uint32_t) in the buffer
+int get_zynmidi_num_max() {
+	return ZYNMIDI_BUFFER_SIZE >> 2;
+}
+
+int get_zynmidi_num_pending() {
+	return jack_ringbuffer_read_space(zynmidi_buffer) >> 2;
+}
+
 //-----------------------------------------------------------------------------
 // MIDI Internal Output: Send Functions => UI
 //-----------------------------------------------------------------------------
