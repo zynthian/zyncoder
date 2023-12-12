@@ -488,14 +488,14 @@ int get_midi_learning_mode() {
 // ZynMidi Input/Ouput Port management
 //-----------------------------------------------------------------------------
 
-int zmop_init(int iz, char *name, int midi_chan, uint32_t flags) {
+int zmop_init(int iz, char *name, uint32_t flags) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad index (%d) initializing ouput port '%s'.\n", iz, name);
 		return 0;
 	}
 
 	if (name != NULL) {
-		//Create Jack Output Port
+		// Create Jack Output Port
 		zmops[iz].jport = jack_port_register(jack_client, name, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
 		if (zmops[iz].jport == NULL) {
 			fprintf(stderr, "ZynMidiRouter: Error creating jack midi output port '%s'.\n", name);
@@ -505,7 +505,7 @@ int zmop_init(int iz, char *name, int midi_chan, uint32_t flags) {
 		zmops[iz].jport = NULL;
 	}
 
-	//Set init values
+	// Set init values
 	zmops[iz].buffer = NULL;
 	zmops[iz].rbuffer = NULL;
 	zmops[iz].n_connections = 0;
@@ -525,18 +525,14 @@ int zmop_init(int iz, char *name, int midi_chan, uint32_t flags) {
 		}
 	}
 
+	// Reset MIDI channels
+	zmop_reset_midi_chans(iz);
+
+	// Reset routes
 	int i;
-	//Listen midi_chan, don't translate.
-	//Channel -1 means "all channels"
-	for (i = 0; i < 16; i++) {
-		if (midi_chan < 0 || i == midi_chan)
-			zmops[iz].midi_chans[i] = i;
-		else
-			zmops[iz].midi_chans[i] = -1;
-	}
-	//Reset routes
-	for (i = 0; i < MAX_NUM_ZMIPS; i++)
+	for (i = 0; i < MAX_NUM_ZMIPS; i++) {
 		zmops[iz].route_from_zmips[i] = 0;
+	}
 
 	return 1;
 }
@@ -579,46 +575,46 @@ int zmop_has_flags(int iz, uint32_t flags) {
 	return (zmops[iz].flags & flags) == flags;
 }
 
-int zmop_chain_set_flag_droppc(int ch, uint8_t flag) {
-	if (ch < 0 || ch >= 16) {
-		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+int zmop_set_flag_droppc(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad zmop number (%d).\n", iz);
 		return 0;
 	}
 	if (flag)
-		zmops[ZMOP_CH0 + ch].flags |= (uint32_t)FLAG_ZMOP_DROPPC;
+		zmops[ZMOP_CH0 + iz].flags |= (uint32_t)FLAG_ZMOP_DROPPC;
 	else
-		zmops[ZMOP_CH0 + ch].flags &= ~(uint32_t)FLAG_ZMOP_DROPPC;
-	//fprintf(stderr, "ZynMidiRouter: ZMOPS flags for chain (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
+		zmops[ZMOP_CH0 + iz].flags &= ~(uint32_t)FLAG_ZMOP_DROPPC;
+	//fprintf(stderr, "ZynMidiRouter: Flags for zmop (%d) => %x\n", iz, zmops[ZMOP_CH0 + iz].flags);
 	return 1;
 }
 
-int zmop_chain_get_flag_droppc(int ch) {
-	if (ch < 0 || ch >= 16) {
-		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+int zmop_get_flag_droppc(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad zmop number (%d).\n", iz);
 		return 0;
 	}
-	return zmops[ZMOP_CH0 + ch].flags & (uint32_t)FLAG_ZMOP_DROPPC;
+	return zmops[ZMOP_CH0 + iz].flags & (uint32_t)FLAG_ZMOP_DROPPC;
 }
 
-int zmop_chain_set_flag_dropcc(int ch, uint8_t flag) {
-	if (ch < 0 || ch >= 16) {
-		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+int zmop_set_flag_dropcc(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", iz);
 		return 0;
 	}
 	if (flag)
-		zmops[ZMOP_CH0 + ch].flags |= (uint32_t)FLAG_ZMOP_DROPCC;
+		zmops[ZMOP_CH0 + iz].flags |= (uint32_t)FLAG_ZMOP_DROPCC;
 	else
-		zmops[ZMOP_CH0 + ch].flags &= ~(uint32_t)FLAG_ZMOP_DROPCC;
-	//fprintf(stderr, "ZynMidiRouter: ZMOPS flags for chain (%d) => %x\n", ch, zmops[ZMOP_CH0 + ch].flags);
+		zmops[ZMOP_CH0 + iz].flags &= ~(uint32_t)FLAG_ZMOP_DROPCC;
+	//fprintf(stderr, "ZynMidiRouter: Flags for zmop (%d) => %x\n", iz, zmops[ZMOP_CH0 + iz].flags);
 	return 1;
 }
 
-int zmop_chain_get_flag_dropcc(int ch) {
-	if (ch < 0 || ch >= 16) {
-		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", ch);
+int zmop_get_flag_dropcc(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", iz);
 		return 0;
 	}
-	return zmops[ZMOP_CH0 + ch].flags & (uint32_t)FLAG_ZMOP_DROPCC;
+	return zmops[ZMOP_CH0 + iz].flags & (uint32_t)FLAG_ZMOP_DROPCC;
 }
 
 int zmop_reset_midi_chans(int iz) {
@@ -627,12 +623,42 @@ int zmop_reset_midi_chans(int iz) {
 		return 0;
 	}
 	int i;
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 16; i++) {
 		zmops[iz].midi_chans[i] = -1;
+	}
 	return 1;
 }
 
-int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to) {
+int zmop_set_midi_chan(int iz, int midi_chan) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	if (midi_chan < 0 || midi_chan >= 16) {
+		fprintf(stderr, "ZynMidiRouter: Bad chan number (%d).\n", midi_chan);
+		return 0;
+	}
+	int i;
+	for (i = 0; i < 16; i++) {
+		zmops[iz].midi_chans[i] = -1;
+	}
+	zmops[iz].midi_chans[midi_chan] = midi_chan;
+	return 1;
+}
+
+int zmop_set_midi_chan_all(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	int i;
+	for (i = 0; i < 16; i ++) {
+		zmops[iz].midi_chans[i] = i;
+	}
+	return 1;
+}
+
+int zmop_set_midi_chan_to(int iz, int midi_chan_from, int midi_chan_to) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return 0;
@@ -648,16 +674,16 @@ int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to) {
 	return 1;
 }
 
-int zmop_get_midi_chan(int iz, int midi_chan) {
+int zmop_get_midi_chan_to(int iz, int midi_chan_from) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return -1;
 	}
-	if (midi_chan < 0 || midi_chan >= 16) {
-		fprintf(stderr, "ZynMidiRouter: Bad chan number (%d).\n", midi_chan);
+	if (midi_chan_from < 0 || midi_chan_from >= 16) {
+		fprintf(stderr, "ZynMidiRouter: Bad chan number (%d).\n", midi_chan_from);
 		return 0;
 	}
-	return zmops[iz].midi_chans[midi_chan];
+	return zmops[iz].midi_chans[midi_chan_from];
 }
 
 int zmop_reset_route_from(int iz) {
@@ -866,14 +892,19 @@ int init_jack_midi(char *name) {
 	//Init Output Ports
 	for (i = 0; i < NUM_ZMOP_CHAINS; i++) {
 		sprintf(port_name, "ch%d_out", i);
-		if (!zmop_init(ZMOP_CH0 + i, port_name, i, ZMOP_CHAIN_FLAGS)) return 0;
+		if (!zmop_init(ZMOP_CH0 + i, port_name, ZMOP_CHAIN_FLAGS)) return 0;
+		//zmop_set_midi_chan(ZMOP_CH0 + i, i);
 	}
-	if (!zmop_init(ZMOP_MOD, "mod_out", -1, ZMOP_CHAIN_FLAGS)) return 0;
-	if (!zmop_init(ZMOP_STEP, "step_out", -1, FLAG_ZMOP_DROPSYSEX)) return 0;
-	if (!zmop_init(ZMOP_CTRL, "ctrl_out", -1, FLAG_ZMOP_DIRECTOUT)) return 0;
+	if (!zmop_init(ZMOP_MOD, "mod_out", ZMOP_CHAIN_FLAGS)) return 0;
+	zmop_set_midi_chan_all(ZMOP_MOD);
+	if (!zmop_init(ZMOP_STEP, "step_out", FLAG_ZMOP_DROPSYSEX)) return 0;
+	zmop_set_midi_chan_all(ZMOP_STEP);
+	if (!zmop_init(ZMOP_CTRL, "ctrl_out", FLAG_ZMOP_DIRECTOUT)) return 0;
+	zmop_set_midi_chan_all(ZMOP_CTRL);
 	for (i = 0; i < NUM_ZMOP_DEVS; i++) {
 		sprintf(port_name, "dev%d_out", i);
-		if (!zmop_init(ZMOP_DEV0 + i, port_name, -1, FLAG_ZMOP_DIRECTOUT)) return 0;
+		if (!zmop_init(ZMOP_DEV0 + i, port_name, FLAG_ZMOP_DIRECTOUT)) return 0;
+		zmop_set_midi_chan_all(ZMOP_DEV0 + i);
 	}
 
 	//Init Input Ports

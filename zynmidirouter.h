@@ -315,19 +315,21 @@ struct zmop_st {
 	int n_connections;     // Quantity of jack connections (used for optimisation)
 };
 
-int zmop_init(int iz, char *name, int midi_chan, uint32_t flags);
+int zmop_init(int iz, char *name, uint32_t flags);
 int zmop_end(int iz);
 int zmop_get_num_chains();
 int zmop_get_num_devs();
 int zmop_set_flags(int iz, uint32_t flags);
 int zmop_has_flags(int iz, uint32_t flag);
-int zmop_chain_set_flag_droppc(int ch, uint8_t flag);
-int zmop_chain_get_flag_droppc(int ch);
-int zmop_chain_set_flag_dropcc(int ch, uint8_t flag);
-int zmop_chain_get_flag_dropcc(int ch);
+int zmop_set_flag_droppc(int iz, uint8_t flag);
+int zmop_get_flag_droppc(int iz);
+int zmop_set_flag_dropcc(int iz, uint8_t flag);
+int zmop_get_flag_dropcc(int iz);
 int zmop_reset_midi_chans(int iz);
-int zmop_set_midi_chan(int iz, int midi_chan_from, int midi_chan_to);
-int zmop_get_midi_chan(int iz, int midi_chan);
+int zmop_set_midi_chan(int iz, int midi_chan);
+int zmop_set_midi_chan_all(int iz);
+int zmop_set_midi_chan_to(int iz, int midi_chan_from, int midi_chan_to);
+int zmop_get_midi_chan_to(int iz, int midi_chan);
 int zmop_reset_route_from(int iz);
 int zmop_set_route_from(int izmop, int izmip, int route);
 int zmop_get_route_from(int izmop, int izmip);
