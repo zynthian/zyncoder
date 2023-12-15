@@ -4,7 +4,7 @@
  * 
  * MIDI router library: Implements the MIDI router & filter 
  * 
- * Copyright (C) 2015-2022 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2023 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
@@ -727,7 +727,7 @@ int zmop_set_route_from(int izmop, int izmip, int route) {
 		return 0;
 	}
 	if (izmip < 0 || izmip >= MAX_NUM_ZMIPS) {
-		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", izmip);
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", izmip);
 		return 0;
 	}
 	zmops[izmop].route_from_zmips[izmip] = route;
