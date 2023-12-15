@@ -286,8 +286,9 @@ int get_midi_learning_mode();
 #define FLAG_ZMOP_TUNING 32
 #define FLAG_ZMOP_NOTERANGE 64
 #define FLAG_ZMOP_DIRECTOUT 128
+#define FLAG_ZMOP_CHANTRANS 256
 
-#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX)
+#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_CHANTRANS)
 
 #define FLAG_ZMIP_UI 1
 #define FLAG_ZMIP_CLONE 2
@@ -325,6 +326,8 @@ int zmop_set_flag_droppc(int iz, uint8_t flag);
 int zmop_get_flag_droppc(int iz);
 int zmop_set_flag_dropcc(int iz, uint8_t flag);
 int zmop_get_flag_dropcc(int iz);
+int zmop_set_flag_chantrans(int iz, uint8_t flag);
+int zmop_get_flag_chantrans(int iz);
 int zmop_reset_midi_chans(int iz);
 int zmop_set_midi_chan(int iz, int midi_chan);
 int zmop_set_midi_chan_all(int iz);

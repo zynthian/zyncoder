@@ -617,6 +617,27 @@ int zmop_get_flag_dropcc(int iz) {
 	return zmops[ZMOP_CH0 + iz].flags & (uint32_t)FLAG_ZMOP_DROPCC;
 }
 
+int zmop_set_flag_chantrans(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", iz);
+		return 0;
+	}
+	if (flag)
+		zmops[ZMOP_CH0 + iz].flags |= (uint32_t)FLAG_ZMOP_CHANTRANS;
+	else
+		zmops[ZMOP_CH0 + iz].flags &= ~(uint32_t)FLAG_ZMOP_CHANTRANS;
+	//fprintf(stderr, "ZynMidiRouter: Flags for zmop (%d) => %x\n", iz, zmops[ZMOP_CH0 + iz].flags);
+	return 1;
+}
+
+int zmop_get_flag_chantrans(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad chain number (%d).\n", iz);
+		return 0;
+	}
+	return zmops[ZMOP_CH0 + iz].flags & (uint32_t)FLAG_ZMOP_CHANTRANS;
+}
+
 int zmop_reset_midi_chans(int iz) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
@@ -626,6 +647,7 @@ int zmop_reset_midi_chans(int iz) {
 	for (i = 0; i < 16; i++) {
 		zmops[iz].midi_chans[i] = -1;
 	}
+	zmop_set_flag_chantrans(iz, 1);
 	return 1;
 }
 
@@ -643,6 +665,7 @@ int zmop_set_midi_chan(int iz, int midi_chan) {
 		zmops[iz].midi_chans[i] = -1;
 	}
 	zmops[iz].midi_chans[midi_chan] = midi_chan;
+	zmop_set_flag_chantrans(iz, 1);
 	return 1;
 }
 
@@ -655,6 +678,7 @@ int zmop_set_midi_chan_all(int iz) {
 	for (i = 0; i < 16; i ++) {
 		zmops[iz].midi_chans[i] = i;
 	}
+	zmop_set_flag_chantrans(iz, 0);
 	return 1;
 }
 
@@ -1219,7 +1243,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					}
 				}
 			}
-			ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan_translated & 0x0F);
 		} else {
 			event_chan_translated = event_chan;
 		}
@@ -1249,14 +1272,39 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Channel messages ...
 			if (event_type < SYSTEM_EXCLUSIVE) {
-				// Omni channel => translate events to zmop channel ...
-				if (zmip->flags & FLAG_ZMIP_OMNI_CHAN && izmop <= ZMOP_CH15) {
-					ev->buffer[0] = (ev->buffer[0] & 0xF0) | (izmop & 0x0F);
+				// Channel Translation / Filtering (ACTI/OMNI/MULTI)
+				if (zmop->flags & FLAG_ZMOP_CHANTRANS) {
+					// ACTI => translate events to active channel ...
+					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) {
+						// Filter MIDI channels not registered by zmop
+						if (zmop->midi_chans[event_chan_translated] == -1) {
+							continue;
+						}
+						// Translate to active channel
+						else {
+							ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan_translated & 0x0F);
+						}
+					}
+					// OMNI => translate events to zmop's channel ...
+					else if (zmip->flags & FLAG_ZMIP_OMNI_CHAN) {
+						// Find ZMOP's first enabled MIDI channel
+						int ch;
+						for (ch=0; ch<16; ch++) {
+							if (zmop->midi_chans[ch] >= 0) {
+								ev->buffer[0] = (ev->buffer[0] & 0xF0) | (ch & 0x0F);
+								break;
+							}
+						}
+					}
+					// MULTI => no translate, but filter MIDI channels not registered by zmop
+					else if (zmop->midi_chans[event_chan_translated] == -1) {
+						continue;
+					}
 				}
-				// else, filter MIDI channels not registered by zmop
-				else if (zmop->midi_chans[event_chan_translated] == -1)
-					continue;
-					//TODO! IMPLEMENT: FLAG_ZMOP_NO_TRANSLATE (MIDI Processing)
+				// No Channel Translation / Filtering => Ignore ACTI/OMNI  flags
+				else {
+					// Leave MIDI channel untouched
+				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
 				if (event_type == CTRL_CHANGE && (zmop->flags & FLAG_ZMOP_DROPCC)  && izmip <= ZMIP_CTRL)
