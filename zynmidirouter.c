@@ -843,51 +843,6 @@ int zmip_get_flag_active_chan(int iz) {
 }
 
 
-int zmip_set_flag_omni_chan(int iz, uint8_t flag) {
-	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
-		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
-		return 0;
-	}
-	if (flag)
-		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_OMNI_CHAN;
-	else
-		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
-	return 1;
-}
-
-
-int zmip_get_flag_omni_chan(int iz) {
-	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
-		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
-		return -1;
-	}
-	return zmips[iz].flags & (uint32_t)FLAG_ZMIP_OMNI_CHAN;
-}
-
-
-int zmip_rotate_flags_active_omni_chan(int iz) {
-	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
-		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
-		return -1;
-	}
-	// ACTIVE => OMNI
-	if (zmips[iz].flags & (uint32_t)FLAG_ZMIP_ACTIVE_CHAN) {
-		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
-		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_OMNI_CHAN;
-		return 0;
-	// OMNI => MULTI
-	} else if (zmips[iz].flags & (uint32_t)FLAG_ZMIP_OMNI_CHAN) {
-		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
-		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
-		return 0;
-	// MULTI => ACTIVE
-	} else {
-		zmips[iz].flags &= ~(uint32_t)FLAG_ZMIP_OMNI_CHAN;
-		zmips[iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAN;
-		return 1;
-	}
-}
-
 //Route/unroute external MIDI device to zmops
 int zmip_set_route_extdev(int iz, int route) {
 	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
@@ -1272,7 +1227,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Channel messages ...
 			if (event_type < SYSTEM_EXCLUSIVE) {
-				// Channel Translation / Filtering (ACTI/OMNI/MULTI)
+				// Channel Translation / Filtering (ACTI/MULTI)
 				if (zmop->flags & FLAG_ZMOP_CHANTRANS) {
 					// ACTI => translate events to active channel ...
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAN) {
@@ -1285,23 +1240,12 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 							ev->buffer[0] = (ev->buffer[0] & 0xF0) | (event_chan_translated & 0x0F);
 						}
 					}
-					// OMNI => translate events to zmop's channel ...
-					else if (zmip->flags & FLAG_ZMIP_OMNI_CHAN) {
-						// Find ZMOP's first enabled MIDI channel
-						int ch;
-						for (ch=0; ch<16; ch++) {
-							if (zmop->midi_chans[ch] >= 0) {
-								ev->buffer[0] = (ev->buffer[0] & 0xF0) | (ch & 0x0F);
-								break;
-							}
-						}
-					}
 					// MULTI => no translate, but filter MIDI channels not registered by zmop
 					else if (zmop->midi_chans[event_chan_translated] == -1) {
 						continue;
 					}
 				}
-				// No Channel Translation / Filtering => Ignore ACTI/OMNI  flags
+				// No Channel Translation / Filtering => Ignore ACTI  flags
 				else {
 					// Leave MIDI channel untouched
 				}
