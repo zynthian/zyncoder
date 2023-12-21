@@ -61,7 +61,7 @@ extern void (*zynpot_cb)(int8_t, int32_t);
 //-----------------------------------------------------------------------------
 
 extern zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
-extern midi_filter_t midi_filter;
+extern struct zmip_st zmips[MAX_NUM_ZMIPS];
 
 zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
@@ -292,7 +292,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 	else if (zsw->midi_event.type==CTRL_SWITCH_EVENT) {
 		if (zsw->status!=zsw->off_state) {
 			uint8_t val;
-			uint8_t last_val = midi_filter.last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
+			uint8_t last_val = zmips[ZMIP_FAKE_INT].last_ctrl_val[zsw->midi_event.chan][zsw->midi_event.num];
 			if (last_val>=64) val = 0;
 			else val = 127;
 			//Send MIDI event to engines and ouput (ZMOPS)
