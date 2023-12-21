@@ -768,7 +768,7 @@ int zmop_set_midi_chan_all(int iz) {
 	return 1;
 }
 
-int zmop_set_midi_chan_all_translate(int iz, int midi_chan) {
+int zmop_set_midi_chan_all_trans(int iz, int midi_chan) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
 		return 0;

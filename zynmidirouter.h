@@ -340,7 +340,7 @@ int zmop_reset_midi_chans(int iz);
 int zmop_set_midi_chan(int iz, int midi_chan);
 int zmop_set_midi_chan_trans(int iz, int midi_chan, int midi_chan_trans);
 int zmop_set_midi_chan_all(int iz);
-int zmop_set_midi_chan_all_translate(int iz, int midi_chan);
+int zmop_set_midi_chan_all_trans(int iz, int midi_chan);
 int zmop_set_midi_chan_to(int iz, int midi_chan_from, int midi_chan_to);
 int zmop_get_midi_chan_to(int iz, int midi_chan_from);
 int zmop_get_midi_chan_info(int iz, int *buffer);
