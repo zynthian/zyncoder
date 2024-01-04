@@ -201,8 +201,6 @@ int get_midi_learning_mode();
 // Zynmidi Ports
 //-----------------------------------------------------------------------------
 
-#define JACK_MIDI_BUFFER_SIZE 4096
-
 #define ZMOP_CH0 0
 #define ZMOP_CH1 1
 #define ZMOP_CH2 2
@@ -359,7 +357,8 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 // MIDI Events Buffer Management and Direct Send functions
 //-----------------------------------------------------------------------------
 
-#define ZYNMIDI_BUFFER_SIZE 4096
+#define JACK_MIDI_BUFFER_SIZE 16384
+//32768
 
 //---------------------------------------------------------
 // Direct Send Event Ring-Buffer write
@@ -432,6 +431,8 @@ int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm);
 //-----------------------------------------------------------------------------
 // MIDI Internal Ouput Events Buffer => UI
 //-----------------------------------------------------------------------------
+
+#define ZYNMIDI_BUFFER_SIZE 16384
 
 int init_zynmidi_buffer();
 int end_zynmidi_buffer();

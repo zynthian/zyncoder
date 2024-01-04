@@ -1463,7 +1463,7 @@ int write_rb_midi_event(jack_ringbuffer_t *rb, uint8_t *event_buffer, int event_
 			return 0;
 		}
 	} else {
-		fprintf(stderr, "ZynMidiRouter: Error writing ring-buffer: FULL\n");
+		fprintf(stderr, "ZynMidiRouter: Error writing ring-buffer => %d bytes available < %d bytes needed\n", jack_ringbuffer_write_space(rb), event_size);
 		return 0;
 	}
 	return 1;
