@@ -149,8 +149,6 @@ void reset_midi_filter_cc_map();
 // MIDI Input Ports (ZMIPs)
 //-----------------------------------------------------------------------------
 
-#define JACK_MIDI_BUFFER_SIZE 4096
-
 #define ZMIP_DEV0 0
 #define ZMIP_DEV1 1
 #define ZMIP_DEV2 2
@@ -380,6 +378,8 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 // MIDI Events Buffer Management and Direct Send functions
 //-----------------------------------------------------------------------------
 
+#define JACK_MIDI_BUFFER_SIZE 16384
+
 // Direct Send Event Ring-Buffer write
 int write_rb_midi_event(jack_ringbuffer_t *rb, uint8_t *event_buffer, int event_size);
 
@@ -435,7 +435,7 @@ int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm);
 //-----------------------------------------------------------------------------
 
 // Size in bytes. Each message is 4-bytes long (uint32_t)
-#define ZYNMIDI_BUFFER_SIZE 4096
+#define ZYNMIDI_BUFFER_SIZE 16384
 
 int init_zynmidi_buffer();
 int end_zynmidi_buffer();
