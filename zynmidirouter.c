@@ -1277,11 +1277,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					goto zmop_event_processed;
 			}
 			// Drop "System messages" if configured in zmop options, except from internal sources (UI)
-			else if ((zmop->flags & FLAG_ZMOP_DROPSYS)  && izmip != ZMIP_FAKE_UI) {
+			else if ((event_type > SYSTEM_EXCLUSIVE) && (zmop->flags & FLAG_ZMOP_DROPSYS) && (izmip != ZMIP_FAKE_UI)) {
 			 	continue;
 			}
 			// Drop "System Exclusive messages" if configured in zmop options
-			else if (zmop->flags & FLAG_ZMOP_DROPSYSEX) {
+			else if ((event_type == SYSTEM_EXCLUSIVE) && (zmop->flags & FLAG_ZMOP_DROPSYSEX)) {
 			 	continue;
 			}
 
