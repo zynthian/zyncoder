@@ -175,7 +175,7 @@ void reset_midi_filter_cc_map();
 #define ZMIP_DEV23 23
 #define ZMIP_SEQ 24				// MIDI from SMF player
 #define ZMIP_STEP 25			// MIDI from StepSeq
-#define ZMIP_CTRL 26			// Engine's controller feedback (setBfree, others?) => TO IMPROVE!
+#define ZMIP_CTRL 26			// Engine's controller feedback (setBfree, others?) => It's hardcoded in chain_manager. Update if this number changes!!
 #define ZMIP_FAKE_INT 27		// BUFFER: Internal MIDI (to ALL zmops => MUST BE CHANGED!!) => Used by zyncoder, zynaptik (CV/Gate), zyntof, etc.
 #define ZMIP_FAKE_UI 28			// BUFFER: MIDI from UI (to Chain zmops)
 #define MAX_NUM_ZMIPS 29

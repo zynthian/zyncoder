@@ -1844,22 +1844,22 @@ int get_zynmidi_num_pending() {
 //-----------------------------------------------------------------------------
 
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0x90 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFF << 24) | (0x90 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0x80 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFF << 24) | (0x80 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFF << 24) | (0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_program_change(uint8_t chan, uint8_t num) {
-	uint32_t ev = ((0xC0 | (chan & 0x0F)) << 16) | (num << 8);
+	uint32_t ev = ((0xFF << 24) | (0xC0 | (chan & 0x0F)) << 16) | (num << 8);
 	return write_zynmidi(ev);
 }
 
