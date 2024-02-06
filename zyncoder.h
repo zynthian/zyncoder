@@ -31,7 +31,7 @@
 #include <gpiod.h>
 
 #include "zynmcp23017.h"
-//#include "zynmcp23008.h"
+#include "zynmcp23008.h"
 #include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------

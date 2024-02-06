@@ -41,6 +41,9 @@ struct gpiod_callback {
 
 extern struct gpiod_chip *rpi_chip;
 
+extern int8_t wpi2gpio[32];
+extern int8_t gpio2wpi[28];
+
 // -------------------------------------------------------------------
 
 int gpiod_init_callbacks();

@@ -26,8 +26,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <mcp23008.h>
 
+#include "gpiod_callback.h"
+#include "mcp23008.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 
@@ -80,10 +81,21 @@ void (*zynmcp23017_ISRs[2]) = {
 
 void init_zynmcp23017s() {
 	reset_zynmcp23017s();
-	setup_zynmcp23017(0, MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, MCP23017_INTA_PIN, MCP23017_INTB_PIN, zynmcp23017_ISRs);
+	setup_zynmcp23017(0, MCP23017_BASE_PIN, MCP23017_I2C_ADDRESS, wpi2gpio[MCP23017_INTA_PIN], wpi2gpio[MCP23017_INTB_PIN], zynmcp23017_ISRs);
 }
 
 #endif
+
+
+#if defined(MCP23008_ENCODERS)
+
+void init_zynmcp23008s() {
+	reset_zynmcp23008s();
+	setup_zynmcp23008(0, MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
+}
+
+#endif
+
 
 //-----------------------------------------------------------------------------
 // Get wiring config from environment
@@ -92,12 +104,12 @@ void init_zynmcp23017s() {
 #define NUM_ZYNSWITCHES 8
 #define NUM_ZYNPOTS 4
 
-int zynswitch_pins[NUM_ZYNSWITCHES];
-int zyncoder_pins_a[NUM_ZYNPOTS];
-int zyncoder_pins_b[NUM_ZYNPOTS];
+int16_t zynswitch_pins[NUM_ZYNSWITCHES];
+int16_t zyncoder_pins_a[NUM_ZYNPOTS];
+int16_t zyncoder_pins_b[NUM_ZYNPOTS];
 
 void reset_wiring_config() {
-	int i;
+	int16_t i;
 	for (i=0;i<NUM_ZYNSWITCHES;i++) zynswitch_pins[i] = 0;
 	for (i=0;i<NUM_ZYNPOTS;i++) {
 		zyncoder_pins_a[i] = 0;
@@ -105,16 +117,20 @@ void reset_wiring_config() {
 	}
 }
 
-void parse_envar2intarr(const char *envar_name, int *result, int limit) {
+void parse_envar2intarr(const char *envar_name, int16_t *result, int16_t limit) {
 	const char *envar_ptr = getenv(envar_name);
 	if (envar_ptr) {
 		char envar_cpy[128];
 		char *save_ptr;
-		int i=0;
+		int16_t i = 0;
+		int16_t res;
 		strcpy(envar_cpy, envar_ptr);
 		char *token = strtok_r(envar_cpy, ",", &save_ptr);
 		while (token!=NULL && i<limit) {
-			result[i++] = atoi(token);
+			res = atoi(token);
+			// Convert low pins (RPi pins) from wiringPi to GPIO numbers
+			if (res < 100) res = wpi2gpio[res];
+			result[i++]  = res;
 			token = strtok_r(NULL, ",", &save_ptr);
 		}
 	}
@@ -134,12 +150,7 @@ void get_wiring_config() {
 void init_zynswitches() {
 	reset_zynswitches();
 
-	#if defined(MCP23008_ENCODERS)   
-	mcp23008Setup(MCP23008_BASE_PIN, MCP23008_I2C_ADDRESS);
-	init_poll_zynswitches();
-	#endif
-
-	int i;
+	int16_t i;
 	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
 	for (i=0;i<NUM_ZYNSWITCHES;i++) {
 		if (zynswitch_pins[i]>0) {
@@ -156,7 +167,7 @@ void init_zynpots() {
 	reset_zynpots();
 	reset_zyncoders();
 
-	int i;
+	int16_t i;
 	fprintf(stderr, "ZynCore: Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
 	for (i=0;i<NUM_ZYNPOTS;i++) {
 		if (zyncoder_pins_a[i]>-1 && zyncoder_pins_b[i]>-1) {
@@ -171,10 +182,13 @@ void init_zynpots() {
 //-----------------------------------------------------------------------------
 
 int init_zyncontrol() {
-	wiringPiSetup();
+	gpiod_init_callbacks();
 	get_wiring_config();
 	#if defined(MCP23017_ENCODERS)
 		init_zynmcp23017s();
+	#endif
+	#if defined(MCP23008_ENCODERS)
+		init_zynmcp23008s();
 	#endif
 	init_zynswitches();
 	init_zynpots();
@@ -184,10 +198,18 @@ int init_zyncontrol() {
 	#ifdef ZYNTOF_CONFIG
 		init_zyntof();
 	#endif
+	gpiod_start_callbacks();
+	#if defined(MCP23008_ENCODERS)
+		init_poll_zynswitches();
+	#endif
 	return 1;
 }
 
 int end_zyncontrol() {
+	#if defined(MCP23008_ENCODERS)
+		end_poll_zynswitches();
+	#endif
+	gpiod_stop_callbacks();
 	#ifdef ZYNTOF_CONFIG
 		end_zyntof();
 	#endif

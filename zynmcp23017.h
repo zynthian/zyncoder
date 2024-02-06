@@ -30,19 +30,6 @@
 // IC registers
 //-----------------------------------------------------------------------------
 
-// MCP23x08 Registers
-#define	MCP23x08_IODIR		0x00
-#define	MCP23x08_IPOL		0x01
-#define	MCP23x08_GPINTEN	0x02
-#define	MCP23x08_DEFVAL		0x03
-#define	MCP23x08_INTCON		0x04
-#define	MCP23x08_IOCON		0x05
-#define	MCP23x08_GPPU		0x06
-#define	MCP23x08_INTF		0x07
-#define	MCP23x08_INTCAP		0x08
-#define	MCP23x08_GPIO		0x09
-#define	MCP23x08_OLAT		0x0A
-
 // MCP23x17 Registers
 #define	MCP23x17_IODIRA		0x00
 #define	MCP23x17_IPOLA		0x02
