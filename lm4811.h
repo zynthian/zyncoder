@@ -38,7 +38,7 @@ void lm4811_reset_volume();
 uint8_t lm4811_set_volume(uint8_t vol);
 uint8_t lm4811_get_volume();
 uint8_t lm4811_get_volume_max();
-void lm4811_init();
-void lm4811_end();
+int lm4811_init();
+int lm4811_end();
 
 //-------------------------------------------------------------------

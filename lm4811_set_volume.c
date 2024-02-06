@@ -25,7 +25,6 @@
  * ******************************************************************
  */
 
-#include <wiringPi.h>
 #include "lm4811.h"
 
 //-------------------------------------------------------------------
@@ -35,7 +34,6 @@ int main(int argc, char *argv[]) {
 	if (argc>=2) {
 		vol = atoi(argv[1]);
 	}
-	wiringPiSetup();
 	lm4811_init();
 	printf("Setting LM4811 volume to %d\n", vol);
 	lm4811_set_volume(vol);

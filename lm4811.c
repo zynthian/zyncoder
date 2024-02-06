@@ -26,7 +26,8 @@
  * ******************************************************************
  */
 
-#include <wiringPi.h>
+#include "gpiod.h"
+#include "gpiod_callback.h"
 #include "lm4811.h"
 
 //-------------------------------------------------------------------
@@ -34,16 +35,18 @@
 //#define DEBUG
 
 #if Z2_VERSION==1
-	#define PIN_AMP_CLK 14
-	#define PIN_AMP_VOL 26
+	#define PIN_AMP_CLK 11  // wiringPi 14
+	#define PIN_AMP_VOL 12  // wiringPi 26
 #else
-	#define PIN_AMP_CLK 7
-	#define PIN_AMP_VOL 27
+	#define PIN_AMP_CLK 4   // wiringPi 7
+	#define PIN_AMP_VOL 16  // wiringPi 27
 #endif
 
 #define AMP_MAX_VOL 15
 #define STEP_USECS 100
 
+struct gpiod_line *line_clk;
+struct gpiod_line *line_vol;
 uint8_t current_volume = 0;
 
 //-------------------------------------------------------------------
@@ -54,16 +57,16 @@ void lm4811_volume_steps(int n) {
 	fprintf(stdout, "Sending %d volume steps to LM4811...\n", n);
 	#endif
 	if (n>0) {
-		digitalWrite(PIN_AMP_VOL, 1);
+		gpiod_line_set_value(line_vol, 1);
 	} else {
-		digitalWrite(PIN_AMP_VOL, 0);
+		gpiod_line_set_value(line_vol, 0);
 		n = -n;
 	}
 	int i;
 	for (i=0;i<n;i++) {
-		digitalWrite(PIN_AMP_CLK,1);
+		gpiod_line_set_value(line_clk, 1);
 		usleep(STEP_USECS);
-		digitalWrite(PIN_AMP_CLK,0);
+		gpiod_line_set_value(line_clk, 0);
 		usleep(STEP_USECS);
 	}
 }
@@ -91,18 +94,29 @@ uint8_t lm4811_get_volume_max() {
 	return AMP_MAX_VOL;
 }
 
-void lm4811_init() {
-	pinMode(PIN_AMP_CLK, OUTPUT);
-	pinMode(PIN_AMP_VOL, OUTPUT);
-	digitalWrite(PIN_AMP_VOL,0);
-	digitalWrite(PIN_AMP_CLK,0);
+int lm4811_init() {
+	line_clk = gpiod_chip_get_line(rpi_chip, PIN_AMP_CLK);
+	line_vol = gpiod_chip_get_line(rpi_chip, PIN_AMP_VOL);
+	if (!line_clk || !line_vol) {
+		fprintf(stderr, "ZynCore->lm4811_init(): Can't get lines for lm4811\n");
+		return 0;
+	}
+	if (gpiod_line_request_output(line_clk, ZYNCORE_CONSUMER, 0) < 0) {
+		fprintf(stderr, "ZynCore->lm4811_init(): Can't request CLK output for lm4811\n");
+		return 0;
+	}
+	if (gpiod_line_request_output(line_vol, ZYNCORE_CONSUMER, 0) < 0) {
+		fprintf(stderr, "ZynCore->lm4811_init(): Can't request VOL output for lm4811\n");
+		return 0;
+	}
 	usleep(STEP_USECS);
 	lm4811_reset_volume();
 	lm4811_set_volume(10);
 }
 
-void lm4811_end() {
+int lm4811_end() {
 	lm4811_reset_volume();
+	return 1;
 }
 
 //-------------------------------------------------------------------

@@ -25,16 +25,13 @@
  * ******************************************************************
  */
 
-#include <lo/lo.h>
+#ifndef ZYNCODER_H
+#define ZYNCODER_H
 
-#if defined(HAVE_WIRINGPI_LIB)
-	#include <wiringPi.h>
-	#include "zynmcp23017.h"
-	#include "zynmcp23008.h"
-#else
-	#include "wiringPiEmu.h"
-#endif
+#include <gpiod.h>
 
+#include "zynmcp23017.h"
+//#include "zynmcp23008.h"
 #include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------
@@ -49,6 +46,8 @@
 
 typedef struct zynswitch_st {
 	uint8_t enabled;
+
+	struct gpiod_line *line;	// libgpiod line struct
 	uint16_t pin;
 	uint8_t off_state;
 	uint8_t push;
@@ -86,6 +85,8 @@ typedef struct zyncoder_st {
 	int8_t zpot_i;				// Zynpot index assigned to this encoder
 
 	// Next fields are zyncoder-specific
+	struct gpiod_line *line_a;	// libgpiod line struct
+	struct gpiod_line *line_b;	// libgpiod line struct
 	uint16_t pin_a;				// Data GPI
 	uint16_t pin_b;				// Clock GPI
 	uint8_t short_history;      // Quadrant encoder algorithm last two valid states (4 bits)
@@ -113,3 +114,5 @@ int32_t get_value_zyncoder(uint8_t i);
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb);
 
 //-----------------------------------------------------------------------------
+
+#endif

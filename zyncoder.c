@@ -33,8 +33,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <gpiod.h>
 
 //#define DEBUG
+
+#include "gpiod_callback.h"
 
 #ifdef ZYNAPTIK_CONFIG
 	#include "zynaptik.h"
@@ -42,6 +45,7 @@
 
 #include "zynpot.h"
 #include "zyncoder.h"
+#include "zynmcp23017.h"
 
 //-----------------------------------------------------------------------------
 // Function headers
@@ -160,21 +164,30 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 	zsw->status = 0;
 
 	if (pin>0) {
-		pinMode(pin, INPUT);
-		if (off_state) {
-			pullUpDnControl(pin, PUD_UP);
-			zsw->off_state = 1;
-		} else {
-			pullUpDnControl(pin, PUD_DOWN);
-			zsw->off_state = 0;
-		}
+		if (off_state) zsw->off_state = 1;
+		else zsw->off_state = 0;
 
 		// RBPi GPIO pin
 		if (pin<100) {
-			zsw->enabled = 1;
-			zsw->pin = pin;
-			wiringPiISR(pin,INT_EDGE_BOTH, zynswitch_rbpi_ISRs[i]);
-			zynswitch_rbpi_ISR(i);
+			struct gpiod_line *line = gpiod_chip_get_line(rpi_chip, pin);
+			if (line) {
+				int flags = 0;
+				if (!off_state) flags = GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
+				if (gpiod_line_request_both_edges_events_flags(line, ZYNCORE_CONSUMER, flags)>=0) {
+					zsw->enabled = 1;
+					zsw->pin = pin;
+					zsw->line = line;
+					gpiod_line_register_callback(line, zynswitch_rbpi_ISRs[i]);
+					zynswitch_rbpi_ISR(i);
+					return 1;
+				} else {
+					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Can't request line %d from RPI GPIO\n", i, pin);
+					return 0;
+				}
+			} else {
+				fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Can't get line %d from RPI GPIO\n", i, pin);
+				return 0;
+			}
 		} 
 		// MCP23017 pin
 		else if (pin>=100) {
@@ -190,6 +203,7 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 						zsw->enabled = 1;
 						setup_pin_action_zynmcp23017(pin, ZYNSWITCH_PIN_ACTION, i);
 						zynswitch_update_zynmcp23017(i);
+						return 1;
 					}
 					else {
 						fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Pin out of range!\n",i, pin);
@@ -203,8 +217,7 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 			#endif
 		}
 	}
-
-	return 1;
+	return 0;
 }
 
 int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t midi_chan, uint8_t midi_num, uint8_t midi_val) {
@@ -222,6 +235,8 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 
 	//zsw->last_cvgate_note = -1;
 
+	//**********************************************
+	// TODO => Refactorize zynaptik functionality!!!
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		pinMode(zsw->pin, OUTPUT);
@@ -234,6 +249,7 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 		zynaptik_setup_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
+	//**********************************************
 
 	return 1;
 }
@@ -463,18 +479,29 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	if (pin_a!=pin_b) {
 		// RBPi GPIO pins
 		if (pin_a<100 && pin_b<100) {
-			pinMode(pin_a, INPUT);
-			pinMode(pin_b, INPUT);
-			pullUpDnControl(pin_a, PUD_UP);
-			pullUpDnControl(pin_b, PUD_UP);
-			zcdr->pin_a = pin_a;
-			zcdr->pin_b = pin_b;
-			zcdr->enabled = 1;
-			wiringPiISR(pin_a,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
-			wiringPiISR(pin_b,INT_EDGE_BOTH, zyncoder_rbpi_ISRs[i]);
-			zyncoder_rbpi_ISR(i);
-			return 1;
-		} 
+			struct gpiod_line *line_a = gpiod_chip_get_line(rpi_chip, pin_a);
+			struct gpiod_line *line_b = gpiod_chip_get_line(rpi_chip, pin_b);
+			if (line_a && line_b) {
+				if (gpiod_line_request_both_edges_events_flags(line_a, ZYNCORE_CONSUMER, 0) >=0 &&
+					gpiod_line_request_both_edges_events_flags(line_b, ZYNCORE_CONSUMER, 0) >=0) {
+					zcdr->line_a = line_a;
+					zcdr->line_b = line_b;
+					zcdr->pin_a = pin_a;
+					zcdr->pin_b = pin_b;
+					zcdr->enabled = 1;
+					gpiod_line_register_callback(line_a, zyncoder_rbpi_ISRs[i]);
+					gpiod_line_register_callback(line_b, zyncoder_rbpi_ISRs[i]);
+					zyncoder_rbpi_ISR(i);
+					return 1;
+				} else {
+					fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't request line from RPI GPIO\n", i, pin_a, pin_b);
+					return 0;
+				}
+			} else {
+				fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't get line from RPI GPIO\n", i, pin_a, pin_b);
+				return 0;
+			}
+		}
 		// MCP23017 pins
 		else if (pin_a>=100 && pin_b>=100) {
 			#if defined(MCP23017_ENCODERS)
@@ -490,10 +517,6 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 						if (bit_b<8) bank_b=0;
 						else bank_b=1;
 						if (bank_a == bank_b) {
-							pinMode(pin_a, INPUT);
-							pinMode(pin_b, INPUT);
-							pullUpDnControl(pin_a, PUD_UP);
-							pullUpDnControl(pin_b, PUD_UP);
 							zcdr->pin_a = pin_a;
 							zcdr->pin_b = pin_b;
 							zcdr->enabled = 1;
@@ -567,7 +590,7 @@ void zynswitch_rbpi_ISR(uint8_t i) {
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	zynswitch_t *zsw = zynswitches + i;
 	if (zsw->enabled==0) return;
-	update_zynswitch(i, (uint8_t)digitalRead(zsw->pin));
+	update_zynswitch(i, (uint8_t)gpiod_line_get_value(zsw->line));
 }
 
 void zynswitch_rbpi_ISR_0() { zynswitch_rbpi_ISR(0); }
@@ -594,14 +617,14 @@ void zyncoder_rbpi_ISR(uint8_t i) {
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	zyncoder_t *zcdr = zyncoders + i;
 	if (zcdr->enabled==0) return;
-	update_zyncoder(i, (uint8_t)digitalRead(zcdr->pin_a), (uint8_t)digitalRead(zcdr->pin_b));
+	update_zyncoder(i, (uint8_t)gpiod_line_get_value(zcdr->line_a), (uint8_t)gpiod_line_get_value(zcdr->line_b));
 }
 
 void zyncoder_rbpi_ISR_0() { zyncoder_rbpi_ISR(0); }
 void zyncoder_rbpi_ISR_1() { zyncoder_rbpi_ISR(1); }
 void zyncoder_rbpi_ISR_2() { zyncoder_rbpi_ISR(2); }
 void zyncoder_rbpi_ISR_3() { zyncoder_rbpi_ISR(3); }
-void (*zyncoder_rbpi_ISRs[8])={
+void (*zyncoder_rbpi_ISRs[4])={
 	zyncoder_rbpi_ISR_0,
 	zyncoder_rbpi_ISR_1,
 	zyncoder_rbpi_ISR_2,

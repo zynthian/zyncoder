@@ -35,10 +35,7 @@
 #include <stdbool.h> 
 #include <boost/circular_buffer.hpp>
 
-#include <wiringPi.h>
-#include <wiringPiI2C.h>
-#include <ads1115.h>
-
+#include "zynads1115.h"
 #include "zynpot.h"
 #include "zynrv112.h"
 
@@ -46,7 +43,6 @@
 // Global variables
 //-----------------------------------------------------------------------------
 
-struct wiringPiNodeStruct * ads1115_nodes[MAX_NUM_ADS1115];
 rv112_t rv112s[MAX_NUM_RV112];
 
 //-----------------------------------------------------------------------------
@@ -95,23 +91,22 @@ int get_num_rv112s() {
 	return n;
 }
 
-int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins) {
+int setup_rv112(uint8_t i, ads1115_t *ads1115, uint8_t reversed_chans) {
 	if (i > MAX_NUM_RV112) {
 		fprintf(stderr, "ZynCore->setup_rv112(%d): Invalid index!\n", i);
 		return 0;
 	}
-
 	uint8_t pos = (i % 2) * 2;
-	rv112s[i].base_pin = base_pin;
-	if (reversed_pins==0) {
-		rv112s[i].pinA = base_pin + pos + 1;
-		rv112s[i].pinB = base_pin + pos;
+	rv112s[i].ads1115_node = ads1115;
+	if (reversed_chans == 0) {
+		rv112s[i].chA = pos + 1;
+		rv112s[i].chB = pos;
 	} else {
-		rv112s[i].pinA = base_pin + pos;
-		rv112s[i].pinB = base_pin + pos + 1;
+		rv112s[i].chA = pos;
+		rv112s[i].chB = pos + 1;
 	}
-	rv112s[i].valA = analogRead(rv112s[i].pinA);
-	rv112s[i].valB = analogRead(rv112s[i].pinB);
+	rv112s[i].valA = ads1115_analog_read(ads1115, rv112s[i].chA);
+	rv112s[i].valB = ads1115_analog_read(ads1115, rv112s[i].chB);
 	rv112s[i].curseg = 0;
 	rv112s[i].lastdv = 0;
 	rv112s[i].value = 0;
@@ -152,8 +147,8 @@ int32_t get_value_rv112(uint8_t i) {
 //-----------------------------------------------------------------------------
 
 int16_t read_rv112(uint8_t i) {
-	int32_t vA = analogRead(rv112s[i].pinA);
-	int32_t vB = analogRead(rv112s[i].pinB);
+	int32_t vA = ads1115_analog_read(rv112s[i].ads1115_node, rv112s[i].chA);
+	int32_t vB = ads1115_analog_read(rv112s[i].ads1115_node, rv112s[i].chB);
 	int16_t d = 0;
 
 	switch (rv112s[i].curseg) {
@@ -248,9 +243,7 @@ int16_t read_rv112(uint8_t i) {
 
 	rv112s[i].valA = vA;
 	rv112s[i].valB = vB;
-
-	//fprintf(stderr, "vA = %d, vB = %d\n", vA, vB);
-
+	//fprintf(stderr, "RV112[%d]: curseg = %d, vA = %d, vB = %d, d = %d\n", i, rv112s[i].curseg, vA, vB, d);
 	return d / RV112_ADS1115_NOISE_DIV;
 }
 

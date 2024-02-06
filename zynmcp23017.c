@@ -23,6 +23,8 @@
  * ******************************************************************
  */
 
+//#define DEBUG
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -31,15 +33,16 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <gpiod.h>
 
-//#define DEBUG
-
-#include <wiringPi.h>
-#include <wiringPiI2C.h>
-#include <mcp23017.h>
-#include <mcp23x0817.h>
-
+#include "gpiod_callback.h"
+#include "wiringPiI2C.h"
+#include "zynmcp23017.h"
 #include "zyncoder.h"
+
+//-----------------------------------------------------------------------------
+// Macros
+//-----------------------------------------------------------------------------
 
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 #define bitSet(value, bit) ((value) |= (1UL << (bit)))
@@ -62,8 +65,8 @@ zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
 void reset_zynmcp23017s() {
 	int i;
 	for (i=0;i<MAX_NUM_MCP23017;i++) {
+		zynmcp23017s[i].fd = 0;
 		zynmcp23017s[i].enabled = 0;
-		zynmcp23017s[i].wpi_node = NULL;
 	}
 }
 
@@ -74,74 +77,100 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	}
 
 	// Setup IC using I2C bus
-	uint8_t reg;
-	mcp23017Setup(base_pin, i2c_address);
-
-	// get the node corresponding to our mcp23017 so we can do direct writes
-	struct wiringPiNodeStruct * mcp23017_node = wiringPiFindNode(base_pin);
+	int fd = wiringPiI2CSetup(i2c_address);
+	if (fd < 0) {
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't open I2C device at %d!\n", i, i2c_address);
+		return 0;
+	}
+	// Initialize IC
+	wiringPiI2CWriteReg8(fd, MCP23x17_IOCON, IOCON_INIT);
+	uint8_t olata = wiringPiI2CReadReg8 (fd, MCP23x17_OLATA);
+	uint8_t olatb = wiringPiI2CReadReg8 (fd, MCP23x17_OLATB);
 
 	// setup all the pins on the banks as inputs and disable pullups on
 	// the zyncoder input
-	reg = 0xff;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IODIRB, reg);
+	uint8_t reg = 0xff;
+	wiringPiI2CWriteReg8(fd, MCP23x17_IODIRA, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_IODIRB, reg);
 
 	// enable pullups on the unused pins (high two bits on each bank)
 	reg = 0xff;
 	//reg = 0xc0;
 	//reg = 0x60;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPPUB, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_GPPUA, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_GPPUB, reg);
 
 	// disable polarity inversion
 	reg = 0;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IPOLB, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_IPOLA, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_IPOLB, reg);
 
 	// disable the comparison to DEFVAL register
 	reg = 0;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_INTCONB, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_INTCONA, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_INTCONB, reg);
 
 	// configure the interrupt behavior for bank A
-	uint8_t ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCON);
+	uint8_t ioconf_value = wiringPiI2CReadReg8(fd, MCP23x17_IOCON);
 	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
 	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
 	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCON, ioconf_value);
+	wiringPiI2CWriteReg8(fd, MCP23x17_IOCON, ioconf_value);
 
 	// configure the interrupt behavior for bank B
-	ioconf_value = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_IOCONB);
+	ioconf_value = wiringPiI2CReadReg8(fd, MCP23x17_IOCONB);
 	bitWrite(ioconf_value, 6, 0);	// banks are not mirrored
 	bitWrite(ioconf_value, 2, 0);	// interrupt pin is not floating
 	bitWrite(ioconf_value, 1, 1);	// interrupt is signaled by high
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_IOCONB, ioconf_value);
+	wiringPiI2CWriteReg8(fd, MCP23x17_IOCONB, ioconf_value);
 
 	// finally, enable the interrupt pins for banks a and b
 	// enable interrupts on all pins
 	reg = 0xff;
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENA, reg);
-	wiringPiI2CWriteReg8(mcp23017_node->fd, MCP23x17_GPINTENB, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_GPINTENA, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x17_GPINTENB, reg);
 
 	// Setup data struct
-	int j;
+	zynmcp23017s[i].fd = fd;
 	zynmcp23017s[i].base_pin = base_pin;
 	zynmcp23017s[i].i2c_address = i2c_address;
 	zynmcp23017s[i].intA_pin = intA_pin;
 	zynmcp23017s[i].intB_pin = intB_pin;
-	zynmcp23017s[i].wpi_node = mcp23017_node;
-	uint16_t regA = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOA);
-	uint16_t regB = wiringPiI2CReadReg8(mcp23017_node->fd, MCP23x17_GPIOB);
+	uint16_t regA = wiringPiI2CReadReg8(fd, MCP23x17_GPIOA);
+	uint16_t regB = wiringPiI2CReadReg8(fd, MCP23x17_GPIOB);
 	zynmcp23017s[i].last_state = (regB << 8) | regA;
-	for (j=0;j<16;j++) {
+	int j;
+	for (j=0; j<16; j++) {
 		zynmcp23017s[i].pin_action[j] = NONE_PIN_ACTION;
 		zynmcp23017s[i].pin_action_num[j] = 0;
 	}
 	zynmcp23017s[i].enabled = 1;
 
-	// pi ISRs for the 23017
-	wiringPiISR(intA_pin, INT_EDGE_RISING, isrs[0]);
-	wiringPiISR(intB_pin, INT_EDGE_RISING, isrs[1]);
+	// Setup callbacks for the interrupt pins
+	struct gpiod_line *line_a = gpiod_chip_get_line(rpi_chip, intA_pin);
+	if (line_a) {
+		if (gpiod_line_request_rising_edge_events_flags(line_a, ZYNCORE_CONSUMER, 0) >=0) {
+			gpiod_line_register_callback(line_a, isrs[0]);
+		} else {
+			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTA pin %d\n", i, intA_pin);
+			return 0;
+		}
+	} else {
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't get line for INTA pin %d\n", i, intA_pin);
+		return 0;
+	}
+	struct gpiod_line *line_b = gpiod_chip_get_line(rpi_chip, intB_pin);
+	if (line_b) {
+		if (gpiod_line_request_rising_edge_events_flags(line_b, ZYNCORE_CONSUMER, 0) >=0) {
+			gpiod_line_register_callback(line_b, isrs[1]);
+		} else {
+			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTB pin %d\n", i, intB_pin);
+			return 0;
+		}
+	} else {
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't get line for INTB pin %d\n", i, intB_pin);
+		return 0;
+	}
 
 	#ifdef DEBUG
 	fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): I2C %x, base-pin %d, INTA %d, INTB %d\n", i, i2c_address, base_pin, intA_pin, intB_pin);
@@ -213,12 +242,12 @@ int read_pin_zynmcp23017(uint16_t pin) {
 		uint16_t reg;
 		// Bank A
 		if (bit<8) {
-			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOA);
+			reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOA);
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
 			return bitRead(reg, bit);
 		// Bank B
 		} else if (bit<16) {
-			reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOB);
+			reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOB);
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
 			return bitRead(reg, (bit - 8));
 		} else {
@@ -268,14 +297,14 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 
 	if (bank==0) {
 		pin_offset = 0;
-		reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOA);
-		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPA);
+		reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOA);
+		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_INTCAPA);
 		rdiff = reg ^ (zynmcp23017s[i].last_state & 0x00FF);
 		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
 	} else if (bank==1) {
 		pin_offset = 8;
-		reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_GPIOB);
-		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].wpi_node->fd, MCP23x17_INTCAPB);
+		reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOB);
+		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_INTCAPB);
 		rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
 		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
 	} else {

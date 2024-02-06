@@ -5,8 +5,6 @@ typedef uint8_t bool;
 
 #include <MCP4728.h>
 
-
-
 #define MCP4728_I2C_ADDR 0x60
 #define MCP4728_LDAC_GPIO 24
 
@@ -17,5 +15,3 @@ int main() {
 	mcp4728_deinitialize(mcp4728_chip);
 	return 0;
 }
-
-

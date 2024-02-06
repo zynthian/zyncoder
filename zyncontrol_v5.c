@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "gpiod_callback.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 #include "tpa6130.h"
@@ -44,8 +45,8 @@
 
 #define MCP23017_1_BASE_PIN 100
 #define MCP23017_1_I2C_ADDRESS 0x20
-#define MCP23017_1_INTA_PIN 21
-#define MCP23017_1_INTB_PIN 22
+#define MCP23017_1_INTA_PIN  5 // wiringPi 21
+#define MCP23017_1_INTB_PIN  6 // wiringPi 22
 
 void zynmcp23017_ISR_bankA_1() {
 	zynmcp23017_ISR(0, 0);
@@ -64,13 +65,12 @@ void (*zynmcp23017_ISRs_1[2]) = {
 
 #define MCP23017_2_BASE_PIN 200
 #define MCP23017_2_I2C_ADDRESS 0x21
-
 #if Z2_VERSION==1
-	#define MCP23017_2_INTA_PIN 11
-	#define MCP23017_2_INTB_PIN 10
+	#define MCP23017_2_INTA_PIN  7 // wiringPi 11
+	#define MCP23017_2_INTB_PIN  8 // wiringPi 10
 #else
-	#define MCP23017_2_INTA_PIN 0
-	#define MCP23017_2_INTB_PIN 2
+	#define MCP23017_2_INTA_PIN 17 // wiringPi 0
+	#define MCP23017_2_INTB_PIN 27 // wiringPi 2
 #endif
 
 void zynmcp23017_ISR_bankA_2() {
@@ -140,7 +140,7 @@ uint8_t get_hpvol_max() { return tpa6130_get_volume_max(); }
 #endif
 
 int init_zyncontrol() {
-	wiringPiSetup();
+	gpiod_init_callbacks();
 	#ifdef TPA6130_DRIVER
 	tpa6130_init();
 	#endif
@@ -150,10 +150,12 @@ int init_zyncontrol() {
 	#ifdef ZYNAPTIK_CONFIG
 	init_zynaptik();
 	#endif
+	gpiod_start_callbacks();
 	return 1;
 }
 
 int end_zyncontrol() {
+	gpiod_stop_callbacks();
 	#ifdef ZYNAPTIK_CONFIG
 	end_zynaptik();
 	#endif

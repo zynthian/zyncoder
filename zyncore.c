@@ -23,7 +23,7 @@
  * ******************************************************************
  */
 
-#include <wiringPi.h>
+#include "gpiod_callback.h"
 #include "zyncontrol.h"
 #include "zynmidirouter.h"
 #include "zynmaster.h"
@@ -38,7 +38,7 @@ int init_zyncore() {
 }
 
 int init_zyncore_minimal() {
-	wiringPiSetup();
+	//gpiod_init_callbacks();
 	return 1;
 }
 

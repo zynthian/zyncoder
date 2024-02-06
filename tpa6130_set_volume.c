@@ -25,7 +25,6 @@
  * ******************************************************************
  */
 
-#include <wiringPi.h>
 #include "tpa6130.h"
 
 //-------------------------------------------------------------------
@@ -35,7 +34,6 @@ int main(int argc, char *argv[]) {
 	if (argc>=2) {
 		vol = atoi(argv[1]);
 	}
-	wiringPiSetup();
 	tpa6130_init();
 	printf("Setting TPA6130 volume to %d\n", vol);
 	tpa6130_set_volume(vol);

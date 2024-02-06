@@ -23,8 +23,10 @@
  * ******************************************************************
  */
 
+#ifndef ZYNRV112_H
+#define ZYNRV112_H
+
 #include <stdlib.h>
-#include <wiringPi.h>
 
 #include "zynads1115.h"
 
@@ -49,6 +51,11 @@
 #define RV112_ADS1115_RAW_DIV 20
 
 #define MAX_NUM_RV112 4
+#define DVBUF_SIZE 10
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct rv112_st {
 	uint8_t enabled;
@@ -57,9 +64,9 @@ typedef struct rv112_st {
 	int8_t zpot_i;
 
 	// Next fields are RV112-specific
-	uint16_t base_pin;
-	uint16_t pinA;
-	uint16_t pinB;
+	ads1115_t *ads1115_node;
+	uint16_t chA;
+	uint16_t chB;
 
 	int32_t valA;
 	int32_t valB;
@@ -70,23 +77,16 @@ typedef struct rv112_st {
 	int32_t dvavg;
 } rv112_t;
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //-----------------------------------------------------------------------------
 // RV112's zynpot API
 //-----------------------------------------------------------------------------
-
-#define DVBUF_SIZE 10
 
 void init_rv112s();
 void end_rv112s();
 
 int get_num_rv112s();
 
-int setup_rv112(uint8_t i, uint16_t base_pin, uint8_t reversed_pins);
+int setup_rv112(uint8_t i, ads1115_t *ads1115, uint8_t reversed_chans);
 
 int setup_behaviour_rv112(uint8_t i, int32_t step);
 int32_t get_value_rv112(uint8_t i);
@@ -102,4 +102,8 @@ pthread_t init_poll_rv112();
 
 #ifdef __cplusplus
 }
+#endif
+
+//-----------------------------------------------------------------------------
+
 #endif
