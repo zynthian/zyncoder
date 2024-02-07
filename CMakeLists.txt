@@ -184,7 +184,7 @@ message("++ Building for Wiring Layout $ENV{ZYNTHIAN_WIRING_LAYOUT}")
 set_source_files_properties( zynrv112.c PROPERTIES LANGUAGE CXX LINKER_LANGUAGE CXX)
 
 if (("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V1") OR ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V2") OR ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "Z2_V3"))
-	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_z2.c lm4811.h lm4811.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zynmcp23008.h zynmcp23008.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c wiringPiI2C.h wiringPiI2C.c gpiod_callback.h gpiod_callback.c)
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_z2.c lm4811.h lm4811.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c wiringPiI2C.h wiringPiI2C.c gpiod_callback.h gpiod_callback.c)
 	target_link_libraries(zyncore gpiod jack lo)
 	add_executable(lm4811_set_volume lm4811_set_volume.c lm4811.c gpiod_callback.h gpiod_callback.c)
 	target_link_libraries(lm4811_set_volume gpiod pthread)
