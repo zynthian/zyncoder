@@ -131,7 +131,7 @@ int gpiod_init_callbacks() {
 	// Initialize RPI GPIO chip
 	rpi_chip = gpiod_chip_open_by_name(RPI_CHIP_NAME);
 	if (!rpi_chip) {
-		fprintf(stderr, "Can't open GPIOD RPI chip: %s\n", RPI_CHIP_NAME);
+		fprintf(stderr, "ZynCore->gpiod_init_callbacks(): Can't open RPI's GPIO chip: %s\n", RPI_CHIP_NAME);
 		rpi_chip = NULL;
 		return 0;
 	}
@@ -144,6 +144,7 @@ int gpiod_line_register_callback(struct gpiod_line *line, void (*callback)(void)
 		rpi_gpiod_callbacks[pin].pin = pin;
 		rpi_gpiod_callbacks[pin].line = line;
 		rpi_gpiod_callbacks[pin].callback = callback;
+		//fprintf(stderr, "ZynCore->gpiod_line_register_callback(): Registered callback on pin %d\n", pin);
 		return 1;
 	}
 	return 0;

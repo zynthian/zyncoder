@@ -110,10 +110,10 @@ int16_t zyncoder_pins_b[NUM_ZYNPOTS];
 
 void reset_wiring_config() {
 	int16_t i;
-	for (i=0;i<NUM_ZYNSWITCHES;i++) zynswitch_pins[i] = 0;
+	for (i=0;i<NUM_ZYNSWITCHES;i++) zynswitch_pins[i] = -1;
 	for (i=0;i<NUM_ZYNPOTS;i++) {
-		zyncoder_pins_a[i] = 0;
-		zyncoder_pins_b[i] = 0;
+		zyncoder_pins_a[i] = -1;
+		zyncoder_pins_b[i] = -1;
 	}
 }
 
@@ -152,8 +152,9 @@ void init_zynswitches() {
 
 	int16_t i;
 	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
-	for (i=0;i<NUM_ZYNSWITCHES;i++) {
-		if (zynswitch_pins[i]>0) {
+	for (i=0; i<NUM_ZYNSWITCHES; i++) {
+		if (zynswitch_pins[i] >= 0) {
+			//fprintf(stderr, "ZynCore: Setting-up zynswitch in pin %d...\n", zynswitch_pins[i]);
 			setup_zynswitch(i, zynswitch_pins[i], 1);
 		}
 	}
@@ -169,8 +170,9 @@ void init_zynpots() {
 
 	int16_t i;
 	fprintf(stderr, "ZynCore: Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
-	for (i=0;i<NUM_ZYNPOTS;i++) {
-		if (zyncoder_pins_a[i]>-1 && zyncoder_pins_b[i]>-1) {
+	for (i=0; i<NUM_ZYNPOTS; i++) {
+		if (zyncoder_pins_a[i] >= 0 && zyncoder_pins_b[i] >= 0) {
+			//fprintf(stderr, "ZynCore: Setting-up zyncoder in pins (%d, %d)...\n", zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
 		}

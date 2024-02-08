@@ -78,16 +78,18 @@ typedef struct zynmcp23008_st {
 	int fd;
 	uint16_t base_pin;
 	uint8_t i2c_address;
-
+	uint8_t output_state;
 } zynmcp23008_t;
 
 void reset_zynmcp23008s();
 int setup_zynmcp23008(uint8_t i, uint16_t base_pin, uint8_t i2c_address);
-int get_last_zynmcp23008_index();
-
-int pin2index_zynmcp23008(uint16_t pin);
-uint8_t read_pins_zynmcp23008(uint8_t i);
-int read_pin_zynmcp23008(uint16_t pin);
+int8_t zynmcp23008_get_last_index();
+int8_t zynmcp23008_pin2index(uint16_t pin);
+void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode);
+void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode);
+void zynmcp23008_write_pin (uint8_t i, uint16_t pin, uint8_t val);
+uint8_t zynmcp23008_read_pin (uint8_t i, uint16_t pin);
+uint8_t zynmcp23008_read_pins_(uint8_t i);
 
 //Switches Polling Thread (should be avoided!)
 pthread_t init_poll_zynswitches();

@@ -84,49 +84,42 @@ int setup_zynmcp23008(uint8_t i, uint16_t base_pin, uint8_t i2c_address) {
 	wiringPiI2CWriteReg8(fd, MCP23x08_IOCON, IOCON_INIT);
 	uint8_t olat = wiringPiI2CReadReg8 (fd, MCP23x08_OLAT);
 
-	// setup all the pins as inputs and disable pullups on the zyncoder input
-	uint8_t reg = 0xff;
-	wiringPiI2CWriteReg8(fd, MCP23x08_IODIR, reg);
+	// setup all the pins as inputs and disable pullups
+	wiringPiI2CWriteReg8(fd, MCP23x08_IODIR, 0xff);
 
 	// enable pullups on the unused pins (high two bits)
-	reg = 0xff;
-	//reg = 0xc0;
-	//reg = 0x60;
-	wiringPiI2CWriteReg8(fd, MCP23x08_GPPU, reg);
+	wiringPiI2CWriteReg8(fd, MCP23x08_GPPU, 0xff);
 
 	// disable polarity inversion
-	reg = 0;
-	wiringPiI2CWriteReg8(fd, MCP23x08_IPOL, reg);
+	//wiringPiI2CWriteReg8(fd, MCP23x08_IPOL, 0x0);
 
 	// disable the comparison to DEFVAL register
-	reg = 0;
-	wiringPiI2CWriteReg8(fd, MCP23x08_INTCON, reg);
+	//wiringPiI2CWriteReg8(fd, MCP23x08_INTCON, 0x0);
 
 	// Setup data struct
 	zynmcp23008s[i].fd = fd;
 	zynmcp23008s[i].base_pin = base_pin;
 	zynmcp23008s[i].i2c_address = i2c_address;
-	reg = wiringPiI2CReadReg8(fd, MCP23x08_GPIO);
+	zynmcp23008s[i].output_state = olat;
+	wiringPiI2CReadReg8(fd, MCP23x08_GPIO);
 	zynmcp23008s[i].enabled = 1;
 
-	#ifdef DEBUG
-	fprintf(stderr, "ZynCore->setup_zynmcp23008(%d, ...): I2C %x, base-pin %d\n", i, i2c_address, base_pin);
-	#endif
+	//fprintf(stderr, "ZynCore->setup_zynmcp23008(%d, ...): I2C %x, base-pin %d\n", i, i2c_address, base_pin);
 
 	return 1;
 }
 
-int get_last_zynmcp23008_index() {
-	int i;
-	int li = 0;
-	for (i=0;i<MAX_NUM_MCP23008;i++) {
-		if (zynmcp23008s[i].enabled!=0) li = i;
+int8_t zynmcp23008_get_last_index() {
+	uint8_t i;
+	uint8_t li = -1;
+	for (i=0; i<MAX_NUM_MCP23008; i++) {
+		if (zynmcp23008s[i].enabled != 0) li = i;
 	}
 	return li;
 }
 
-int pin2index_zynmcp23008(uint16_t pin) {
-	int i;
+int8_t zynmcp23008_pin2index(uint16_t pin) {
+	int8_t i;
 	for (i=0;i<MAX_NUM_MCP23008;i++) {
 		if (zynmcp23008s[i].enabled) {
 			if (pin >= zynmcp23008s[i].base_pin && pin < (zynmcp23008s[i].base_pin+8)) return i;
@@ -135,32 +128,82 @@ int pin2index_zynmcp23008(uint16_t pin) {
 	return -1;
 }
 
-uint8_t read_pins_zynmcp23008(uint8_t i) {
-	return wiringPiI2CReadReg8(zynmcp23008s[i].fd, MCP23x08_GPIO);
+/*
+ * zynmcp23008_set_pin_mode:
+ *  i : chip index
+ *  pin : pin number
+ *  mode : INPUT=1, OUTPUT=0
+ */
+void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode) {
+	uint8_t mask, data ;
+	data  = wiringPiI2CReadReg8 (zynmcp23008s[i].fd, MCP23x08_IODIR) ;
+	mask = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
+	if (mode == 0) data &= (~mask) ;
+	else data |= mask ;
+	wiringPiI2CWriteReg8 (zynmcp23008s[i].fd, MCP23x08_IODIR, data) ;
 }
 
-int read_pin_zynmcp23008(uint16_t pin) {
-	int i = pin2index_zynmcp23008(pin);
-	if (i>=0) {
-		uint8_t bit = pin - zynmcp23008s[i].base_pin;
-		uint16_t reg;
-		if (bit<8) {
-			reg = wiringPiI2CReadReg8(zynmcp23008s[i].fd, MCP23x08_GPIO);
-			return bitRead(reg, bit);
-		} else {
-			fprintf(stderr, "ZynCore: read_pin_zynmcp23008(%d) => pin %d out of range!\n", pin);
-			return -1;
-		}
-	}
-	fprintf(stderr, "ZynCore: read_pin_zynmcp23008(%d) => invalid pin!\n", pin);
-	return -1;
+/*
+ * zynmcp23008_set_pull_up_down:
+ *  i : chip index
+ *  pin : pin number
+ *  mode : UP=1, DOWN=0
+ */
+void zynmcp23008_set_pull_up_down (uint8_t i, uint16_t pin, uint8_t mode) {
+	uint8_t mask, data ;
+	//int8_t i = pin2index_zynmcp23008(pin);
+	data  = wiringPiI2CReadReg8 (zynmcp23008s[i].fd, MCP23x08_GPPU) ;
+	mask = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
+	if (mode == 0) data &= (~mask) ;
+	else data |= mask ;
+	wiringPiI2CWriteReg8 (zynmcp23008s[i].fd, MCP23x08_GPPU, data) ;
+}
+
+/*
+ * zynmcp23008_write_pin:
+ *  i : chip index
+ *  pin : pin number
+ *  val : value to write (1/0)
+ */
+void zynmcp23008_write_pin (uint8_t i, uint16_t pin, uint8_t val) {
+	uint8_t mask, data ;
+	data = zynmcp23008s[i].output_state ;
+	mask  = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
+	if (val == 0) data &= (~mask) ;
+	else data |= mask ;
+	wiringPiI2CWriteReg8 (zynmcp23008s[i].fd, MCP23x08_GPIO, data) ;
+	zynmcp23008s[i].output_state = data;
+}
+
+/*
+ * zynmcp23008_read_pin:
+ *  i : chip index
+ *  pin : pin number
+ *  Returns read value (1/0)
+ */
+uint8_t zynmcp23008_read_pin (uint8_t i, uint16_t pin) {
+	uint8_t mask, data ;
+	mask  = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
+	data = wiringPiI2CReadReg8 (zynmcp23008s[i].fd, MCP23x08_GPIO) ;
+	if ((data & mask) == 0) return 0 ;
+	else return 1 ;
+}
+
+/*
+ * zynmcp23008_read_pins:
+ *  i : chip index
+ *  Returns read values (as bits)
+ */
+uint8_t zynmcp23008_read_pins(uint8_t i) {
+	return wiringPiI2CReadReg8(zynmcp23008s[i].fd, MCP23x08_GPIO);
 }
 
 //-----------------------------------------------------------------------------
 // MCP23008 Polling (only switches)
 //-----------------------------------------------------------------------------
 
-//Update Polled (Non-ISR) switches (expanded GPIO with MCP23008 without INT => legacy V1's 2in1 module only!)
+// Update polled (non-ISR) switches (expanded GPIO with MCP23008 without connecting INT line
+// This is only used by legacy V1's 2in1 module!!
 void update_polled_zynswitches(int8_t i) {
 	struct timespec ts;
 	unsigned long int tsus;
@@ -168,6 +211,7 @@ void update_polled_zynswitches(int8_t i) {
 	tsus=ts.tv_sec*1000000 + ts.tv_nsec/1000;
 
 	uint8_t rdata = wiringPiI2CReadReg8(zynmcp23008s[i].fd, MCP23x08_GPIO);
+	//fprintf(stderr, "POLLING MCP23008 (%d) => 0x%x\n", i, rdata);
 
 	int j;
 	uint8_t bit;
@@ -177,16 +221,17 @@ void update_polled_zynswitches(int8_t i) {
 		// This assumes all zynswitches configured with high pin (>=100) are polled!
 		if (!zsw->enabled || zsw->pin<100) continue;
 		bit = zsw->pin - zynmcp23008s[i].base_pin;
-		if (bit<8) status=bitRead(rdata, bit);
-		else {
-			fprintf(stderr, "ZynCoder->update_polled_zynswitches(%d): Wrong pin number%d!\n", i, zsw->pin);
+		if (bit<8) {
+			status=bitRead(rdata, bit);
+		} else {
+			fprintf(stderr, "ZynCoder->update_polled_zynswitches(%d): Wrong pin number %d in zynswitch %d!\n", i, zsw->pin, j);
 			status = 0;
 		}
-		//fprintf(stderr, "POLLING SWITCH %d (%d) => %d\n",i,zsw->pin,status);
-		if (status==zsw->status) continue;
+		//fprintf(stderr, "POLLING SWITCH %d on pin %d => %d\n", j, zsw->pin, status);
+		if (status == zsw->status) continue;
 		zsw->status=status;
 		send_zynswitch_midi(zsw);
-		//fprintf(stderr, "POLLING SWITCH %d => STATUS=%d (%lu)\n",i,zsw->status,tsus);
+		//fprintf(stderr, "POLLING SWITCH %d => STATUS=%d (%lu)\n", i, zsw->status, tsus);
 		if (zsw->status==1) {
 			if (zsw->tsus>0) {
 				unsigned int dtus=tsus-zsw->tsus;

@@ -411,6 +411,8 @@ int get_num_zyncoders() {
 void update_zyncoder(uint8_t i, uint8_t msb, uint8_t lsb) {
 	zyncoder_t *zcdr = zyncoders + i;
 
+	//fprintf(stderr, "ZynCore->update_zyncoder(%d, %d, %d)\n", i, msb, lsb);
+
 	// step == 0 so use software filter algorithm and speed based scaling
 	// Shift last read state to top of short history
 	zcdr->short_history <<= 2;
@@ -542,7 +544,7 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 			#endif
 		}
 		else {
-			fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with mixed pins (RBPi & MCP230XX)!\n", i, pin_a, pin_b);
+			fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder with mixed pins (RBPi & MCP23017)!\n", i, pin_a, pin_b);
 			return 0;
 		}
 	}
@@ -614,7 +616,7 @@ void (*zynswitch_rbpi_ISRs[8])={
 
 
 void zyncoder_rbpi_ISR(uint8_t i) {
-	if (i>=MAX_NUM_ZYNSWITCHES) return;
+	if (i>=MAX_NUM_ZYNCODERS) return;
 	zyncoder_t *zcdr = zyncoders + i;
 	if (zcdr->enabled==0) return;
 	update_zyncoder(i, (uint8_t)gpiod_line_get_value(zcdr->line_a), (uint8_t)gpiod_line_get_value(zcdr->line_b));
