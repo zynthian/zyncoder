@@ -28,7 +28,7 @@
 #include <string.h>
 
 #include "gpiod_callback.h"
-#include "mcp23008.h"
+#include "zynmcp23008.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 

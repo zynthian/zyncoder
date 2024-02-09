@@ -110,7 +110,6 @@ static inline int i2c_smbus_access (int fd, char rw, uint8_t command, int size, 
   return ioctl (fd, I2C_SMBUS, &args) ;
 }
 
-
 /*
  * wiringPiI2CRead:
  *	Simple device read
@@ -126,7 +125,6 @@ int wiringPiI2CRead (int fd)
   else
     return data.byte & 0xFF ;
 }
-
 
 /*
  * wiringPiI2CReadReg8: wiringPiI2CReadReg16:
@@ -154,7 +152,6 @@ int wiringPiI2CReadReg16 (int fd, int reg)
     return data.word & 0xFFFF ;
 }
 
-
 /*
  * wiringPiI2CWrite:
  *	Simple device write
@@ -165,7 +162,6 @@ int wiringPiI2CWrite (int fd, int data)
 {
   return i2c_smbus_access (fd, I2C_SMBUS_WRITE, data, I2C_SMBUS_BYTE, NULL) ;
 }
-
 
 /*
  * wiringPiI2CWriteReg8: wiringPiI2CWriteReg16:
@@ -189,7 +185,6 @@ int wiringPiI2CWriteReg16 (int fd, int reg, int value)
   return i2c_smbus_access (fd, I2C_SMBUS_WRITE, reg, I2C_SMBUS_WORD_DATA, &data) ;
 }
 
-
 /*
  * wiringPiI2CSetupInterface:
  *	Undocumented access to set the interface explicitly - might be used
@@ -200,20 +195,16 @@ int wiringPiI2CWriteReg16 (int fd, int reg, int value)
 int wiringPiI2CSetupInterface (const char *device, int devId)
 {
   int fd ;
-
   if ((fd = open (device, O_RDWR)) < 0) {
     fprintf(stderr, "Unable to open I2C device: %s\n", strerror(errno));
     return 0;
   }
-
   if (ioctl (fd, I2C_SLAVE, devId) < 0) {
     fprintf(stderr, "Unable to select I2C device: %s\n", strerror(errno));
     return 0;
   }
-
   return fd ;
 }
-
 
 /*
  * wiringPiI2CSetup:
@@ -223,16 +214,7 @@ int wiringPiI2CSetupInterface (const char *device, int devId)
 
 int wiringPiI2CSetup (const int devId)
 {
-  int rev ;
-  const char *device ;
-
-  //rev = piGpioLayout () ;
-  rev = 0;
-
-  if (rev == 1)
-    device = "/dev/i2c-0" ;
-  else
-    device = "/dev/i2c-1" ;
-
-  return wiringPiI2CSetupInterface (device, devId) ;
+  char * i2c_device = getenv ("I2C_DEVICE");
+  if (!i2c_device) i2c_device = DEFAULT_I2C_DEVICE;
+  return wiringPiI2CSetupInterface (i2c_device, devId) ;
 }

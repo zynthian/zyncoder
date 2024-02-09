@@ -169,7 +169,7 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 
 		// RBPi GPIO pin
 		if (pin<100) {
-			struct gpiod_line *line = gpiod_chip_get_line(rpi_chip, pin);
+			struct gpiod_line *line = gpiod_chip_get_line(gpio_chip, pin);
 			if (line) {
 				int flags = 0;
 				if (!off_state) flags = GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
@@ -481,8 +481,8 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	if (pin_a!=pin_b) {
 		// RBPi GPIO pins
 		if (pin_a<100 && pin_b<100) {
-			struct gpiod_line *line_a = gpiod_chip_get_line(rpi_chip, pin_a);
-			struct gpiod_line *line_b = gpiod_chip_get_line(rpi_chip, pin_b);
+			struct gpiod_line *line_a = gpiod_chip_get_line(gpio_chip, pin_a);
+			struct gpiod_line *line_b = gpiod_chip_get_line(gpio_chip, pin_b);
 			if (line_a && line_b) {
 				if (gpiod_line_request_both_edges_events_flags(line_a, ZYNCORE_CONSUMER, 0) >=0 &&
 					gpiod_line_request_both_edges_events_flags(line_b, ZYNCORE_CONSUMER, 0) >=0) {

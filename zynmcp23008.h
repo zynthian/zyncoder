@@ -28,6 +28,7 @@
 #ifndef ZYNMCP23008_H
 #define ZYNMCP23008_H
 
+#include <stdint.h>
 #include <pthread.h>
 
 //-----------------------------------------------------------------------------

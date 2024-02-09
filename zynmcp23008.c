@@ -35,7 +35,7 @@
 //#define DEBUG
 
 #include "wiringPiI2C.h"
-#include "mcp23008.h"
+#include "zynmcp23008.h"
 #include "zyncoder.h"
 
 //-----------------------------------------------------------------------------

@@ -22,6 +22,8 @@
  ***********************************************************************
  */
 
+#define DEFAULT_I2C_DEVICE "/dev/i2c-1"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

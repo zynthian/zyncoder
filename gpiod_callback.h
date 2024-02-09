@@ -28,9 +28,9 @@
 
 #include <gpiod.h>
 
-#define	NUM_RPI_PINS		28
-#define RPI_CHIP_NAME "gpiochip0"
-#define ZYNCORE_CONSUMER "zyncore"
+#define DEFAULT_GPIO_CHIP_DEVICE	"/dev/gpiochip0"
+#define	NUM_GPIO_PINS			28
+#define ZYNCORE_CONSUMER		"zyncore"
 
 // Callback data structure
 struct gpiod_callback {
@@ -39,7 +39,7 @@ struct gpiod_callback {
 	void (*callback)(void);
 };
 
-extern struct gpiod_chip *rpi_chip;
+extern struct gpiod_chip *gpio_chip;
 
 extern int8_t wpi2gpio[32];
 extern int8_t gpio2wpi[28];

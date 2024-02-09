@@ -37,10 +37,10 @@
 //-------------------------------------------------------------------
 
 // GPIO Chip Data Structure
-struct gpiod_chip *rpi_chip = NULL;
+struct gpiod_chip *gpio_chip = NULL;
 
 // Array of callback structures
-struct gpiod_callback rpi_gpiod_callbacks[NUM_RPI_PINS];
+struct gpiod_callback rpi_gpiod_callbacks[NUM_GPIO_PINS];
 
 // Bulk structure for callback lines
 struct gpiod_line_bulk cb_line_bulk;
@@ -48,6 +48,11 @@ struct gpiod_line_bulk cb_line_bulk;
 int end_callback_thread_flag = 0;
 pthread_t callback_thread_tid;
 
+//-------------------------------------------------------------------
+// Pin number conversion arrays
+//-------------------------------------------------------------------
+
+// WiringPi => GPIO number (BCM)
 int8_t wpi2gpio[32] = {
 	17, // 0
 	18, // 1
@@ -83,6 +88,7 @@ int8_t wpi2gpio[32] = {
 	1   // 31
 };
 
+// GPIO number (BCM) => WiringPi
 int8_t gpio2wpi[28] = {
 	30, // 0
 	31, // 1
@@ -122,17 +128,19 @@ int gpiod_init_callbacks() {
 	int i;
 
 	// Initialize GPIOD callback data structures
-	for (i=0; i<NUM_RPI_PINS; i++) {
+	for (i=0; i<NUM_GPIO_PINS; i++) {
 		rpi_gpiod_callbacks[i].pin = -1;
 		rpi_gpiod_callbacks[i].line = NULL;
 		rpi_gpiod_callbacks[i].callback = NULL;
 	}
 
-	// Initialize RPI GPIO chip
-	rpi_chip = gpiod_chip_open_by_name(RPI_CHIP_NAME);
-	if (!rpi_chip) {
-		fprintf(stderr, "ZynCore->gpiod_init_callbacks(): Can't open RPI's GPIO chip: %s\n", RPI_CHIP_NAME);
-		rpi_chip = NULL;
+	// Determine the GPIO chip to use and initialize it
+	char * gpio_chip_device = getenv ("GPIO_CHIP_DEVICE");
+	if (!gpio_chip_device) gpio_chip_device = DEFAULT_GPIO_CHIP_DEVICE;
+	gpio_chip = gpiod_chip_open(gpio_chip_device);
+	if (!gpio_chip) {
+		fprintf(stderr, "ZynCore->gpiod_init_callbacks(): Can't open RPI's GPIO chip: %s\n", gpio_chip_device);
+		gpio_chip = NULL;
 		return 0;
 	}
 	return 1;
@@ -194,7 +202,7 @@ void * gpiod_callbacks_thread(void *arg) {
 int gpiod_start_callbacks() {
 	int i;
 	gpiod_line_bulk_init(&cb_line_bulk);
-	for (i=0; i<NUM_RPI_PINS; i++) {
+	for (i=0; i<NUM_GPIO_PINS; i++) {
 		struct gpiod_line *line = rpi_gpiod_callbacks[i].line;
 		if (line) gpiod_line_bulk_add(&cb_line_bulk, line);
 	}
@@ -218,42 +226,6 @@ int gpiod_stop_callbacks() {
 int gpiod_restart_callbacks() {
 	gpiod_stop_callbacks();
 	return gpiod_start_callbacks();
-}
-
-//-------------------------------------------------------------------
-// Main function
-//-------------------------------------------------------------------
-
-void callback_pin() {
-	fprintf(stderr,"CALLBACK PIN\n");
-}
-
-int _main() {
-	int i;
-	struct gpiod_line *line;
-
-	int pins[4] = { 17, 27, 5, 6};
-
-	gpiod_init_callbacks();
-	for (i=0; i<4; i++) {
-		int pin = pins[i];
-	 	line = gpiod_chip_get_line(rpi_chip, pin);
-	 	if (line) {
-	 		int flags = 0;
-	 		if (gpiod_line_request_both_edges_events_flags(line, ZYNCORE_CONSUMER, flags)>=0) {
-				gpiod_line_register_callback(line, callback_pin);
-				fprintf(stderr, "Succesfully registered pin %d for events\n", pin);
-			} else {
-				fprintf(stderr, "Error while registering pin %d for events\n", pin);
-			}
-		} else {
-			fprintf(stderr, "Error while getting line for pin %d\n", pin);
-		}
-	}
-
-	gpiod_start_callbacks();
-
-	return 0;
 }
 
 //-------------------------------------------------------------------
