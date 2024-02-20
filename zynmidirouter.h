@@ -353,10 +353,12 @@ int zmop_set_note_low(int iz, uint8_t nlow);
 int zmop_set_note_high(int iz, uint8_t nhigh);
 int zmop_set_transpose_octave(int iz, int8_t trans_oct);
 int zmop_set_transpose_semitone(int iz, int8_t trans_semi);
+int set_global_transpose(int8_t transpose);
 uint8_t zmop_get_note_low(int iz);
 uint8_t zmop_get_note_high(int iz);
 int8_t zmop_get_transpose_octave(int iz);
 int8_t zmop_get_transpose_semitone(int iz);
+int8_t get_global_transpose();
 int zmop_set_note_range_transpose(int iz, uint8_t nlow, uint8_t nhigh, int8_t trans_oct, int8_t trans_semi);
 int zmop_reset_note_range_transpose(int iz);
 // ----------------------------------------------------------------------------

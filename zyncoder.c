@@ -255,17 +255,17 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 }
 
 unsigned int get_zynswitch_dtus(uint8_t i, unsigned int long_dtus) {
-	unsigned int dtus=zynswitches[i].dtus;
-	if (dtus>0) {
-		zynswitches[i].dtus=0;
+	unsigned int dtus = zynswitches[i].dtus;
+	if (dtus > 0) {
+		zynswitches[i].dtus = 0;
 		return dtus;
 	}
-	else if (zynswitches[i].tsus>0) {
+	else if (zynswitches[i].tsus > 0) {
 		struct timespec ts;
 		clock_gettime(CLOCK_MONOTONIC, &ts);
-		dtus=ts.tv_sec*1000000 + ts.tv_nsec/1000 - zynswitches[i].tsus;
+		dtus = ts.tv_sec * 1000000 + ts.tv_nsec / 1000 - zynswitches[i].tsus;
 		if (dtus>long_dtus) {
-			zynswitches[i].tsus=0;
+			zynswitches[i].tsus = 0;
 			return dtus;
 		}
 	}

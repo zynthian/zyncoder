@@ -4,7 +4,7 @@
  * 
  * MIDI router library: Implements the MIDI router & filter 
  * 
- * Copyright (C) 2015-2023 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2024 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
@@ -43,6 +43,7 @@ int active_chain;						// Index of the active chain zmop
 int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_system_events;					// Flag to enable/disable system events globally
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
+int8_t global_transpose;     			// All incoming (zmip) notes are transposed
 
 midi_filter_t midi_filter;
 struct zmip_st zmips[MAX_NUM_ZMIPS];
@@ -64,6 +65,7 @@ int init_zynmidirouter() {
 	midi_master_chan =- 1;
 	midi_system_events = 1;
 	midi_learning_mode = 0;
+	global_transpose = 0;
 
 	if (!init_zynmidi_buffer())
 		return 0;
@@ -877,6 +879,18 @@ int zmop_get_routes_info_all(int *buffer) {
 
 // Note range & Transpose
 
+int set_global_transpose(int8_t transpose) {
+	global_transpose = transpose;
+	// All sounds off - blunt but avoids stuck notes
+	for (int chan = 0; chan < 16; ++chan)
+		ui_send_ccontrol_change(chan, 120, 0);
+	return global_transpose;
+}
+
+int8_t get_global_transpose() {
+	return global_transpose;
+}
+
 int zmop_set_note_low(int iz, uint8_t nlow) {
 	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
@@ -1432,7 +1446,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 			return;
 
 		// Transpose
-		note += zmop->transpose_octave * 12 + zmop->transpose_semitone;
+		note += zmop->transpose_octave * 12 + zmop->transpose_semitone + global_transpose;
 		if (note > 0x7F || note < 0)
 			return; // Transposed note out of range
 
