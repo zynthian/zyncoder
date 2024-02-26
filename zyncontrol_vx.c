@@ -101,7 +101,7 @@ void init_zynmcp23008s() {
 // Get wiring config from environment
 //-----------------------------------------------------------------------------
 
-#define NUM_ZYNSWITCHES 8
+#define NUM_ZYNSWITCHES 16
 #define NUM_ZYNPOTS 4
 
 int16_t zynswitch_pins[NUM_ZYNSWITCHES];
