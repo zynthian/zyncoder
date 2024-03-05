@@ -103,6 +103,10 @@ typedef struct midi_event_st {
 void set_active_chain(int iz);
 int get_active_chain();
 
+// Active MIDI chan flag
+void set_active_midi_chan(int flag);
+int get_active_midi_chan();
+
 //Global tuning => Based on MIDI Pitch-Bending messages
 void set_tuning_freq(double freq);
 int get_tuning_pitchbend();

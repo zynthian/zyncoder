@@ -40,6 +40,7 @@
 
 int tuning_pitchbend;					// Global tunning, implemented using MIDI pitchbend messages
 int active_chain;						// Index of the active chain zmop
+int active_midi_chan;					// Flag to enable/disable active MIDI channel. When enable, active's chain MIDI channel is the active MIDI channel
 int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_system_events;					// Flag to enable/disable system events globally
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
@@ -61,6 +62,7 @@ jack_ringbuffer_t * zynmidi_buffer;
 int init_zynmidirouter() {
 	// Init global settings
 	active_chain = -1;
+	active_midi_chan = 0;
 	tuning_pitchbend = -1;
 	midi_master_chan =- 1;
 	midi_system_events = 1;
@@ -126,6 +128,14 @@ void set_active_chain(int iz) {
 
 int get_active_chain() {
 	return active_chain;
+}
+
+void set_active_midi_chan(int flag) {
+	active_midi_chan = flag;
+}
+
+int get_active_midi_chan() {
+	return active_midi_chan;
 }
 
 // Global tuning based in MIDI pitch-bending
@@ -1329,8 +1339,12 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				if (zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER && zmop->midi_chan >= 0) {
 					// ACTI => route events to active chain, translating channel as required  ...
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN) {
-						// Translate to active zmop's MIDI channel
-						if (izmop == active_chain && zmop->midi_chans[zmop->midi_chan] >= 0) {
+						// If (active MIDI channel
+						if (((active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan) ||
+						// or active chain)
+						izmop == active_chain) &&
+						// and output midi channel is mapped => Send to active zmop's MIDI channel
+						zmop->midi_chans[zmop->midi_chan] >= 0) {
 							// NOTE-OFF => Release pressed notes across active chain changes
 							if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
 								// If not matching note-on on this chain, try rest of chains ...
