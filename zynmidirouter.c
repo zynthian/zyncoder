@@ -1025,7 +1025,7 @@ int init_jack_midi(char *name) {
 	}
 	if (!zmop_init(ZMOP_MOD, "mod_out", ZMOP_CHAIN_FLAGS)) return 0;
 	zmop_set_midi_chan_all(ZMOP_MOD);
-	if (!zmop_init(ZMOP_STEP, "step_out", FLAG_ZMOP_DROPSYSEX)) return 0;
+	if (!zmop_init(ZMOP_STEP, "step_out", FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_DIRECTOUT)) return 0;
 	zmop_set_midi_chan_all(ZMOP_STEP);
 	if (!zmop_init(ZMOP_CTRL, "ctrl_out", FLAG_ZMOP_DIRECTOUT)) return 0;
 	zmop_set_midi_chan_all(ZMOP_CTRL);
