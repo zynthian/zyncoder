@@ -492,6 +492,9 @@ int zmop_init(int iz, char *name, uint32_t flags) {
 	for (i = 0; i < 16; i++) {
 		zmops[iz].last_pb_val[i] = 8192;
 	}
+	for (i = 0; i < 128; i++) {
+		zmops[iz].cc_route[i] = 0;
+	}
 
 	// Create direct output ring-buffer
 	if (flags & FLAG_ZMOP_DIRECTOUT) {
@@ -993,6 +996,41 @@ int zmop_reset_note_range_transpose(int iz) {
 	return 1;
 }
 
+// CC routing
+
+int zmop_reset_cc_route(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	for (int i = 0; i < 128; i++) {
+		zmops[iz].cc_route[i] = 0;
+	}
+	return 1;
+}
+
+int zmop_set_cc_route(int iz, uint8_t *cc_route) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	for (int i = 0; i < 128; i++) {
+		zmops[iz].cc_route[i] = cc_route[i];
+	}
+	return 1;
+}
+
+int zmop_get_cc_route(int iz, uint8_t *cc_route) {
+	if (iz < 0 || iz >= MAX_NUM_ZMOPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad output port index (%d).\n", iz);
+		return 0;
+	}
+	for (int i = 0; i < 128; i++) {
+		cc_route[i] = zmops[iz].cc_route[i];
+	}
+	return 1;
+}
+
 //-----------------------------------------------------------------------------
 // Jack MIDI processing
 //-----------------------------------------------------------------------------
@@ -1381,7 +1419,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
-				if (event_type == CTRL_CHANGE && (zmop->flags & FLAG_ZMOP_DROPCC) && izmip <= ZMIP_CTRL)
+				if (event_type == CTRL_CHANGE && (zmop->flags & FLAG_ZMOP_DROPCC && zmop->cc_route[event_num] == 0) && izmip <= ZMIP_CTRL)
 					goto zmop_event_processed;
 
 				// Drop "Program Change" if configured in zmop options, except from internal sources (UI)

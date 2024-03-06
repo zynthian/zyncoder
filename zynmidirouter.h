@@ -302,6 +302,7 @@ struct zmop_st {
 	int midi_chan;							// Single MIDI channel. -1 for using channel translation map.
 	int midi_chans[16];						// MIDI channel translation map (-1 to disable a MIDI channel)
 	int route_from_zmips[MAX_NUM_ZMIPS];	// Flags indicating which inputs to route to this output
+	uint8_t cc_route[128];					// CCs routed to output (0 = blocked, 1 = routed)
 	uint32_t flags;							// Bitwise flags influencing output behaviour
 	uint8_t note_low;						// Note range => Low note
 	uint8_t note_high;						// Note range => High note
@@ -365,6 +366,10 @@ int8_t zmop_get_transpose_semitone(int iz);
 int8_t get_global_transpose();
 int zmop_set_note_range_transpose(int iz, uint8_t nlow, uint8_t nhigh, int8_t trans_oct, int8_t trans_semi);
 int zmop_reset_note_range_transpose(int iz);
+// CC routing
+int zmop_reset_cc_route(int iz);
+int zmop_set_cc_route(int iz, uint8_t *cc_route);
+int zmop_get_cc_route(int iz, uint8_t *cc_route);
 // ----------------------------------------------------------------------------
 // This is called from jack process!!
 void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev); // Add event to MIDI output port
