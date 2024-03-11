@@ -1081,13 +1081,13 @@ int init_jack_midi(char *name) {
 		}
 		// MIDI player to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
-		//Sequencer input to all ZMOPS except Sequencer output
+		// Step Sequencer playback (ZMIP_STEP) to all ZMOPS except sequencer capture (ZMOP_STEP)
 		if (i != ZMOP_STEP) {
 			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
 		}
 		// Internal MIDI to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
-		//MIDI from UI to Chain's ZMOPS 
+		// MIDI from UI to Chain's ZMOPS
 		if (i >= ZMOP_CH0 && i <= ZMOP_CH0 + NUM_ZMOP_CHAINS) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
@@ -1204,7 +1204,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				izmip = i;
 			}
 		}
-		if(izmip < 0)
+		if (izmip < 0)
 			break;
 		zmip = zmips + izmip;
 		jack_midi_event_t * ev = &(zmip->event);
@@ -1346,8 +1346,44 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		// Capture events for UI ...
 		if (zmip->flags & FLAG_ZMIP_UI) {
 			if (event_type == SYSTEM_EXCLUSIVE) {
-				// Capture System Exclusive not currently working => message size is 4 bytes only!!
-				// TODO: Send fragments??
+				// Send SysEx in fragments of 4-bytes
+				//fprintf(stderr, "SysEx message received from %d => %d bytes...\n", event_idev, ev->size);
+				int j = 0;
+				int r = 1;
+				uint32_t buf32 = event_idev << 8;
+				while (1) {
+					buf32 |= ev->buffer[j];
+					if (r < 3) {
+						buf32 <<= 8;
+						r++;
+					} else {
+						write_zynmidi(buf32);
+						buf32 = r = 0;
+					}
+					// Detect end-of-sysex marker
+					if (ev->buffer[j] == 0xF7) break;
+					j++;
+					// Concatenate chunks when the SysEx data is splitted in several MIDI messages
+					if (j >= ev->size) {
+						populate_zmip_event(zmip);
+						// TODO: we should continue reading in the next periods until complete!
+						if (zmip->event.time == 0xFFFFFFFF) {
+							fprintf(stderr, "Splitted SysEx message has not end mark!\n");
+							goto event_processed;
+						}
+						j = 0;
+					}
+					// Detect malformed messages (wrong byte values)
+					if (ev->buffer[j] > 0x7F && ev->buffer[j] != 0xF7) {
+						fprintf(stderr, "Malformed SysEx message!\n");
+						goto event_processed;
+					}
+				}
+				// Complete and send last 4-bytes fragment
+				if (r > 0) {
+				    buf32 <<= (3 - r) * 8;
+					write_zynmidi(buf32);
+				}
 			} else {
 				write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
 			}
