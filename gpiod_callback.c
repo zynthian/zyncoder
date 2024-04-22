@@ -185,8 +185,8 @@ void * gpiod_callbacks_thread(void *arg) {
 				line = event_bulk.lines[i];
 				gpiod_line_event_read(line, &event);
 				pin = gpiod_line_offset(line);
-				//if (event.type == GPIOD_LINE_EVENT_RISING_EDGE)
-				//fprintf(stderr,"ZynCore->gpiod_callback_thread(): Got event on pin '%d'!\n", pin);
+				//if (event.event_type == GPIOD_LINE_EVENT_RISING_EDGE)
+				//	fprintf(stderr,"ZynCore->gpiod_callback_thread(): Got event on pin '%d'!\n", pin);
 				rpi_gpiod_callbacks[pin].callback();
 			}
 		} else if (ret < 0) {
