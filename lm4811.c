@@ -95,8 +95,8 @@ uint8_t lm4811_get_volume_max() {
 }
 
 int lm4811_init() {
-	line_clk = gpiod_chip_get_line(rpi_chip, PIN_AMP_CLK);
-	line_vol = gpiod_chip_get_line(rpi_chip, PIN_AMP_VOL);
+	line_clk = gpiod_chip_get_line(gpio_chip, PIN_AMP_CLK);
+	line_vol = gpiod_chip_get_line(gpio_chip, PIN_AMP_VOL);
 	if (!line_clk || !line_vol) {
 		fprintf(stderr, "ZynCore->lm4811_init(): Can't get lines for lm4811\n");
 		return 0;
