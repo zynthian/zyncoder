@@ -125,6 +125,11 @@ elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5"))
 	add_definitions(-DMCP23017_ENCODERS)
 	add_definitions(-DV5_VERSION=1)
 
+elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "MINI_V2"))
+	message("++ Defined MCP23017_ENCODERS")
+	add_definitions(-DMCP23017_ENCODERS)
+	add_definitions(-DV5_VERSION=1)
+
 elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5_ZYNFACE"))
 	message("++ Defined MCP23017_ENCODERS")
 	add_definitions(-DMCP23017_ENCODERS)
@@ -194,6 +199,10 @@ elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5")
 	target_link_libraries(zyncore gpiod jack lo)
 	add_executable(tpa6130_set_volume tpa6130_set_volume.c tpa6130.c wiringPiI2C.h wiringPiI2C.c)
 	target_link_libraries(tpa6130_set_volume gpiod)
+
+elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "MINI_V2")
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_mini_v2.c zynpot.h zynpot.c zynrv112.h zynrv112.c zynads1115.h zynads1115.c zynmcp23017.h zynmcp23017.c zyncoder.h zyncoder.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c wiringPiI2C.h wiringPiI2C.c gpiod_callback.h gpiod_callback.c)
+	target_link_libraries(zyncore gpiod jack lo)
 
 elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5_ZYNFACE")
 	message("++ Building Zynaptik support")
