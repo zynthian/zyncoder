@@ -57,13 +57,8 @@ void (*zynmcp23017_ISRs_1[2]) = {
 
 #define MCP23017_2_BASE_PIN 200
 #define MCP23017_2_I2C_ADDRESS 0x21
-#if Z2_VERSION==1
-	#define MCP23017_2_INTA_PIN  7 // wiringPi 11
-	#define MCP23017_2_INTB_PIN  8 // wiringPi 10
-#else
-	#define MCP23017_2_INTA_PIN 17 // wiringPi 0
-	#define MCP23017_2_INTB_PIN 27 // wiringPi 2
-#endif
+#define MCP23017_2_INTA_PIN 17 // wiringPi 0
+#define MCP23017_2_INTB_PIN 27 // wiringPi 2
 
 void zynmcp23017_ISR_bankA_2() {
 	zynmcp23017_ISR(1, 0);

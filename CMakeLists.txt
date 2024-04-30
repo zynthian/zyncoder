@@ -128,7 +128,7 @@ elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5"))
 elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "MINI_V2"))
 	message("++ Defined MCP23017_ENCODERS")
 	add_definitions(-DMCP23017_ENCODERS)
-	add_definitions(-DV5_VERSION=1)
+	add_definitions(-DMINI_VERSION=2)
 
 elseif(("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5_ZYNFACE"))
 	message("++ Defined MCP23017_ENCODERS")
