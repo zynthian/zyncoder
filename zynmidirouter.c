@@ -1451,6 +1451,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				// + Ignore ACTI/MULTI flag
 				// + ALL channel messages pass untranslated
 				else {
+					if (izmop <= ZMOP_CH15)
+						continue; // Don't send unconfigured chain outputs
 					// Leave MIDI channel untouched
 				}
 
