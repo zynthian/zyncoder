@@ -1662,6 +1662,7 @@ int zmip_send_master_ccontrol_change(uint8_t iz, uint8_t ctrl, uint8_t val) {
 	if (midi_master_chan >= 0) {
 		return zmip_send_ccontrol_change(iz, midi_master_chan, ctrl, val);
 	}
+	return 0;
 }
 
 int zmip_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm) {
@@ -1948,22 +1949,22 @@ int get_zynmidi_num_pending() {
 //-----------------------------------------------------------------------------
 
 int write_zynmidi_note_on(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0xFF << 24) | (0x90 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFFu << 24) | (0x90 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_note_off(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0xFF << 24) | (0x80 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFFu << 24) | (0x80 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_ccontrol_change(uint8_t chan, uint8_t num, uint8_t val) {
-	uint32_t ev = ((0xFF << 24) | (0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
+	uint32_t ev = ((0xFFu << 24) | (0xB0 | (chan & 0x0F)) << 16) | (num << 8) | val;
 	return write_zynmidi(ev);
 }
 
 int write_zynmidi_program_change(uint8_t chan, uint8_t num) {
-	uint32_t ev = ((0xFF << 24) | (0xC0 | (chan & 0x0F)) << 16) | (num << 8);
+	uint32_t ev = ((0xFFu << 24) | (0xC0 | (chan & 0x0F)) << 16) | (num << 8);
 	return write_zynmidi(ev);
 }
 

@@ -570,6 +570,7 @@ int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 	zyncoders[i].tsms = 0;
 	zyncoders[i].short_history = 0;
 	zyncoders[i].long_history = 0;
+	return 1;
 }
 
 int32_t get_value_zyncoder(uint8_t i) {

@@ -249,7 +249,7 @@ int read_pin_zynmcp23017(uint16_t pin) {
 			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
 			return bitRead(reg, (bit - 8));
 		} else {
-			fprintf(stderr, "ZynCore: read_pin_zynmcp23017(%d) => pin %d out of range!\n", pin);
+			fprintf(stderr, "ZynCore: read_pin_zynmcp23017(%d) => pin %d out of range!\n", pin, pin);
 			return -1;
 		}
 	}
