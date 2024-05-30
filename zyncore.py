@@ -25,6 +25,7 @@
 
 from ctypes import *
 from os.path import dirname, realpath
+import logging
 #from numpy.ctypeslib import ndpointer
 
 # -------------------------------------------------------------------------------
@@ -40,7 +41,15 @@ def lib_zyncore_init():
 	global lib_zyncore
 	try:
 		lib_zyncore = cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
-		lib_zyncore.init_zyncore()
+		result = lib_zyncore.init_zyncore()
+		if result != 0:
+			lib_zyncore = None
+			if result == 1:
+				logging.error("Failed to initialise zyncontrol")
+			elif result == 2:
+				logging.error("Failed to initialise zymnidirouter")
+			elif result == 3:
+				logging.error("Failed to initialise zynmaster_jack")
 		# Setup return type for some functions
 		#lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
 
