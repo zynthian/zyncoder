@@ -1036,7 +1036,7 @@ int zmop_get_cc_route(int iz, uint8_t *cc_route) {
 //-----------------------------------------------------------------------------
 
 int init_jack_midi(char *name) {
-	if ((jack_client = jack_client_open(name, JackNullOption, 0, 0))==NULL) {
+	if ((jack_client = jack_client_open(name, JackNoStartServer, 0))==NULL) {
 		fprintf(stderr, "ZynMidiRouter: Error connecting with jack server.\n");
 		return 0;
 	}
