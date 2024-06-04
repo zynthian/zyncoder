@@ -25,13 +25,11 @@
 
 from ctypes import *
 from os.path import dirname, realpath
-import logging
 #from numpy.ctypeslib import ndpointer
 
 # -------------------------------------------------------------------------------
 # Zyncoder Library Wrapper
 # -------------------------------------------------------------------------------
-
 
 global lib_zyncore
 lib_zyncore = None
@@ -42,21 +40,24 @@ def lib_zyncore_init():
 	try:
 		lib_zyncore = cdll.LoadLibrary(dirname(realpath(__file__))+"/build/libzyncore.so")
 		result = lib_zyncore.init_zyncore()
-		if result != 0:
-			lib_zyncore = None
-			if result == 1:
-				logging.error("Failed to initialise zyncontrol")
-			elif result == 2:
-				logging.error("Failed to initialise zymnidirouter")
-			elif result == 3:
-				logging.error("Failed to initialise zynmaster_jack")
-		# Setup return type for some functions
-		#lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
-
 	except Exception as e:
 		lib_zyncore = None
-		print("Can't init zyncore library: %s" % str(e))
+		raise Exception(f"Can't init zyncore library: {e}")
 
+	if result != 0:
+		lib_zyncore = None
+		if result == 1:
+			raise Exception("Failed to initialise zyncontrol", 1)
+		elif result == 2:
+			raise Exception("Failed to initialise zymnidirouter", 2)
+		elif result == 3:
+			raise Exception("Failed to initialise zynmaster_jack", 3)
+
+	# Setup return type for some functions
+	#lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
+
+	#raise Exception("Failed to initialise zyncontrol", 1)
+	#raise Exception("Failed to initialise zymnidirouter", 2)
 	return lib_zyncore
 
 
