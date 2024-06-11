@@ -1547,7 +1547,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 		ev->buffer[1] = (uint8_t)(note & 0x7F);
 	}
 
-	// Channel translation => Should this honors CHAN_TRANSFILTER flag?
+	// Channel translation
 	if ((zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
 		event_chan = zmop->midi_chans[event_chan] & 0x0F;
 		ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
