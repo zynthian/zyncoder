@@ -300,7 +300,7 @@ struct zmop_st {
 	void * buffer;					// pointer to jack midi output buffer
 	jack_ringbuffer_t * rbuffer;	// direct output ring buffer (optional)
 
-	int midi_chan;							// Single MIDI channel. -1 for using channel translation map.
+	int midi_chan;							// Single MIDI channel. -1 for using channel translation map only.
 	int midi_chans[16];						// MIDI channel translation map (-1 to disable a MIDI channel)
 	int route_from_zmips[MAX_NUM_ZMIPS];	// Flags indicating which inputs to route to this output
 	uint8_t cc_route[128];					// CCs routed to output (0 = blocked, 1 = routed)

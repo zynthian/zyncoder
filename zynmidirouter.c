@@ -1451,7 +1451,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				// + Ignore ACTI/MULTI flag
 				// + ALL channel messages pass untranslated
 				else {
+					// Discard messages in disabled channels
+					if (zmop->midi_chans[event_chan] == -1)
+						continue;
 					// Leave MIDI channel untouched
+					//fprintf(stderr, "MIDI message untouched to ZMOP %d => %d, %d, 0x%x!\n", izmop, izmip, event_chan, event_type);
 				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
@@ -1544,7 +1548,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	}
 
 	// Channel translation => Should this honors CHAN_TRANSFILTER flag?
-	if (event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
+	if ((zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER) && event_type >= NOTE_OFF && event_type <= PITCH_BEND) {
 		event_chan = zmop->midi_chans[event_chan] & 0x0F;
 		ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
 	}
