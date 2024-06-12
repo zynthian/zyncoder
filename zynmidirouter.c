@@ -45,6 +45,7 @@ int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_system_events;					// Flag to enable/disable system events globally
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
 int8_t global_transpose;     			// All incoming (zmip) notes are transposed
+jack_nframes_t last_frame;				// Index of last frame in each jack cycle
 
 midi_filter_t midi_filter;
 struct zmip_st zmips[MAX_NUM_ZMIPS];
@@ -1097,6 +1098,7 @@ int init_jack_midi(char *name) {
 	// Init Jack Process
 	jack_set_port_connect_callback(jack_client, jack_connect_cb, 0);
 	jack_set_process_callback(jack_client, jack_process, 0);
+	jack_set_buffer_size_callback(jack_client, jack_buffer_size_change, 0);
 	if (jack_activate(jack_client)) {
 		fprintf(stderr, "ZynMidiRouter: Error activating jack client.\n");
 		return 0;
@@ -1115,10 +1117,9 @@ int end_jack_midi() {
 	return 1;
 }
 
-// Populate event from ring-buffer
-// rb: ring buffer pointer
-// event: event struct pointer
-// returns: Pointer to zmip structure
+// Pop a MIDI event from a ring-buffer
+// rb: pointer to the ring buffer to read from
+// event: pointer to the event struct to populate
 void populate_midi_event_from_rb(jack_ringbuffer_t *rb, jack_midi_event_t *event) {
 	event->size = 3;
 	event->time = 0xFFFFFFFF;	// Ignore message if it's not complete
@@ -1131,27 +1132,26 @@ void populate_midi_event_from_rb(jack_ringbuffer_t *rb, jack_midi_event_t *event
 				jack_ringbuffer_read(rb, event->buffer + event->size++, 1);
 				// SysEx completed => Messages can't be fragmented across buffers!
 				if (event->buffer[event->size - 1] == 0xF7) {
-					event->time = 0;
+					event->time = last_frame;
 					break;
 				}
 			}
 		} else {
 			// Put internal events at start of buffer (it is arbitrary so beginning is as good as anywhere)
-			event->time = 0;
+			event->time = last_frame;
 		}
 	}
 }
 
 // Populate zmip event with next event from its input queue / buffer
 // izmip: Index of zmip
-// returns: Pointer to zmip structure
 void populate_zmip_event(struct zmip_st * zmip) {
 	if (zmip->jport) {
 		// Jack input buffer used for jack input ports
 		if (zmip->next_event >= zmip->event_count || jack_midi_event_get(&(zmip->event), zmip->buffer, zmip->next_event++) != 0)
 			zmip->event.time = 0xFFFFFFFF; // events with time 0xFFFFFFFF are ignored
 	} else if ((zmip->flags & FLAG_ZMIP_DIRECTIN) && zmip->rbuffer!=NULL) {
-		populate_midi_event_from_rb(zmip->rbuffer, &zmip->event);
+		populate_midi_event_from_rb(zmip->rbuffer, &zmip->event); //!@todo Is it always okay to put these at the end of the frame?
 	}
 }
 
@@ -1605,6 +1605,14 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 	}
 	//fprintf(stderr, "ZynMidiRouter: Num. of connections refreshed\n");
 
+}
+
+int jack_buffer_size_change(jack_nframes_t nframes, void* arg) {
+	if (nframes)
+		last_frame = nframes - 1;
+	else
+		last_frame = 0;
+	return last_frame == 0 ? -1 : 0;
 }
 
 //-----------------------------------------------------------------------------

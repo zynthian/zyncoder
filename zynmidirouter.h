@@ -384,6 +384,7 @@ int end_jack_midi();
 void populate_midi_event_from_rb(jack_ringbuffer_t *rb, jack_midi_event_t *event);
 void populate_zmip_event(struct zmip_st * zmip);
 int jack_process(jack_nframes_t nframes, void *arg);
+int jack_buffer_size_change(jack_nframes_t nframes, void *arg);
 void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg);
 
 //-----------------------------------------------------------------------------
