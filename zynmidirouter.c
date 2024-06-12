@@ -1608,7 +1608,6 @@ void jack_connect_cb(jack_port_id_t a, jack_port_id_t b, int connect, void *arg)
 }
 
 int jack_buffer_size_change(jack_nframes_t nframes, void* arg) {
-	fprintf(stderr, "Setting jackd frame size to %d\n", nframes);
 	if (nframes)
 		last_frame = nframes - 1;
 	else
