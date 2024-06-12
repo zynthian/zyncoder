@@ -129,7 +129,7 @@ void parse_envar2intarr(const char *envar_name, int16_t *result, int16_t limit) 
 		while (token!=NULL && i<limit) {
 			res = atoi(token);
 			// Convert low pins (RPi pins) from wiringPi to GPIO numbers
-			if (res < 100) res = wpi2gpio[res];
+			if (res >= 0 && res < 100) res = wpi2gpio[res];
 			result[i++]  = res;
 			token = strtok_r(NULL, ",", &save_ptr);
 		}
@@ -149,15 +149,15 @@ void get_wiring_config() {
 
 void init_zynswitches() {
 	reset_zynswitches();
-
-	int16_t i;
-	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", NUM_ZYNSWITCHES);
-	for (i=0; i<NUM_ZYNSWITCHES; i++) {
+	int16_t i, count;
+	for (i=0, count=0; i<NUM_ZYNSWITCHES; i++) {
 		if (zynswitch_pins[i] >= 0) {
 			//fprintf(stderr, "ZynCore: Setting-up zynswitch in pin %d...\n", zynswitch_pins[i]);
 			setup_zynswitch(i, zynswitch_pins[i], 1);
+			count++;
 		}
 	}
+	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", count);
 }
 
 //-----------------------------------------------------------------------------
@@ -168,15 +168,16 @@ void init_zynpots() {
 	reset_zynpots();
 	reset_zyncoders();
 
-	int16_t i;
-	fprintf(stderr, "ZynCore: Setting-up %d x Zynpots (zyncoders)...\n", NUM_ZYNPOTS);
-	for (i=0; i<NUM_ZYNPOTS; i++) {
+	int16_t i, count;
+	for (i=0, count; i<NUM_ZYNPOTS; i++) {
 		if (zyncoder_pins_a[i] >= 0 && zyncoder_pins_b[i] >= 0) {
 			//fprintf(stderr, "ZynCore: Setting-up zyncoder in pins (%d, %d)...\n", zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zynpot(i, ZYNPOT_ZYNCODER, i);
+			count++;
 		}
 	}
+	fprintf(stderr, "ZynCore: Setting-up %d x Zynpots (zyncoders)...\n", count);
 }
 
 //-----------------------------------------------------------------------------

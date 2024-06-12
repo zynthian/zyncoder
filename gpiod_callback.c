@@ -200,20 +200,25 @@ void * gpiod_callbacks_thread(void *arg) {
 }
 
 int gpiod_start_callbacks() {
-	int i;
+	int i, count;
 	gpiod_line_bulk_init(&cb_line_bulk);
-	for (i=0; i<NUM_GPIO_PINS; i++) {
+	for (i=0, count=0; i<NUM_GPIO_PINS; i++) {
 		struct gpiod_line *line = rpi_gpiod_callbacks[i].line;
-		if (line) gpiod_line_bulk_add(&cb_line_bulk, line);
+		if (line) {
+			gpiod_line_bulk_add(&cb_line_bulk, line);
+			count++;
+		}
 	}
-	// Start callback thread
-	int err = pthread_create(&callback_thread_tid, NULL, &gpiod_callbacks_thread, NULL);
-	if (err != 0) {
-		fprintf(stderr, "ZynCore->gpiod_start_callbacks: Can't create callback thread :[%s]", strerror(err));
-		return 0;
-	} else {
-		fprintf(stderr, "ZynCore->gpiod_start_callbacks: Callback thread created successfully\n");
-		return 1;
+	if (count > 0) {
+		// Start callback thread
+		int err = pthread_create(&callback_thread_tid, NULL, &gpiod_callbacks_thread, NULL);
+		if (err != 0) {
+			fprintf(stderr, "ZynCore->gpiod_start_callbacks: Can't create callback thread :[%s]", strerror(err));
+			return 0;
+		} else {
+			fprintf(stderr, "ZynCore->gpiod_start_callbacks: Callback thread created successfully\n");
+			return 1;
+		}
 	}
 	return 0;
 }
