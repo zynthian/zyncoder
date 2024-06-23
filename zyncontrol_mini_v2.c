@@ -85,12 +85,15 @@ void init_zynmcp23017s() {
 // 30 x ZynSwitches (16 on MCP23017_1, 8 on MCP23017_2)
 //-----------------------------------------------------------------------------
 
+extern uint16_t num_zynswitches;
+
 void init_zynswitches() {
 	reset_zynswitches();
 	int i;
 	fprintf(stderr, "ZynCore: Setting-up 20+4 x Zynswitches...\n");
 	for (i=0;i<16;i++) setup_zynswitch(4+i, MCP23017_1_BASE_PIN + i, 1);
 	for (i=0;i<8;i++) setup_zynswitch(20+i, MCP23017_2_BASE_PIN + i, 1);
+	num_zynswitches = 28;
 }
 
 //-----------------------------------------------------------------------------

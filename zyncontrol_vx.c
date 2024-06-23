@@ -101,28 +101,32 @@ void init_zynmcp23008s() {
 // Get wiring config from environment
 //-----------------------------------------------------------------------------
 
-#define NUM_ZYNSWITCHES 16
+#define NUM_ZYNSWITCHES 24
 #define NUM_ZYNPOTS 4
 
 int16_t zynswitch_pins[NUM_ZYNSWITCHES];
 int16_t zyncoder_pins_a[NUM_ZYNPOTS];
 int16_t zyncoder_pins_b[NUM_ZYNPOTS];
 
+extern uint16_t num_zynswitches;
+
 void reset_wiring_config() {
 	int16_t i;
-	for (i=0;i<NUM_ZYNSWITCHES;i++) zynswitch_pins[i] = -1;
+	for (i=0;i<NUM_ZYNSWITCHES;i++) {
+		zynswitch_pins[i] = -1;
+	}
 	for (i=0;i<NUM_ZYNPOTS;i++) {
 		zyncoder_pins_a[i] = -1;
 		zyncoder_pins_b[i] = -1;
 	}
 }
 
-void parse_envar2intarr(const char *envar_name, int16_t *result, int16_t limit) {
+uint16_t parse_envar2intarr(const char *envar_name, int16_t *result, int16_t limit) {
+	uint16_t i = 0;
 	const char *envar_ptr = getenv(envar_name);
 	if (envar_ptr) {
 		char envar_cpy[128];
 		char *save_ptr;
-		int16_t i = 0;
 		int16_t res;
 		strcpy(envar_cpy, envar_ptr);
 		char *token = strtok_r(envar_cpy, ",", &save_ptr);
@@ -134,11 +138,12 @@ void parse_envar2intarr(const char *envar_name, int16_t *result, int16_t limit) 
 			token = strtok_r(NULL, ",", &save_ptr);
 		}
 	}
+	return i;
 }
 
 void get_wiring_config() {
 	reset_wiring_config();
-	parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, NUM_ZYNSWITCHES);
+	num_zynswitches = parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, NUM_ZYNSWITCHES);
 	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_A", zyncoder_pins_a, NUM_ZYNPOTS);
 	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_B", zyncoder_pins_b, NUM_ZYNPOTS);
 }
@@ -161,7 +166,7 @@ void init_zynswitches() {
 }
 
 //-----------------------------------------------------------------------------
-// 4 x Zynpòts (Analog Encoder RV112)
+// 4 x Zynpots (zyncoder => Incremental encoder)
 //-----------------------------------------------------------------------------
 
 void init_zynpots() {
