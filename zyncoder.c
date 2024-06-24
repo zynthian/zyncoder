@@ -96,7 +96,6 @@ void reset_zynswitches() {
 		zynswitches[i].midi_event.type = NONE_EVENT;
 		zynswitches[i].last_cvgate_note = -1;
 	}
-	num_zynswitches = 0;
 }
 
 int get_num_zynswitches() {

@@ -144,6 +144,7 @@ uint16_t parse_envar2intarr(const char *envar_name, int16_t *result, int16_t lim
 void get_wiring_config() {
 	reset_wiring_config();
 	num_zynswitches = parse_envar2intarr("ZYNTHIAN_WIRING_SWITCHES", zynswitch_pins, NUM_ZYNSWITCHES);
+	fprintf(stderr, "ZynCore: Configured %d x Logical Zynswitches...\n", num_zynswitches);
 	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_A", zyncoder_pins_a, NUM_ZYNPOTS);
 	parse_envar2intarr("ZYNTHIAN_WIRING_ENCODER_B", zyncoder_pins_b, NUM_ZYNPOTS);
 }
@@ -162,7 +163,7 @@ void init_zynswitches() {
 			count++;
 		}
 	}
-	fprintf(stderr, "ZynCore: Setting-up %d x Zynswitches...\n", count);
+	fprintf(stderr, "ZynCore: Setting-up %d x Physical Zynswitches...\n", count);
 }
 
 //-----------------------------------------------------------------------------
@@ -172,9 +173,8 @@ void init_zynswitches() {
 void init_zynpots() {
 	reset_zynpots();
 	reset_zyncoders();
-
 	int16_t i, count;
-	for (i=0, count; i<NUM_ZYNPOTS; i++) {
+	for (i=0, count=0; i<NUM_ZYNPOTS; i++) {
 		if (zyncoder_pins_a[i] >= 0 && zyncoder_pins_b[i] >= 0) {
 			//fprintf(stderr, "ZynCore: Setting-up zyncoder in pins (%d, %d)...\n", zyncoder_pins_a[i], zyncoder_pins_b[i]);
 			setup_zyncoder(i, zyncoder_pins_a[i], zyncoder_pins_b[i]);
