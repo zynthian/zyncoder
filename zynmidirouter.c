@@ -489,6 +489,7 @@ int zmop_init(int iz, char *name, uint32_t flags) {
 	zmops[iz].transpose_octave = 0;
 	zmops[iz].transpose_semitone = 0;
 	memset(zmops[iz].note_state, 0, 128);
+	memset(zmops[iz].note_transpose, 0, 128);
 	int i;
 	for (i = 0; i < 16; i++) {
 		zmops[iz].last_pb_val[i] = 8192;
@@ -894,12 +895,7 @@ int zmop_get_routes_info_all(int *buffer) {
 // Note range & Transpose
 
 int set_global_transpose(int8_t transpose) {
-	if (transpose != global_transpose) {
-		global_transpose = transpose;
-		// All sounds off - blunt but avoids stuck notes
-		for (int chan = 0; chan < 16; ++chan)
-			ui_send_ccontrol_change(chan, 120, 0);
-	}
+	global_transpose = transpose;
 	return global_transpose;
 }
 
@@ -1529,23 +1525,31 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 
 	uint8_t event_type = ev->buffer[0] >> 4;
 	uint8_t event_chan = ev->buffer[0] & 0x0F;
-	int temp_note = -1;
+	int event_num = -1;
 
 	if ((zmop->flags & FLAG_ZMOP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
 		// Note-range & Transpose Note-on/off messages
-		int note = ev->buffer[1];
+		int8_t offset;
+		event_num = ev->buffer[1];
 
-		// Note-range
-		if (note < zmop->note_low || note > zmop->note_high)
-			return;
+		// Note-off => Send the note-off with the same transpose value that the tracked note-on
+		if (event_type == NOTE_OFF) {
+			offset = zmop->note_transpose[event_num];
+		}
+		// Note-on
+		else {
+			// Note-range
+			if (event_num < zmop->note_low || event_num > zmop->note_high)
+				return; // Raw note out of range
 
-		// Transpose
-		note += zmop->transpose_octave * 12 + zmop->transpose_semitone + global_transpose;
+			// Transpose
+			offset = zmop->transpose_octave * 12 + zmop->transpose_semitone + global_transpose;
+			zmop->note_transpose[event_num] = offset;
+		}
+		// Transpose note event
+		int note = event_num + offset;
 		if (note > 0x7F || note < 0)
 			return; // Transposed note out of range
-
-		// Store original note from before transpose to restore after sending this event
-		temp_note = ev->buffer[1];
 		ev->buffer[1] = (uint8_t)(note & 0x7F);
 	}
 
@@ -1594,9 +1598,9 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 		if (jack_midi_event_write(zmop->buffer, xev.time, xev.buffer, ev->size))
 			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
 	
-	// Restore the original note from before transpose
-	if (temp_note >= 0)
-		ev->buffer[1] = (uint8_t)(temp_note & 0x7F);
+	// Restore the original note before transpose
+	if (event_num >= 0)
+		ev->buffer[1] = (uint8_t)(event_num & 0x7F);
 }
 
 
