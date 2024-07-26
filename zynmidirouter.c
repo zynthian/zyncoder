@@ -894,10 +894,12 @@ int zmop_get_routes_info_all(int *buffer) {
 // Note range & Transpose
 
 int set_global_transpose(int8_t transpose) {
-	global_transpose = transpose;
-	// All sounds off - blunt but avoids stuck notes
-	for (int chan = 0; chan < 16; ++chan)
-		ui_send_ccontrol_change(chan, 120, 0);
+	if (transpose != global_transpose) {
+		global_transpose = transpose;
+		// All sounds off - blunt but avoids stuck notes
+		for (int chan = 0; chan < 16; ++chan)
+			ui_send_ccontrol_change(chan, 120, 0);
+	}
 	return global_transpose;
 }
 
