@@ -49,7 +49,7 @@ def lib_zyncore_init():
 		if result == 1:
 			raise Exception("Failed to initialise zyncontrol", 1)
 		elif result == 2:
-			raise Exception("Failed to initialise zymnidirouter", 2)
+			raise Exception("Failed to initialise zynmidirouter", 2)
 		elif result == 3:
 			raise Exception("Failed to initialise zynmaster_jack", 3)
 
@@ -57,7 +57,7 @@ def lib_zyncore_init():
 	#lib_zyncore.get_midi_filter_clone_cc.restype = ndpointer(dtype=c_ubyte, shape=(128,))
 
 	#raise Exception("Failed to initialise zyncontrol", 1)
-	#raise Exception("Failed to initialise zymnidirouter", 2)
+	#raise Exception("Failed to initialise zynmidirouter", 2)
 	return lib_zyncore
 
 
