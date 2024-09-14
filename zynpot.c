@@ -93,7 +93,7 @@ int setup_zynpot(uint8_t i, uint8_t type, uint8_t ii) {
 
 int setup_behaviour_zynpot(uint8_t i, int32_t step) {
 	if (i>MAX_NUM_ZYNPOTS || zynpots[i].type==ZYNPOT_NONE) {
-		fprintf(stderr, "ZynCore->setup_step_zynpot(%d): Invalid index!\n", i);
+		fprintf(stderr, "ZynCore->setup_behaviour_zynpot(%d): Invalid index!\n", i);
 		return 0;
 	}
 	return zynpots[i].setup_behaviour(zynpots[i].i, step);
