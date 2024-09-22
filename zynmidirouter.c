@@ -118,7 +118,7 @@ int end_midi_router() {
 //-----------------------------------------------------------------------------
 
 void set_active_chain(int iz) {
-	if (iz > NUM_ZMOP_CHAINS || iz < -1) {
+	if (iz >= NUM_ZMOP_CHAINS || iz < -1) {
 		fprintf(stderr, "ZynMidiRouter: Active chain (%d) is out of range!\n", iz);
 		return;
 	}
@@ -1055,7 +1055,7 @@ int init_jack_midi(char *name) {
 	if (!zmip_init(ZMIP_FAKE_UI, NULL, ZMIP_UI_FLAGS)) return 0;
 
 	// Init MIDI Output Ports (ZMOPs)
-	for (i = 0; i < NUM_ZMOP_CHAINS; i++) {
+	for (i = ZMOP_CH0; i <= ZMOP_CH15; i++) {
 		sprintf(port_name, "ch%d_out", i);
 		if (!zmop_init(ZMOP_CH0 + i, port_name, ZMOP_CHAIN_FLAGS)) return 0;
 		//zmop_set_midi_chan(ZMOP_CH0 + i, i);
@@ -1087,7 +1087,7 @@ int init_jack_midi(char *name) {
 		// Internal MIDI to all ZMOPS
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
 		// MIDI from UI to Chain's ZMOPS
-		if (i >= ZMOP_CH0 && i <= ZMOP_CH0 + NUM_ZMOP_CHAINS) {
+		if (i >= ZMOP_CH0 && i <= ZMOP_MOD) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
 		}
 	}

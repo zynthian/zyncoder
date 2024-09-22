@@ -278,7 +278,7 @@ int zmip_set_route_chains(int iz, int route);			// Route/un-route a MIDI input p
 #define ZMOP_DEV22 41
 #define ZMOP_DEV23 42
 #define MAX_NUM_ZMOPS 43
-#define NUM_ZMOP_CHAINS 16
+#define NUM_ZMOP_CHAINS 17
 #define NUM_ZMOP_DEVS 24
 
 #define FLAG_ZMOP_DROPPC 1
