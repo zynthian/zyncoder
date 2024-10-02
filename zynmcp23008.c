@@ -138,7 +138,7 @@ void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode) {
 	uint8_t mask, data ;
 	data  = wiringPiI2CReadReg8 (zynmcp23008s[i].fd, MCP23x08_IODIR) ;
 	mask = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
-	if (mode == 0) data &= (~mask) ;
+	if (mode == PIN_MODE_OUTPUT) data &= (~mask) ;
 	else data |= mask ;
 	wiringPiI2CWriteReg8 (zynmcp23008s[i].fd, MCP23x08_IODIR, data) ;
 }
@@ -154,7 +154,7 @@ void zynmcp23008_set_pull_up_down (uint8_t i, uint16_t pin, uint8_t mode) {
 	//int8_t i = pin2index_zynmcp23008(pin);
 	data  = wiringPiI2CReadReg8 (zynmcp23008s[i].fd, MCP23x08_GPPU) ;
 	mask = 1 << ((pin - zynmcp23008s[i].base_pin) & 0x7) ;
-	if (mode == 0) data &= (~mask) ;
+	if (mode == PIN_PUD_DOWN) data &= (~mask) ;
 	else data |= mask ;
 	wiringPiI2CWriteReg8 (zynmcp23008s[i].fd, MCP23x08_GPPU, data) ;
 }

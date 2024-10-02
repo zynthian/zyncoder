@@ -134,11 +134,12 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	zynmcp23017s[i].fd = fd;
 	zynmcp23017s[i].base_pin = base_pin;
 	zynmcp23017s[i].i2c_address = i2c_address;
+	zynmcp23017s[i].output_state_A = olata;
+	zynmcp23017s[i].output_state_B = olatb;
 	zynmcp23017s[i].intA_pin = intA_pin;
 	zynmcp23017s[i].intB_pin = intB_pin;
-	uint16_t regA = wiringPiI2CReadReg8(fd, MCP23x17_GPIOA);
-	uint16_t regB = wiringPiI2CReadReg8(fd, MCP23x17_GPIOB);
-	zynmcp23017s[i].last_state = (regB << 8) | regA;
+	zynmcp23017s[i].last_state_A = wiringPiI2CReadReg8(fd, MCP23x17_GPIOA);
+	zynmcp23017s[i].last_state_B = wiringPiI2CReadReg8(fd, MCP23x17_GPIOB);
 	int j;
 	for (j=0; j<16; j++) {
 		zynmcp23017s[i].pin_action[j] = NONE_PIN_ACTION;
@@ -149,10 +150,12 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	// Setup callbacks for the interrupt pins
 	struct gpiod_line *line_a = gpiod_chip_get_line(gpio_chip, intA_pin);
 	if (line_a) {
-		if (gpiod_line_request_rising_edge_events_flags(line_a, ZYNCORE_CONSUMER, 0) >=0) {
-			gpiod_line_register_callback(line_a, isrs[0]);
-		} else {
+		if (gpiod_line_request_rising_edge_events_flags(line_a, ZYNCORE_CONSUMER, 0) < 0) {
 			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTA pin %d\n", i, intA_pin);
+			return 0;
+		}
+		if (gpiod_line_register_callback(line_a, isrs[0]) < 0) {
+			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't register callback for INTA pin %d\n", i, intA_pin);
 			return 0;
 		}
 	} else {
@@ -161,17 +164,18 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	}
 	struct gpiod_line *line_b = gpiod_chip_get_line(gpio_chip, intB_pin);
 	if (line_b) {
-		if (gpiod_line_request_rising_edge_events_flags(line_b, ZYNCORE_CONSUMER, 0) >=0) {
-			gpiod_line_register_callback(line_b, isrs[1]);
-		} else {
+		if (gpiod_line_request_rising_edge_events_flags(line_b, ZYNCORE_CONSUMER, 0) < 0) {
 			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTB pin %d\n", i, intB_pin);
+			return 0;
+		}
+		if (gpiod_line_register_callback(line_b, isrs[1]) < 0) {
+			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't register callback for INTB pin %d\n", i, intB_pin);
 			return 0;
 		}
 	} else {
 		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't get line for INTB pin %d\n", i, intB_pin);
 		return 0;
 	}
-
 	//fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): I2C %x, base-pin %d, INTA %d, INTB %d\n", i, i2c_address, base_pin, intA_pin, intB_pin);
 
 	return 1;
@@ -233,6 +237,95 @@ int reset_pin_action_zynmcp23017(uint16_t pin) {
 	return 1;
 }
 
+/*
+ * set_pin_mode_zynmcp23017:
+ *  pin : pin number
+ *  mode : PIN_MODE_INPUT=1, PIN_MODE_OUTPUT=0
+ */
+int set_pin_mode_zynmcp23017(uint16_t pin, uint8_t mode) {
+	int i = pin2index_zynmcp23017(pin);
+	if (i >= 0) {
+		int mask, old, reg;
+		pin -= zynmcp23017s[i].base_pin;	// Pin now 0-15
+		// Bank A
+		if (pin < 8) reg = MCP23x17_IODIRA;
+		// Bank B
+		else {
+			reg = MCP23x17_IODIRB;
+			pin &= 0x07;
+		}
+		mask = 1 << pin ;
+		old = wiringPiI2CReadReg8(zynmcp23017s[i].fd, reg);
+		if (mode == PIN_MODE_OUTPUT) old &= (~mask);
+		else old |= mask;
+		wiringPiI2CWriteReg8 (zynmcp23017s[i].fd, reg, old) ;
+		return 0;
+	}
+	fprintf(stderr, "ZynCore: set_pin_mode_zynmcp23017(%d) => invalid pin!\n", pin);
+	return -1;
+}
+
+/*
+ * set_pull_up_down_zynmcp23017:
+ *  pin : pin number
+ *  mode : PIN_PUD_UP=1, PIN_PUD_DOWN=0
+ */
+int set_pull_up_down_zynmcp23017(uint16_t pin, uint8_t mode) {
+	int i = pin2index_zynmcp23017(pin);
+	if (i >= 0) {
+		int mask, old, reg ;
+		pin -= zynmcp23017s[i].base_pin;	// Pin now 0-15
+		// Bank A
+		if (pin < 8) reg = MCP23x17_GPPUA;
+		// Bank B
+		else {
+			reg = MCP23x17_GPPUA;
+			pin &= 0x07;
+		}
+		mask = 1 << pin;
+		old = wiringPiI2CReadReg8(zynmcp23017s[i].fd, reg);
+		if (mode == PIN_PUD_DOWN) old &= (~mask);
+		else old |= mask;
+		wiringPiI2CWriteReg8 (zynmcp23017s[i].fd, reg, old);
+		return 0;
+	}
+	fprintf(stderr, "ZynCore: set_pull_up_down_zynmcp23017(%d) => invalid pin!\n", pin);
+	return -1;
+}
+
+/*
+ * write_pin_zynmcp23017:
+ *  pin : pin number
+ *  val : value to write (1/0)
+ */
+int write_pin_zynmcp23017(uint16_t pin, uint8_t val) {
+	int i = pin2index_zynmcp23017(pin);
+	if (i>=0) {
+		int bit, old ;
+  		pin -= zynmcp23017s[i].base_pin ;	// Pin now 0-15
+		bit = 1 << (pin & 7) ;
+		// Bank A
+		if (pin < 8) {
+			old = zynmcp23017s[i].output_state_A;
+			if (val == 0) old &= (~bit);
+			else old |= bit;
+			wiringPiI2CWriteReg8(zynmcp23017s[i].fd, MCP23x17_GPIOA, old);
+			zynmcp23017s[i].output_state_A = old;
+		}
+		// Bank B
+		else {
+			old = zynmcp23017s[i].output_state_B;
+			if (val == 0) old &= (~bit);
+			else old |= bit;
+			wiringPiI2CWriteReg8(zynmcp23017s[i].fd, MCP23x17_GPIOB, old);
+			zynmcp23017s[i].output_state_B = old;
+		}
+		return 0;
+	}
+	fprintf(stderr, "ZynCore: write_pin_zynmcp23017(%d) => invalid pin!\n", pin);
+	return -1;
+}
+
 int read_pin_zynmcp23017(uint16_t pin) {
 	int i = pin2index_zynmcp23017(pin);
 	if (i>=0) {
@@ -241,12 +334,12 @@ int read_pin_zynmcp23017(uint16_t pin) {
 		// Bank A
 		if (bit<8) {
 			reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOA);
-			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
+			zynmcp23017s[i].last_state_A = reg;
 			return bitRead(reg, bit);
 		// Bank B
 		} else if (bit<16) {
 			reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOB);
-			zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
+			zynmcp23017s[i].last_state_B = reg;
 			return bitRead(reg, (bit - 8));
 		} else {
 			fprintf(stderr, "ZynCore: read_pin_zynmcp23017(%d) => pin %d out of range!\n", pin, pin);
@@ -293,18 +386,18 @@ void zynmcp23017_ISR(uint8_t i, uint8_t bank) {
 	uint16_t reg;
 	uint8_t rdiff;
 
-	if (bank==0) {
+	if (bank == 0) {
 		pin_offset = 0;
 		reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOA);
 		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_INTCAPA);
-		rdiff = reg ^ (zynmcp23017s[i].last_state & 0x00FF);
-		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0xFF00) | reg;
-	} else if (bank==1) {
+		rdiff = reg ^ zynmcp23017s[i].last_state_A;
+		zynmcp23017s[i].last_state_A = reg;
+	} else if (bank == 1) {
 		pin_offset = 8;
 		reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_GPIOB);
 		//reg = wiringPiI2CReadReg8(zynmcp23017s[i].fd, MCP23x17_INTCAPB);
-		rdiff = reg ^ (zynmcp23017s[i].last_state >> 8);
-		zynmcp23017s[i].last_state = (zynmcp23017s[i].last_state & 0x00FF) | (reg << 8);
+		rdiff = reg ^ zynmcp23017s[i].last_state_B;
+		zynmcp23017s[i].last_state_B = reg;
 	} else {
 		fprintf(stderr, "ZynCore->zynmcp23017_ISR(%d, %d): Invalid bank!\n", i, bank);
 		return;

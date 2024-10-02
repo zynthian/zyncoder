@@ -65,6 +65,12 @@
 #define	CMD_WRITE	0x40
 #define CMD_READ	0x41
 
+// Pin modes
+#define PIN_MODE_OUTPUT	0x0
+#define PIN_MODE_INPUT	0x1
+#define PIN_PUD_DOWN	0x0
+#define PIN_PUD_UP		0x1
+
 //-----------------------------------------------------------------------------
 // MCP23008 stuff
 //-----------------------------------------------------------------------------
@@ -84,10 +90,12 @@ typedef struct zynmcp23008_st {
 
 void reset_zynmcp23008s();
 int setup_zynmcp23008(uint8_t i, uint16_t base_pin, uint8_t i2c_address);
+
 int8_t zynmcp23008_get_last_index();
 int8_t zynmcp23008_pin2index(uint16_t pin);
+
 void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode);
-void zynmcp23008_set_pin_mode (uint8_t i, uint16_t pin, uint8_t mode);
+void zynmcp23008_set_pull_up_down (uint8_t i, uint16_t pin, uint8_t mode);
 void zynmcp23008_write_pin (uint8_t i, uint16_t pin, uint8_t val);
 uint8_t zynmcp23008_read_pin (uint8_t i, uint16_t pin);
 uint8_t zynmcp23008_read_pins_(uint8_t i);

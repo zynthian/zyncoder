@@ -24,8 +24,18 @@
  * ******************************************************************
  */
 
+#ifndef ZYNNAPTIK_H
+#define ZYNANPTIK_H
+
+#include <stdint.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
+
+#include "zynads1115.h"
+#include <MCP4728.h>
 
 //-----------------------------------------------------------------------------
 // MCP23017 Stuff
@@ -70,8 +80,6 @@
 	#endif
 #endif
 
-void init_mcp4728(uint16_t i2c_address);
-
 //-----------------------------------------------------------------------------
 // CV-IN: Generate MIDI from Analog Inputs: CC, Pitchbend, Channel Pressure
 //-----------------------------------------------------------------------------
@@ -88,7 +96,6 @@ void init_mcp4728(uint16_t i2c_address);
 
 struct zyncvin_st {
 	uint8_t enabled;
-	uint16_t pin;
 
 	int midi_evt;
 	uint8_t midi_chan;
@@ -96,8 +103,6 @@ struct zyncvin_st {
 	uint16_t midi_val;
 };
 
-float k_cvin;
-int note0_cvin;
 void zynaptik_cvin_set_volts_octave(float vo);
 float zynaptik_cvin_get_volts_octave();
 void zynaptik_cvin_set_note0(int note0);
@@ -105,11 +110,12 @@ int zynaptik_cvin_get_note0();
 
 void zynaptik_setup_cvin(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void zynaptik_disable_cvin(uint8_t i);
+
+int32_t zynaptik_get_cvin(uint8_t i);
 void zynaptik_cvin_to_midi(uint8_t i, uint16_t val);
 
 //CV-IN Polling interval
 #define POLL_ZYNAPTIK_CVINS_US 40000
-pthread_mutex_t zynaptik_cvin_lock;
 pthread_t init_poll_zynaptik_cvins();
 
 //-----------------------------------------------------------------------------
@@ -140,8 +146,6 @@ struct zyncvout_st {
 	uint16_t val;
 };
 
-float k_cvout;
-int note0_cvout;
 void zynaptik_cvout_set_volts_octave(float vo);
 float zynaptik_cvout_get_volts_octave();
 void zynaptik_cvout_set_note0(int note0);
@@ -185,3 +189,5 @@ int init_zynaptik();
 int end_zynaptik();
 
 //-----------------------------------------------------------------------------
+
+#endif

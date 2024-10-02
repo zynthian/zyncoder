@@ -179,8 +179,8 @@ void reset_midi_filter_cc_map();
 #define ZMIP_DEV23 23
 #define ZMIP_SEQ 24				// MIDI from SMF player
 #define ZMIP_STEP 25			// MIDI from StepSeq
-#define ZMIP_CTRL 26			// Engine's controller feedback (setBfree, others?) => It's hardcoded in chain_manager. Update if this number changes!!
-#define ZMIP_FAKE_INT 27		// BUFFER: Internal MIDI (to ALL zmops => MUST BE CHANGED!!) => Used by zyncoder, zynaptik (CV/Gate), zyntof, etc.
+#define ZMIP_FAKE_INT 26		// BUFFER: Internal MIDI (to ALL zmops => MUST BE CHANGED!!) => Used by zyncoder, zynaptik (CV/Gate), zyntof, etc.
+#define ZMIP_CTRL 27			// Engine's controller feedback (setBfree, others?) => It's hardcoded in chain_manager. Update if this number changes!!
 #define ZMIP_FAKE_UI 28			// BUFFER: MIDI from UI (to Chain zmops)
 #define MAX_NUM_ZMIPS 29
 #define NUM_ZMIP_DEVS 24
@@ -219,6 +219,11 @@ struct zmip_st {
 int zmip_init(int iz, char *name, uint32_t flags);
 int zmip_end(int iz);
 int zmip_get_num_devs();
+int zmip_get_seq_index();
+int zmip_get_step_index();
+int zmip_get_int_index();
+int zmip_get_ctrl_index();
+
 // Flag management
 int zmip_set_flags(int iz, uint32_t flags);
 uint32_t zmip_get_flags(int iz);

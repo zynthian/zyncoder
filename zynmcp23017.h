@@ -74,6 +74,12 @@
 #define	CMD_WRITE	0x40
 #define CMD_READ	0x41
 
+// Pin modes
+#define PIN_MODE_OUTPUT	0x0
+#define PIN_MODE_INPUT	0x1
+#define PIN_PUD_DOWN	0x0
+#define PIN_PUD_UP		0x1
+
 //-----------------------------------------------------------------------------
 // MCP23017 stuff
 //-----------------------------------------------------------------------------
@@ -96,7 +102,10 @@ typedef struct zynmcp23017_st {
 	uint8_t intA_pin;
 	uint8_t intB_pin;
 
-	uint16_t last_state;
+	uint8_t last_state_A;
+	uint8_t last_state_B;
+	uint8_t output_state_A;
+	uint8_t output_state_B;
 
 	zynmcp23017_pin_action_t pin_action[16];
 	uint16_t pin_action_num[16];
@@ -106,11 +115,17 @@ typedef struct zynmcp23017_st {
 
 void reset_zynmcp23017s();
 int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t intA_pin, uint8_t intB_pin, void (*isrs[2]));
-int get_last_zynmcp23017_index();
 
+int get_last_zynmcp23017_index();
 int pin2index_zynmcp23017(uint16_t pin);
+
 int setup_pin_action_zynmcp23017(uint16_t pin, zynmcp23017_pin_action_t action, uint16_t num);
 int reset_pin_action_zynmcp23017(uint16_t pin);
+
+int set_pin_mode_zynmcp23017(uint16_t pin, uint8_t mode);
+int set_pull_up_down_zynmcp23017(uint16_t pin, uint8_t mode);
+int write_pin_zynmcp23017(uint16_t pin, uint8_t val);
+int read_pin_zynmcp23017(uint16_t pin);
 
 void zynswitch_update_zynmcp23017(uint8_t i);
 void zyncoder_update_zynmcp23017(uint8_t i);

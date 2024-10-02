@@ -380,6 +380,22 @@ int zmip_get_num_devs() {
 	return NUM_ZMIP_DEVS;
 }
 
+int zmip_get_seq_index() {
+	return ZMIP_SEQ;
+}
+
+int zmip_get_step_index() {
+	return ZMIP_STEP;
+}
+
+int zmip_get_int_index() {
+	return ZMIP_FAKE_INT;
+}
+
+int zmip_get_ctrl_index() {
+	return ZMIP_CTRL;
+}
+
 int zmip_set_flags(int iz, uint32_t flags) {
 	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
 		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
@@ -1072,23 +1088,23 @@ int init_jack_midi(char *name) {
 		zmop_set_midi_chan_all(ZMOP_DEV0 + i);
 	}
 
-	// Route MIDI Input to MIDI Output Ports: ZMIPs => ZMOPs
+	// Route MIDI Input to MIDI Output Ports: ZMIPs => chain ZMOPs + STEPSEQ
 	for (i = 0; i < ZMOP_CTRL; i++) {
-		// External Input Devices to all ZMOPS => By default, all chains receive from all devices
+		// External Input Devices to all => By default, all chains receive from all devices
 		for (j = 0; j < NUM_ZMIP_DEVS; j++) {
 			if (!zmop_set_route_from(i, ZMIP_DEV0 + j, 1)) return 0;
 		}
-		// MIDI player to all ZMOPS
-		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
-		// Step Sequencer playback (ZMIP_STEP) to all ZMOPS except sequencer capture (ZMOP_STEP)
-		if (i != ZMOP_STEP) {
-			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
-		}
-		// Internal MIDI to all ZMOPS
+		// Internal MIDI to all (by default)
 		if (!zmop_set_route_from(i, ZMIP_FAKE_INT, 1)) return 0;
 		// MIDI from UI to Chain's ZMOPS
 		if (i >= ZMOP_CH0 && i <= ZMOP_MOD) {
 			if (!zmop_set_route_from(i, ZMIP_FAKE_UI, 1)) return 0;
+		}
+		// MIDI player to all
+		if (!zmop_set_route_from(i, ZMIP_SEQ, 1)) return 0;
+		// Step Sequencer playback (ZMIP_STEP) to all ZMOPS except stepseq capture (ZMOP_STEP)
+		if (i != ZMOP_STEP) {
+			if (!zmop_set_route_from(i, ZMIP_STEP, 1)) return 0;
 		}
 	}
 	// ZMIP_CTRL is not routed to any output port, only captured by Zynthian UI

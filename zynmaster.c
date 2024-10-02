@@ -36,7 +36,6 @@
 
 jack_client_t *zynmaster_jack_client;
 jack_port_t  *zynmaster_jack_port_midi_in;
-jack_port_t  *zynmaster_jack_port_midi_out;
 
 int zynmaster_jack_process(jack_nframes_t nframes, void *arg);
 
@@ -51,12 +50,6 @@ int init_zynmaster_jack() {
 	zynmaster_jack_port_midi_in=jack_port_register(zynmaster_jack_client, "midi_in", JACK_DEFAULT_MIDI_TYPE, JackPortIsInput, 0);
 	if (zynmaster_jack_port_midi_in==NULL) {
 		fprintf(stderr, "ZynMaster: Error creating jack midi input port.\n");
-		return 0;
-	}
-
-	zynmaster_jack_port_midi_out=jack_port_register(zynmaster_jack_client, "midi_out", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
-	if (zynmaster_jack_port_midi_in==NULL) {
-		fprintf(stderr, "ZynMaster: Error creating jack midi output port.\n");
 		return 0;
 	}
 
@@ -79,33 +72,22 @@ int end_zynmaster_jack() {
 }
 
 int zynmaster_jack_process(jack_nframes_t nframes, void *arg) {
-	//Read jackd data buffer
+	// Read jackd data buffer
 	void *input_port_buffer = jack_port_get_buffer(zynmaster_jack_port_midi_in, nframes);
 	if (input_port_buffer==NULL) {
 		fprintf(stderr, "ZynMaster: Error getting jack input port buffer: %d frames\n", nframes);
 		return -1;
 	}
 
-	//Get jack output data buffer and clear it
-	void *output_port_buffer = jack_port_get_buffer(zynmaster_jack_port_midi_out, nframes);
-	if (output_port_buffer==NULL) {
-		fprintf(stderr, "ZynMaster: Error getting jack output port buffer: %d frames\n", nframes);
-		return -1;
-	}
-	jack_midi_clear_buffer(output_port_buffer);
-
-	//Process MIDI messages
+	// Process MIDI input messages => Convert to CV/Gate out
 	int i=0;
 	jack_midi_event_t ev;
 	while (jack_midi_event_get(&ev, input_port_buffer, i++)==0) {
+		//fprintf(stderr, "ZynMaster: Converting MIDI event to CV/Gate => 0x%x, 0x%x, 0x%x\n", ev.buffer[0], ev.buffer[1], ev.buffer[2]);
 		#ifdef ZYNAPTIK_CONFIG
 		zynaptik_midi_to_cvout(&ev);
 		zynaptik_midi_to_gateout(&ev);
 		#endif
-		
-		if (jack_midi_event_write(output_port_buffer, ev.time, ev.buffer, ev.size)!=0) {
-			fprintf(stderr, "ZynMaster: Error writing jack midi output event!\n");
-		}
 	}
 
 	return 0;

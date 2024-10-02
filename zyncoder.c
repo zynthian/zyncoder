@@ -67,6 +67,12 @@ extern void (*zynpot_cb)(int8_t, int32_t);
 extern zynmcp23017_t zynmcp23017s[MAX_NUM_MCP23017];
 extern struct zmip_st zmips[MAX_NUM_ZMIPS];
 
+#ifdef ZYNAPTIK_CONFIG
+	extern float k_cvin;
+	extern int note0_cvin;
+	extern pthread_mutex_t zynaptik_cvin_lock;
+#endif
+
 zynswitch_t zynswitches[MAX_NUM_ZYNSWITCHES];
 zyncoder_t zyncoders[MAX_NUM_ZYNCODERS];
 
@@ -178,17 +184,19 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 			if (line) {
 				int flags = GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_UP;
 				if (!off_state) flags |= GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
-				if (gpiod_line_request_both_edges_events_flags(line, ZYNCORE_CONSUMER, flags)>=0) {
-					zsw->enabled = 1;
-					zsw->pin = pin;
-					zsw->line = line;
-					gpiod_line_register_callback(line, zynswitch_rbpi_ISRs[i]);
-					zynswitch_rbpi_ISR(i);
-					return 1;
-				} else {
+				if (gpiod_line_request_both_edges_events_flags(line, ZYNCORE_CONSUMER, flags) < 0) {
 					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Can't request line events from RPI GPIO\n", i, pin);
 					return 0;
 				}
+				zsw->enabled = 1;
+				zsw->pin = pin;
+				zsw->line = line;
+				if (gpiod_line_register_callback(line, zynswitch_rbpi_ISRs[i]) < 0) {
+					fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Can't register callback for RPI GPIO\n", i, pin);
+					return 0;
+				}
+				zynswitch_rbpi_ISR(i);
+				return 1;
 			} else {
 				fprintf(stderr, "ZynCore->setup_zynswitch(%d, %d, ...): Can't get line from RPI GPIO\n", i, pin);
 				return 0;
@@ -240,21 +248,18 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 
 	//zsw->last_cvgate_note = -1;
 
-	//**********************************************
-	// TODO => Refactorize zynaptik functionality!!!
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
-		pinMode(zsw->pin, OUTPUT);
-		digitalWrite(zsw->pin, zsw->off_state);
+		set_pin_mode_zynmcp23017(zsw->pin, PIN_MODE_OUTPUT);
+		write_pin_zynmcp23017(zsw->pin, zsw->off_state);
 		zynaptik_setup_cvout(midi_num, midi_evt, midi_chan, i);
 	}
 	else if (midi_evt==GATE_OUT_EVENT) {
-		pinMode(zsw->pin, OUTPUT);
-		digitalWrite(zsw->pin, zsw->off_state);
+		set_pin_mode_zynmcp23017(zsw->pin, PIN_MODE_OUTPUT);
+		write_pin_zynmcp23017(zsw->pin, zsw->off_state);
 		zynaptik_setup_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
-	//**********************************************
 
 	return 1;
 }
@@ -344,7 +349,7 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 		//fprintf(stderr, "ZynCore: Zynswitch CV/Gate-IN EVENT (PIN %d) => %d\n",zsw->pin, zsw->status);
 		if (zsw->status!=zsw->off_state) {
 			pthread_mutex_lock(&zynaptik_cvin_lock);
-			int val=analogRead(ZYNAPTIK_ADS1115_BASE_PIN + zsw->midi_event.num);
+			int32_t val = zynaptik_get_cvin(zsw->midi_event.num);
 			pthread_mutex_unlock(&zynaptik_cvin_lock);
 			//zsw->last_cvgate_note=(int)((k_cvin*6.144/(5.0*256.0))*val);
 
