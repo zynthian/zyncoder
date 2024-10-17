@@ -1,15 +1,15 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: Zyncoder Library
- * 
- * Library for interfacing Rotary Encoders & Switches connected 
+ *
+ * Library for interfacing Rotary Encoders & Switches connected
  * to RBPi native GPIOs or expanded with MCP23008/MCP23017.
  * Includes an emulator mode for developing on desktop computers.
- * 
+ *
  * Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -21,7 +21,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -39,15 +39,16 @@
 //-----------------------------------------------------------------------------
 
 #if defined(ZYNAPTIK_CONFIG)
-	#define MAX_NUM_ZYNSWITCHES 52
+#define MAX_NUM_ZYNSWITCHES 52
 #else
-	#define MAX_NUM_ZYNSWITCHES 36
+#define MAX_NUM_ZYNSWITCHES 36
 #endif
 
-typedef struct zynswitch_st {
+typedef struct zynswitch_st
+{
 	uint8_t enabled;
 
-	struct gpiod_line *line;	// libgpiod line struct
+	struct gpiod_line *line; // libgpiod line struct
 	uint16_t pin;
 	uint8_t off_state;
 	uint8_t push;
@@ -78,21 +79,22 @@ void update_zynswitch(uint8_t i, uint8_t status);
 
 #define MAX_NUM_ZYNCODERS 4
 
-typedef struct zyncoder_st {
-	uint8_t enabled;			// 1 to enable encoder
-	int32_t step;				// Size of change in value for each detent of encoder
-	int32_t value;				// Current encdoder value
-	int8_t zpot_i;				// Zynpot index assigned to this encoder
+typedef struct zyncoder_st
+{
+	uint8_t enabled; // 1 to enable encoder
+	int32_t step;	 // Size of change in value for each detent of encoder
+	int32_t value;	 // Current encdoder value
+	int8_t zpot_i;	 // Zynpot index assigned to this encoder
 
 	// Next fields are zyncoder-specific
-	struct gpiod_line *line_a;	// libgpiod line struct
-	struct gpiod_line *line_b;	// libgpiod line struct
-	uint16_t pin_a;				// Data GPI
-	uint16_t pin_b;				// Clock GPI
-	uint8_t short_history;      // Quadrant encoder algorithm last two valid states (4 bits)
-	uint8_t long_history;       // Quadrant encoder algorithm last four valid states (8 bits)
+	struct gpiod_line *line_a; // libgpiod line struct
+	struct gpiod_line *line_b; // libgpiod line struct
+	uint16_t pin_a;			   // Data GPI
+	uint16_t pin_b;			   // Clock GPI
+	uint8_t short_history;	   // Quadrant encoder algorithm last two valid states (4 bits)
+	uint8_t long_history;	   // Quadrant encoder algorithm last four valid states (8 bits)
 
-	uint64_t tsms;				// Absolute time of last encoder change in milliseconds
+	uint64_t tsms; // Absolute time of last encoder change in milliseconds
 } zyncoder_t;
 
 //-----------------------------------------------------------------------------

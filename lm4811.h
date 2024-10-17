@@ -1,7 +1,7 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: Headphones Volume Control for LM4811 amplifier
- * 
+ *
  * Library for interfacing the LM4811 headphones amplifier.
  * It implements the volume control using 2 GPIO pins:
  *   - AMP_VOL => 1=Up / 0=Down
@@ -10,7 +10,7 @@
  * Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -22,7 +22,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 

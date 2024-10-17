@@ -28,12 +28,13 @@
 
 #include <gpiod.h>
 
-#define DEFAULT_GPIO_CHIP_DEVICE	"/dev/gpiochip0"
-#define	NUM_GPIO_PINS			28
-#define ZYNCORE_CONSUMER		"zyncore"
+#define DEFAULT_GPIO_CHIP_DEVICE "/dev/gpiochip0"
+#define NUM_GPIO_PINS 28
+#define ZYNCORE_CONSUMER "zyncore"
 
 // Callback data structure
-struct gpiod_callback {
+struct gpiod_callback
+{
 	int pin;
 	struct gpiod_line *line;
 	void (*callback)(void);

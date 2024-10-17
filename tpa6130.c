@@ -8,7 +8,7 @@
  * Copyright (C) 2015-2023 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -20,7 +20,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -29,7 +29,7 @@
 
 //-------------------------------------------------------------------
 
-//#define DEBUG
+// #define DEBUG
 
 #define TPA6130_I2C_ADDRESS 0x60
 #define AMP_MAX_VOL 0x3F // 0-63
@@ -38,26 +38,31 @@ int tpa6130_fd = 0x0;
 
 //-------------------------------------------------------------------
 
-uint8_t tpa6130_set_volume(uint8_t vol) {
+uint8_t tpa6130_set_volume(uint8_t vol)
+{
 	wiringPiI2CWriteReg8(tpa6130_fd, 0x2, AMP_MAX_VOL & vol);
 	return vol;
 }
 
-uint8_t tpa6130_get_volume() {
+uint8_t tpa6130_get_volume()
+{
 	return wiringPiI2CReadReg8(tpa6130_fd, 0x2) & 0x3C;
 }
 
-uint8_t tpa6130_get_volume_max() {
+uint8_t tpa6130_get_volume_max()
+{
 	return AMP_MAX_VOL;
 }
 
-void tpa6130_init() {
- 	tpa6130_fd = wiringPiI2CSetup(TPA6130_I2C_ADDRESS);
- 	wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0xC0);
+void tpa6130_init()
+{
+	tpa6130_fd = wiringPiI2CSetup(TPA6130_I2C_ADDRESS);
+	wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0xC0);
 	tpa6130_set_volume(20);
 }
 
-void tpa6130_end() {
+void tpa6130_end()
+{
 	wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0x00);
 }
 

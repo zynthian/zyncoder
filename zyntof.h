@@ -1,13 +1,13 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: TOF Library
- * 
+ *
  * Library for interfacing VL53L0X "Time Of Flight" sensor
- * 
+ *
  * Copyright (C) 2015-2020 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -27,7 +27,7 @@
 // TCA954X (43/44/48) Stuff => I2C Multiplexer
 //-----------------------------------------------------------------------------
 
-//Default config for TCA9543 (I2C multiplexer)
+// Default config for TCA9543 (I2C multiplexer)
 #define TCA954X_I2C_ADDRESS 0x70
 
 void select_zyntof_chan(uint8_t i);
@@ -49,7 +49,8 @@ void select_zyntof_chan(uint8_t i);
 #define MIN_TOF_DISTANCE 60
 #define MAX_TOF_DISTANCE 600
 
-struct zyntof_st {
+struct zyntof_st
+{
 	uint8_t enabled;
 	uint8_t i;
 	uint16_t val;
