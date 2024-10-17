@@ -29,17 +29,15 @@
 
 //-------------------------------------------------------------------
 
-int main(int argc, char *argv[])
-{
-	uint8_t vol = 10;
-	if (argc >= 2)
-	{
-		vol = atoi(argv[1]);
-	}
-	tpa6130_init();
-	printf("Setting TPA6130 volume to %d\n", vol);
-	tpa6130_set_volume(vol);
-	// tpa6130_end();
+int main(int argc, char* argv[]) {
+    uint8_t vol = 10;
+    if (argc >= 2) {
+        vol = atoi(argv[1]);
+    }
+    tpa6130_init();
+    printf("Setting TPA6130 volume to %d\n", vol);
+    tpa6130_set_volume(vol);
+    // tpa6130_end();
 }
 
 //-------------------------------------------------------------------

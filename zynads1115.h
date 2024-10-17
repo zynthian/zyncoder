@@ -69,30 +69,28 @@
 #define ADS1115_RATE_860SPS 7
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-	//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-	typedef struct ads1115_st
-	{
-		uint16_t i2c_address;
-		int fd;
-		uint16_t gain;
-		uint16_t rate;
-		uint16_t base_config;
-		uint32_t read_wait_us;
-	} ads1115_t;
+typedef struct ads1115_st {
+    uint16_t i2c_address;
+    int fd;
+    uint16_t gain;
+    uint16_t rate;
+    uint16_t base_config;
+    uint32_t read_wait_us;
+} ads1115_t;
 
-	//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-	int init_ads1115(ads1115_t *ads1115, uint16_t i2c_address, uint8_t gain, uint8_t rate);
-	void ads1115_set_gain(ads1115_t *ads1115, uint8_t gain);
-	void ads1115_set_rate(ads1115_t *ads1115, uint8_t rate);
-	void ads1115_set_comparator_threshold(ads1115_t *ads1115, uint8_t chan, int16_t data);
-	int16_t ads1115_analog_read(ads1115_t *ads1115, uint8_t chan);
-	void delay_microseconds(unsigned int howLong);
+int init_ads1115(ads1115_t* ads1115, uint16_t i2c_address, uint8_t gain, uint8_t rate);
+void ads1115_set_gain(ads1115_t* ads1115, uint8_t gain);
+void ads1115_set_rate(ads1115_t* ads1115, uint8_t rate);
+void ads1115_set_comparator_threshold(ads1115_t* ads1115, uint8_t chan, int16_t data);
+int16_t ads1115_analog_read(ads1115_t* ads1115, uint8_t chan);
+void delay_microseconds(unsigned int howLong);
 
 #ifdef __cplusplus
 }

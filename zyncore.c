@@ -25,37 +25,34 @@
 
 #include "gpiod_callback.h"
 #include "zyncontrol.h"
-#include "zynmidirouter.h"
 #include "zynmaster.h"
+#include "zynmidirouter.h"
 
 //-----------------------------------------------------------------------------
 
-int init_zyncore()
-{
-	if (!init_zyncontrol())
-		return 1;
-	if (!init_zynmidirouter())
-		return 2;
-	if (!init_zynmaster_jack())
-		return 3;
-	return 0;
+int init_zyncore() {
+    if (!init_zyncontrol())
+        return 1;
+    if (!init_zynmidirouter())
+        return 2;
+    if (!init_zynmaster_jack())
+        return 3;
+    return 0;
 }
 
-int init_zyncore_minimal()
-{
-	// gpiod_init_callbacks();
-	return 0;
+int init_zyncore_minimal() {
+    // gpiod_init_callbacks();
+    return 0;
 }
 
-int end_zyncore()
-{
-	if (!end_zynmaster_jack())
-		return 0;
-	if (!end_zynmidirouter())
-		return 0;
-	if (!end_zyncontrol())
-		return 0;
-	return 1;
+int end_zyncore() {
+    if (!end_zynmaster_jack())
+        return 0;
+    if (!end_zynmidirouter())
+        return 0;
+    if (!end_zyncontrol())
+        return 0;
+    return 1;
 }
 
 //-----------------------------------------------------------------------------

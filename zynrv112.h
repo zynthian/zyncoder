@@ -54,53 +54,51 @@
 #define DVBUF_SIZE 10
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-	typedef struct rv112_st
-	{
-		uint8_t enabled;
-		int32_t step;
-		int32_t value;
-		int8_t zpot_i;
+typedef struct rv112_st {
+    uint8_t enabled;
+    int32_t step;
+    int32_t value;
+    int8_t zpot_i;
 
-		// Next fields are RV112-specific
-		ads1115_t *ads1115_node;
-		uint16_t chA;
-		uint16_t chB;
+    // Next fields are RV112-specific
+    ads1115_t* ads1115_node;
+    uint16_t chA;
+    uint16_t chB;
 
-		int32_t valA;
-		int32_t valB;
-		uint8_t curseg;
-		int16_t lastdv;
-		int32_t valraw;
-		void *dvbuf;
-		int32_t dvavg;
-	} rv112_t;
+    int32_t valA;
+    int32_t valB;
+    uint8_t curseg;
+    int16_t lastdv;
+    int32_t valraw;
+    void* dvbuf;
+    int32_t dvavg;
+} rv112_t;
 
-	//-----------------------------------------------------------------------------
-	// RV112's zynpot API
-	//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+// RV112's zynpot API
+//-----------------------------------------------------------------------------
 
-	void init_rv112s();
-	void end_rv112s();
+void init_rv112s();
+void end_rv112s();
 
-	int get_num_rv112s();
+int get_num_rv112s();
 
-	int setup_rv112(uint8_t i, ads1115_t *ads1115, uint8_t reversed_chans);
+int setup_rv112(uint8_t i, ads1115_t* ads1115, uint8_t reversed_chans);
 
-	int setup_behaviour_rv112(uint8_t i, int32_t step);
-	int32_t get_value_rv112(uint8_t i);
+int setup_behaviour_rv112(uint8_t i, int32_t step);
+int32_t get_value_rv112(uint8_t i);
 
-	//-----------------------------------------------------------------------------
-	// RV112 specific functions
-	//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+// RV112 specific functions
+//-----------------------------------------------------------------------------
 
-	int16_t read_rv112(uint8_t i);
-	pthread_t init_poll_rv112();
+int16_t read_rv112(uint8_t i);
+pthread_t init_poll_rv112();
 
-	//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 #ifdef __cplusplus
 }

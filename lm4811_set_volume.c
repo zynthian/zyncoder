@@ -29,17 +29,15 @@
 
 //-------------------------------------------------------------------
 
-int main(int argc, char *argv[])
-{
-	uint8_t vol = 10;
-	if (argc >= 2)
-	{
-		vol = atoi(argv[1]);
-	}
-	lm4811_init();
-	printf("Setting LM4811 volume to %d\n", vol);
-	lm4811_set_volume(vol);
-	// lm4811_end();
+int main(int argc, char* argv[]) {
+    uint8_t vol = 10;
+    if (argc >= 2) {
+        vol = atoi(argv[1]);
+    }
+    lm4811_init();
+    printf("Setting LM4811 volume to %d\n", vol);
+    lm4811_set_volume(vol);
+    // lm4811_end();
 }
 
 //-------------------------------------------------------------------

@@ -28,8 +28,8 @@
 #ifndef ZYNMCP23008_H
 #define ZYNMCP23008_H
 
-#include <stdint.h>
 #include <pthread.h>
+#include <stdint.h>
 
 //-----------------------------------------------------------------------------
 // IC registers
@@ -79,13 +79,12 @@
 // Switch Polling interval
 #define POLL_ZYNSWITCHES_US 10000
 
-typedef struct zynmcp23008_st
-{
-	uint8_t enabled;
-	int fd;
-	uint16_t base_pin;
-	uint8_t i2c_address;
-	uint8_t output_state;
+typedef struct zynmcp23008_st {
+    uint8_t enabled;
+    int fd;
+    uint16_t base_pin;
+    uint8_t i2c_address;
+    uint8_t output_state;
 } zynmcp23008_t;
 
 void reset_zynmcp23008s();

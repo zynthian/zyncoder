@@ -33,14 +33,13 @@
 #define ZYNCORE_CONSUMER "zyncore"
 
 // Callback data structure
-struct gpiod_callback
-{
-	int pin;
-	struct gpiod_line *line;
-	void (*callback)(void);
+struct gpiod_callback {
+    int pin;
+    struct gpiod_line* line;
+    void (*callback)(void);
 };
 
-extern struct gpiod_chip *gpio_chip;
+extern struct gpiod_chip* gpio_chip;
 
 extern int8_t wpi2gpio[32];
 extern int8_t gpio2wpi[28];
@@ -48,8 +47,8 @@ extern int8_t gpio2wpi[28];
 // -------------------------------------------------------------------
 
 int gpiod_init_callbacks();
-int gpiod_line_register_callback(struct gpiod_line *line, void (*callback)(void));
-int gpiod_line_unregister_callback(struct gpiod_line *line);
+int gpiod_line_register_callback(struct gpiod_line* line, void (*callback)(void));
+int gpiod_line_unregister_callback(struct gpiod_line* line);
 int gpiod_start_callbacks();
 int gpiod_stop_callbacks();
 int gpiod_restart_callbacks();

@@ -31,6 +31,6 @@
 
 int init_zynmaster_jack();
 int end_zynmaster_jack();
-int zynmaster_jack_process(jack_nframes_t nframes, void *arg);
+int zynmaster_jack_process(jack_nframes_t nframes, void* arg);
 
 //-----------------------------------------------------------------------------

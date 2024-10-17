@@ -86,30 +86,28 @@
 
 #define MAX_NUM_MCP23017 4
 
-typedef enum zynmcp23017_pin_action_enum
-{
-	NONE_PIN_ACTION = 0,
-	ZYNSWITCH_PIN_ACTION = 1,
-	ZYNCODER_PIN_ACTION = 2
+typedef enum zynmcp23017_pin_action_enum {
+    NONE_PIN_ACTION      = 0,
+    ZYNSWITCH_PIN_ACTION = 1,
+    ZYNCODER_PIN_ACTION  = 2
 } zynmcp23017_pin_action_t;
 
-typedef struct zynmcp23017_st
-{
-	uint8_t enabled;
+typedef struct zynmcp23017_st {
+    uint8_t enabled;
 
-	int fd;
-	uint16_t base_pin;
-	uint8_t i2c_address;
-	uint8_t intA_pin;
-	uint8_t intB_pin;
+    int fd;
+    uint16_t base_pin;
+    uint8_t i2c_address;
+    uint8_t intA_pin;
+    uint8_t intB_pin;
 
-	uint8_t last_state_A;
-	uint8_t last_state_B;
-	uint8_t output_state_A;
-	uint8_t output_state_B;
+    uint8_t last_state_A;
+    uint8_t last_state_B;
+    uint8_t output_state_A;
+    uint8_t output_state_B;
 
-	zynmcp23017_pin_action_t pin_action[16];
-	uint16_t pin_action_num[16];
+    zynmcp23017_pin_action_t pin_action[16];
+    uint16_t pin_action_num[16];
 
 } zynmcp23017_t;
 

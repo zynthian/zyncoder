@@ -27,12 +27,12 @@
 #ifndef ZYNNAPTIK_H
 #define ZYNANPTIK_H
 
-#include <stdint.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <stdbool.h>
 #include <jack/jack.h>
 #include <jack/midiport.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <unistd.h>
 
 #include "zynads1115.h"
 #include <MCP4728.h>
@@ -94,14 +94,13 @@
 #define ZYNAPTIK_CVIN_NOTE0 0
 #endif
 
-struct zyncvin_st
-{
-	uint8_t enabled;
+struct zyncvin_st {
+    uint8_t enabled;
 
-	int midi_evt;
-	uint8_t midi_chan;
-	uint8_t midi_num;
-	uint16_t midi_val;
+    int midi_evt;
+    uint8_t midi_chan;
+    uint8_t midi_num;
+    uint16_t midi_val;
 };
 
 void zynaptik_cvin_set_volts_octave(float vo);
@@ -133,19 +132,18 @@ pthread_t init_poll_zynaptik_cvins();
 #define ZYNAPTIK_CVOUT_NOTE0 0
 #endif
 
-struct zyncvout_st
-{
-	uint8_t enabled;
+struct zyncvout_st {
+    uint8_t enabled;
 
-	int midi_evt;
-	uint8_t midi_chan;
-	uint8_t midi_num;
-	uint8_t note[128];
+    int midi_evt;
+    uint8_t midi_chan;
+    uint8_t midi_num;
+    uint8_t note[128];
 
-	uint16_t midi_event_temp;
-	uint16_t midi_event_mask;
+    uint16_t midi_event_temp;
+    uint16_t midi_event_mask;
 
-	uint16_t val;
+    uint16_t val;
 };
 
 void zynaptik_cvout_set_volts_octave(float vo);
@@ -155,7 +153,7 @@ int zynaptik_cvout_get_note0();
 
 void zynaptik_setup_cvout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void zynaptik_disable_cvout(uint8_t i);
-void zynaptik_midi_to_cvout(jack_midi_event_t *ev);
+void zynaptik_midi_to_cvout(jack_midi_event_t* ev);
 void zynaptik_set_cvout(int i, uint16_t val);
 void zynaptik_refresh_cvouts();
 
@@ -168,21 +166,20 @@ void zynaptik_refresh_cvouts();
 
 #define MAX_NUM_ZYNGATEOUTS 36
 
-struct zyngateout_st
-{
-	uint8_t enabled;
+struct zyngateout_st {
+    uint8_t enabled;
 
-	int midi_evt;
-	uint8_t midi_chan;
-	uint8_t midi_num;
+    int midi_evt;
+    uint8_t midi_chan;
+    uint8_t midi_num;
 
-	uint16_t midi_event_temp;
-	uint16_t midi_event_mask;
+    uint16_t midi_event_temp;
+    uint16_t midi_event_mask;
 };
 
 void zynaptik_setup_gateout(uint8_t i, int midi_evt, uint8_t midi_chan, uint8_t midi_num);
 void zynaptik_disable_gateout(uint8_t i);
-void zynaptik_midi_to_gateout(jack_midi_event_t *ev);
+void zynaptik_midi_to_gateout(jack_midi_event_t* ev);
 
 //-----------------------------------------------------------------------------
 // Zynaptik Library Initialization

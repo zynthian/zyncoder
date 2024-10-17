@@ -49,16 +49,15 @@ void select_zyntof_chan(uint8_t i);
 #define MIN_TOF_DISTANCE 60
 #define MAX_TOF_DISTANCE 600
 
-struct zyntof_st
-{
-	uint8_t enabled;
-	uint8_t i;
-	uint16_t val;
+struct zyntof_st {
+    uint8_t enabled;
+    uint8_t i;
+    uint16_t val;
 
-	uint8_t midi_evt;
-	uint8_t midi_chan;
-	uint8_t midi_num;
-	uint8_t midi_val;
+    uint8_t midi_evt;
+    uint8_t midi_chan;
+    uint8_t midi_num;
+    uint8_t midi_val;
 };
 
 void setup_zyntof(uint8_t i, uint8_t midi_evt, uint8_t midi_chan, uint8_t midi_num);

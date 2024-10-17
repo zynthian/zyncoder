@@ -26,9 +26,9 @@
  * ******************************************************************
  */
 
+#include "lm4811.h"
 #include "gpiod.h"
 #include "gpiod_callback.h"
-#include "lm4811.h"
 
 //-------------------------------------------------------------------
 
@@ -45,95 +45,76 @@
 #define AMP_MAX_VOL 15
 #define STEP_USECS 100
 
-struct gpiod_line *line_clk;
-struct gpiod_line *line_vol;
+struct gpiod_line* line_clk;
+struct gpiod_line* line_vol;
 uint8_t current_volume = 0;
 
 //-------------------------------------------------------------------
 
-void lm4811_volume_steps(int n)
-{
-	if (n == 0)
-		return;
+void lm4811_volume_steps(int n) {
+    if (n == 0)
+        return;
 #ifdef DEBUG
-	fprintf(stdout, "Sending %d volume steps to LM4811...\n", n);
+    fprintf(stdout, "Sending %d volume steps to LM4811...\n", n);
 #endif
-	if (n > 0)
-	{
-		gpiod_line_set_value(line_vol, 1);
-	}
-	else
-	{
-		gpiod_line_set_value(line_vol, 0);
-		n = -n;
-	}
-	int i;
-	for (i = 0; i < n; i++)
-	{
-		gpiod_line_set_value(line_clk, 1);
-		usleep(STEP_USECS);
-		gpiod_line_set_value(line_clk, 0);
-		usleep(STEP_USECS);
-	}
+    if (n > 0) {
+        gpiod_line_set_value(line_vol, 1);
+    } else {
+        gpiod_line_set_value(line_vol, 0);
+        n = -n;
+    }
+    int i;
+    for (i = 0; i < n; i++) {
+        gpiod_line_set_value(line_clk, 1);
+        usleep(STEP_USECS);
+        gpiod_line_set_value(line_clk, 0);
+        usleep(STEP_USECS);
+    }
 }
 
-void lm4811_reset_volume()
-{
-	lm4811_volume_steps(-AMP_MAX_VOL);
-	current_volume = 0;
+void lm4811_reset_volume() {
+    lm4811_volume_steps(-AMP_MAX_VOL);
+    current_volume = 0;
 }
 
-uint8_t lm4811_set_volume(uint8_t vol)
-{
-	if (vol > AMP_MAX_VOL)
-		vol = AMP_MAX_VOL;
-	int n_steps = vol - current_volume;
-	if (n_steps != 0)
-	{
-		lm4811_volume_steps(n_steps);
-		current_volume = vol;
-	}
-	return current_volume;
+uint8_t lm4811_set_volume(uint8_t vol) {
+    if (vol > AMP_MAX_VOL)
+        vol = AMP_MAX_VOL;
+    int n_steps = vol - current_volume;
+    if (n_steps != 0) {
+        lm4811_volume_steps(n_steps);
+        current_volume = vol;
+    }
+    return current_volume;
 }
 
-uint8_t lm4811_get_volume()
-{
-	return current_volume;
+uint8_t lm4811_get_volume() { return current_volume; }
+
+uint8_t lm4811_get_volume_max() { return AMP_MAX_VOL; }
+
+int lm4811_init() {
+    line_clk = gpiod_chip_get_line(gpio_chip, PIN_AMP_CLK);
+    line_vol = gpiod_chip_get_line(gpio_chip, PIN_AMP_VOL);
+    if (!line_clk || !line_vol) {
+        fprintf(stderr, "ZynCore->lm4811_init(): Can't get lines for lm4811\n");
+        return 0;
+    }
+    if (gpiod_line_request_output(line_clk, ZYNCORE_CONSUMER, 0) < 0) {
+        fprintf(stderr, "ZynCore->lm4811_init(): Can't request CLK output for lm4811\n");
+        return 0;
+    }
+    if (gpiod_line_request_output(line_vol, ZYNCORE_CONSUMER, 0) < 0) {
+        fprintf(stderr, "ZynCore->lm4811_init(): Can't request VOL output for lm4811\n");
+        return 0;
+    }
+    usleep(STEP_USECS);
+    lm4811_reset_volume();
+    lm4811_set_volume(10);
 }
 
-uint8_t lm4811_get_volume_max()
-{
-	return AMP_MAX_VOL;
-}
-
-int lm4811_init()
-{
-	line_clk = gpiod_chip_get_line(gpio_chip, PIN_AMP_CLK);
-	line_vol = gpiod_chip_get_line(gpio_chip, PIN_AMP_VOL);
-	if (!line_clk || !line_vol)
-	{
-		fprintf(stderr, "ZynCore->lm4811_init(): Can't get lines for lm4811\n");
-		return 0;
-	}
-	if (gpiod_line_request_output(line_clk, ZYNCORE_CONSUMER, 0) < 0)
-	{
-		fprintf(stderr, "ZynCore->lm4811_init(): Can't request CLK output for lm4811\n");
-		return 0;
-	}
-	if (gpiod_line_request_output(line_vol, ZYNCORE_CONSUMER, 0) < 0)
-	{
-		fprintf(stderr, "ZynCore->lm4811_init(): Can't request VOL output for lm4811\n");
-		return 0;
-	}
-	usleep(STEP_USECS);
-	lm4811_reset_volume();
-	lm4811_set_volume(10);
-}
-
-int lm4811_end()
-{
-	lm4811_reset_volume();
-	return 1;
+int lm4811_end() {
+    lm4811_reset_volume();
+    return 1;
 }
 
 //-------------------------------------------------------------------

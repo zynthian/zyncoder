@@ -24,8 +24,8 @@
  * ******************************************************************
  */
 
-#include "wiringPiI2C.h"
 #include "tpa6130.h"
+#include "wiringPiI2C.h"
 
 //-------------------------------------------------------------------
 
@@ -38,32 +38,21 @@ int tpa6130_fd = 0x0;
 
 //-------------------------------------------------------------------
 
-uint8_t tpa6130_set_volume(uint8_t vol)
-{
-	wiringPiI2CWriteReg8(tpa6130_fd, 0x2, AMP_MAX_VOL & vol);
-	return vol;
+uint8_t tpa6130_set_volume(uint8_t vol) {
+    wiringPiI2CWriteReg8(tpa6130_fd, 0x2, AMP_MAX_VOL & vol);
+    return vol;
 }
 
-uint8_t tpa6130_get_volume()
-{
-	return wiringPiI2CReadReg8(tpa6130_fd, 0x2) & 0x3C;
+uint8_t tpa6130_get_volume() { return wiringPiI2CReadReg8(tpa6130_fd, 0x2) & 0x3C; }
+
+uint8_t tpa6130_get_volume_max() { return AMP_MAX_VOL; }
+
+void tpa6130_init() {
+    tpa6130_fd = wiringPiI2CSetup(TPA6130_I2C_ADDRESS);
+    wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0xC0);
+    tpa6130_set_volume(20);
 }
 
-uint8_t tpa6130_get_volume_max()
-{
-	return AMP_MAX_VOL;
-}
-
-void tpa6130_init()
-{
-	tpa6130_fd = wiringPiI2CSetup(TPA6130_I2C_ADDRESS);
-	wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0xC0);
-	tpa6130_set_volume(20);
-}
-
-void tpa6130_end()
-{
-	wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0x00);
-}
+void tpa6130_end() { wiringPiI2CWriteReg8(tpa6130_fd, 0x1, 0x00); }
 
 //-------------------------------------------------------------------
