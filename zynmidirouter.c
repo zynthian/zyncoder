@@ -1698,19 +1698,17 @@ int zmip_send_master_ccontrol_change(uint8_t iz, uint8_t ctrl, uint8_t val) {
 }
 
 int zmip_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm) {
-	uint8_t buffer[3];
+	uint8_t buffer[2];
 	buffer[0] = 0xC0 + (chan & 0x0F);
 	buffer[1] = prgm;
-	buffer[2] = 0;
-	return zmip_send_midi_event(iz, buffer, 3);
+	return zmip_send_midi_event(iz, buffer, 2);
 }
 
 int zmip_send_chan_press(uint8_t iz, uint8_t chan, uint8_t val) {
-	uint8_t buffer[3];
+	uint8_t buffer[2];
 	buffer[0] = 0xD0 + (chan & 0x0F);
 	buffer[1] = val;
-	buffer[2] = 0;
-	return zmip_send_midi_event(iz, buffer, 3);
+	return zmip_send_midi_event(iz, buffer, 2);
 }
 
 int zmip_send_pitchbend_change(uint8_t iz, uint8_t chan, uint16_t pb) {
@@ -1848,19 +1846,17 @@ int zmop_send_ccontrol_change(uint8_t iz, uint8_t chan, uint8_t ctrl, uint8_t va
 }
 
 int zmop_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm) {
-	uint8_t buffer[3];
+	uint8_t buffer[2];
 	buffer[0] = 0xC0 + (chan & 0x0F);
 	buffer[1] = prgm;
-	buffer[2] = 0;
-	return zmop_send_midi_event(iz, buffer, 3);
+	return zmop_send_midi_event(iz, buffer, 2);
 }
 
 int zmop_send_chan_press(uint8_t iz, uint8_t chan, uint8_t val) {
-	uint8_t buffer[3];
+	uint8_t buffer[2];
 	buffer[0] = 0xD0 + (chan & 0x0F);
 	buffer[1] = val;
-	buffer[2] = 0;
-	return zmop_send_midi_event(iz, buffer, 3);
+	return zmop_send_midi_event(iz, buffer, 2);
 }
 
 int zmop_send_pitchbend_change(uint8_t iz, uint8_t chan, uint16_t pb) {
