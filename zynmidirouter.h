@@ -80,14 +80,6 @@ typedef enum midi_event_type_enum {
 	END_SYSTEM_EXCLUSIVE=0xF7
 } midi_event_type;
 
-typedef enum ctrl_mode {
-	CTRL_MODE_ABS		= 0, // Absolute immediate
-	CTRL_MODE_ABS_JP	= 1, // Absolute jump prevention
-	CTRL_MODE_REL_1		= 2, // Relative 2's complement
-	CTRL_MODE_REL_2 	= 3, // Relative offset
-	CTRL_MODE_REL_3		= 4, // Relative sign bit
-} midi_ctrl_mode;
-
 typedef struct midi_event_st {
 	midi_event_type type;
 	uint8_t chan;
@@ -114,10 +106,6 @@ int get_tuning_pitchbend();
 // Master chan management
 void set_midi_master_chan(int chan);
 int get_midi_master_chan();
-
-//Global System Events flag
-void set_midi_system_events(int flag);
-int get_midi_system_events();
 
 //MIDI Learning Mode
 void set_midi_learning_mode(int mlm);
@@ -189,8 +177,10 @@ void reset_midi_filter_cc_map();
 #define FLAG_ZMIP_FILTER 1
 #define FLAG_ZMIP_ACTIVE_CHAIN 4
 #define FLAG_ZMIP_DIRECTIN 8
+#define FLAG_ZMIP_SYSTEM 16
+#define FLAG_ZMIP_SYSTEM_RT 32
 
-#define ZMIP_DEV_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAIN)
+#define ZMIP_DEV_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_FILTER|FLAG_ZMIP_ACTIVE_CHAIN|FLAG_ZMIP_SYSTEM|FLAG_ZMIP_SYSTEM_RT)
 #define ZMIP_SEQ_FLAGS (FLAG_ZMIP_UI)
 #define ZMIP_STEP_FLAGS (FLAG_ZMIP_UI|FLAG_ZMIP_FILTER)
 #define ZMIP_CTRL_FLAGS (FLAG_ZMIP_UI)
@@ -227,6 +217,10 @@ uint32_t zmip_get_flags(int iz);
 int zmip_has_flags(int iz, uint32_t flag);
 int zmip_set_flag_active_chain(int iz, uint8_t flag);
 int zmip_get_flag_active_chain(int iz);
+int zmip_set_flag_system(int iz, uint8_t flag);
+int zmip_get_flag_system(int iz);
+int zmip_set_flag_system_rt(int iz, uint8_t flag);
+int zmip_get_flag_system_rt(int iz);
 
 // Routing
 int zmip_set_route_chains(int iz, int route);			// Route/un-route a MIDI input port (zmip) to/from *ALL* zmop chains

@@ -42,7 +42,6 @@ int tuning_pitchbend;					// Global tunning, implemented using MIDI pitchbend me
 int active_chain;						// Index of the active chain zmop
 int active_midi_chan;					// Flag to enable/disable active MIDI channel. When enable, active's chain MIDI channel is the active MIDI channel
 int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
-int midi_system_events;					// Flag to enable/disable system events globally
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
 int8_t global_transpose;     			// All incoming (zmip) notes are transposed
 jack_nframes_t last_frame;				// Index of last frame in each jack cycle
@@ -67,7 +66,6 @@ int init_zynmidirouter() {
 	active_midi_chan = 0;
 	tuning_pitchbend = -1;
 	midi_master_chan =- 1;
-	midi_system_events = 1;
 	midi_learning_mode = 0;
 	global_transpose = 0;
 	for (uint8_t i = 0; i < 4; ++i)
@@ -224,15 +222,6 @@ void set_midi_master_chan(int chan) {
 
 int get_midi_master_chan() {
 	return midi_master_chan;
-}
-
-// Enable/Disable System messages globally
-void set_midi_system_events(int flag) {
-	midi_system_events = flag;
-}
-
-int get_midi_system_events() {
-	return midi_system_events;
 }
 
 // MIDI Learning Mode
@@ -483,6 +472,48 @@ int zmip_get_flag_active_chain(int iz) {
 		return 0;
 	}
 	return zmips[ZMIP_DEV0 + iz].flags & (uint32_t)FLAG_ZMIP_ACTIVE_CHAIN;
+}
+
+int zmip_set_flag_system(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
+		return 0;
+	}
+	if (flag)
+		zmips[ZMIP_DEV0 + iz].flags |= (uint32_t)FLAG_ZMIP_SYSTEM;
+	else
+		zmips[ZMIP_DEV0 + iz].flags &= ~(uint32_t)FLAG_ZMIP_SYSTEM;
+	//fprintf(stderr, "ZynMidiRouter: Flags for zmip (%d) => %x\n", iz, zmips[ZMIP_DEV0 + iz].flags);
+	return 1;
+}
+
+int zmip_get_flag_system(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
+		return 0;
+	}
+	return zmips[ZMIP_DEV0 + iz].flags & (uint32_t)FLAG_ZMIP_SYSTEM;
+}
+
+int zmip_set_flag_system_rt(int iz, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
+		return 0;
+	}
+	if (flag)
+		zmips[ZMIP_DEV0 + iz].flags |= (uint32_t)FLAG_ZMIP_SYSTEM_RT;
+	else
+		zmips[ZMIP_DEV0 + iz].flags &= ~(uint32_t)FLAG_ZMIP_SYSTEM_RT;
+	//fprintf(stderr, "ZynMidiRouter: Flags for zmip (%d) => %x\n", iz, zmips[ZMIP_DEV0 + iz].flags);
+	return 1;
+}
+
+int zmip_get_flag_system_rt(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
+		return 0;
+	}
+	return zmips[ZMIP_DEV0 + iz].flags & (uint32_t)FLAG_ZMIP_SYSTEM_RT;
 }
 
 //Route/unroute a MIDI input device (zmip) to *ALL* chain zmops
@@ -1329,14 +1360,19 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 		event_idev = (uint8_t)izmip;
 
 		// Ignore Active Sense
-		//if (ev->buffer[0] == ACTIVE_SENSE || ev->buffer[0] == SYSTEM_EXCLUSIVE) // and SysEx messages
 		if (ev->buffer[0] == ACTIVE_SENSE)
-			goto event_processed; //!@TODO Handle Active Sense and SysEx
+			goto event_processed; //!@TODO Handle Active Sense
 
 		// Get event type & chan
-		if (ev->buffer[0] >= SYSTEM_EXCLUSIVE) {
-			// Ignore System Events depending on global flag
-			if (!midi_system_events)
+		if (ev->buffer[0] >= TIME_CLOCK) {
+			// Ignore System RT Events depending on ZMIP flag
+			if (!(zmip->flags & FLAG_ZMIP_SYSTEM_RT))
+				goto event_processed;
+			event_type = ev->buffer[0];
+			event_chan = 0;
+		} else if (ev->buffer[0] >= SYSTEM_EXCLUSIVE) {
+			// Ignore System Events depending on ZMIP flag
+			if (!(zmip->flags & FLAG_ZMIP_SYSTEM))
 				goto event_processed;
 			event_type = ev->buffer[0];
 			event_chan = 0;
