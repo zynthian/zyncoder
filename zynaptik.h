@@ -35,7 +35,9 @@
 #include <jack/midiport.h>
 
 #include "zynads1115.h"
-#include <MCP4728.h>
+#if __has_include(<MCP4728.h>)
+# include <MCP4728.h>
+#endif
 
 //-----------------------------------------------------------------------------
 // MCP23017 Stuff

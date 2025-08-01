@@ -178,6 +178,7 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 		if (off_state) zsw->off_state = 1;
 		else zsw->off_state = 0;
 
+#       if !defined( DUMMY_ENCODERS ) && !defined( EMULATOR_ENCODERS )
 		// RBPi GPIO pin
 		if (pin<100) {
 			struct gpiod_line *line = gpiod_chip_get_line(gpio_chip, pin);
@@ -229,6 +230,8 @@ int setup_zynswitch(uint8_t i, uint16_t pin, uint8_t off_state) {
 				}
 			#endif
 		}
+#       endif // !Dummy Encoders and !Emulator Encoders 	
+
 	}
 	return 0;
 }
@@ -248,6 +251,7 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 
 	//zsw->last_cvgate_note = -1;
 
+#   if !defined( DUMMY_ENCODERS ) && !defined( EMULATOR_ENCODERS )
 	#ifdef ZYNAPTIK_CONFIG
 	if (midi_evt==CVGATE_OUT_EVENT) {
 		set_pin_mode_zynmcp23017(zsw->pin, PIN_MODE_OUTPUT);
@@ -260,7 +264,7 @@ int setup_zynswitch_midi(uint8_t i, enum midi_event_type_enum midi_evt, uint8_t 
 		zynaptik_setup_gateout(i, midi_evt, midi_chan, midi_num);
 	}
 	#endif
-
+#   endif // !Dummy Encoders and !Emulator Encoders
 	return 1;
 }
 
@@ -534,6 +538,7 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 	zcdr->short_history = 0;
 	zcdr->long_history = 0;
 
+#   if !defined( DUMMY_ENCODERS ) && !defined( EMULATOR_ENCODERS )
 	if (pin_a!=pin_b) {
 		// RBPi GPIO pins
 		if (pin_a<100 && pin_b<100) {
@@ -609,6 +614,7 @@ int setup_zyncoder(uint8_t i, uint16_t pin_a, uint16_t pin_b) {
 		fprintf(stderr, "ZynCore->setup_zyncoder(%d, %d, %d): Can't configure zyncoder on a single pin!\n", i, pin_a, pin_b);
 		return 0;
 	}
+#   endif // !Dummy Encoders and !Emulator Encoders	
 	return 0;
 }
 
@@ -650,7 +656,9 @@ void zynswitch_rbpi_ISR(uint8_t i) {
 	if (i>=MAX_NUM_ZYNSWITCHES) return;
 	zynswitch_t *zsw = zynswitches + i;
 	if (zsw->enabled==0) return;
+#   if !defined( DUMMY_ENCODERS ) && !defined( EMULATOR_ENCODERS )
 	update_zynswitch(i, (uint8_t)gpiod_line_get_value(zsw->line));
+#   endif // !Dummy Encoders and !Emulator Encoders	
 }
 
 void zynswitch_rbpi_ISR_0() { zynswitch_rbpi_ISR(0); }
@@ -732,7 +740,9 @@ void zyncoder_rbpi_ISR(uint8_t i) {
 	if (i>=MAX_NUM_ZYNCODERS) return;
 	zyncoder_t *zcdr = zyncoders + i;
 	if (zcdr->enabled==0) return;
+#   if !defined( DUMMY_ENCODERS ) && !defined( EMULATOR_ENCODERS )
 	update_zyncoder(i, (uint8_t)gpiod_line_get_value(zcdr->line_a), (uint8_t)gpiod_line_get_value(zcdr->line_b));
+#   endif // !Dummy Encoders and !Emulator Encoders	
 }
 
 void zyncoder_rbpi_ISR_0() { zyncoder_rbpi_ISR(0); }
