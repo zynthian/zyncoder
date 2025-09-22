@@ -194,6 +194,7 @@ struct zmip_st {
 	jack_ringbuffer_t * rbuffer;	// Direct input ring buffer => Used when DIRECTIN flag is set
 
 	uint32_t flags;					// Bitwise flags influencing input behaviour
+	uint16_t ui_midi_chans;			// Bitwise maks of MIDI channels reserved for UI (not routed to zmops!)
 
 	uint32_t event_count;			// Quantity of events in input event queue (not fake queues)
 	uint32_t next_event;			// Index of the next event to be processed (not fake queues)
@@ -221,6 +222,10 @@ int zmip_set_flag_system(int iz, uint8_t flag);
 int zmip_get_flag_system(int iz);
 int zmip_set_flag_system_rt(int iz, uint8_t flag);
 int zmip_get_flag_system_rt(int iz);
+
+// MIDI chans reserved for UI
+int zmip_set_ui_midi_chans(int iz, uint16_t ui_midi_chans);
+uint16_t zmip_get_ui_midi_chans(int iz);
 
 // Routing
 int zmip_set_route_chains(int iz, int route);			// Route/un-route a MIDI input port (zmip) to/from *ALL* zmop chains

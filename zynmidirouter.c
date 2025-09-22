@@ -375,6 +375,7 @@ int zmip_init(int iz, char *name, uint32_t flags) {
 	zmips[iz].event.time = 0xFFFFFFFF;
 	zmips[iz].event_count = 0;
 	zmips[iz].flags = flags;
+	zmips[iz].ui_midi_chans = 0;
 	memset(zmips[iz].last_ctrl_val, 0, 16 * 128);
 
 	// Create direct input ring-buffer
@@ -514,6 +515,24 @@ int zmip_get_flag_system_rt(int iz) {
 		return 0;
 	}
 	return zmips[ZMIP_DEV0 + iz].flags & (uint32_t)FLAG_ZMIP_SYSTEM_RT;
+}
+
+// MIDI chans reserved for UI
+int zmip_set_ui_midi_chans(int iz, uint16_t ui_midi_chans) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	zmips[iz].ui_midi_chans = ui_midi_chans;
+	return 1;
+}
+
+uint16_t zmip_get_ui_midi_chans(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	return zmips[iz].ui_midi_chans;
 }
 
 //Route/unroute a MIDI input device (zmip) to *ALL* chain zmops
@@ -1495,6 +1514,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 			} else {
 				write_zynmidi((event_idev << 24) | (ev->buffer[0] << 16) | (ev->buffer[1] << 8) | (ev->buffer[2]));
+				// MIDI chans reserved for UI => Don't route to zmops!
+				if (event_type < SYSTEM_EXCLUSIVE && ((zmip->ui_midi_chans >> event_chan) & 0x1)) goto event_processed;
 			}
 		}
 
@@ -1614,6 +1635,7 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					pedal_sent[pedal] |= (1 << izmop);
 				else
 					pedal_sent[pedal] &= ~(1 << izmop);
+
 			// Add processed event to MIDI output port buffer
 			zmop_push_event(zmop, ev);
 
