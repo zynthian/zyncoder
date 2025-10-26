@@ -30,7 +30,7 @@
 
 
 int get_num_zynswitches() {
-	return 0;
+	return 28;
 }
 
 int get_last_zynswitch_index() {
