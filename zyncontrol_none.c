@@ -1,10 +1,10 @@
 /*
  * ******************************************************************
- * ZYNTHIAN PROJECT: Zynthian Core Library Initialization
+ * ZYNTHIAN PROJECT: Null zyncontrol Library (touch only)
  * 
- * Initialize core modules
+ * Do nothing!
  * 
- * Copyright (C) 2015-2021 Fernando Moyano <jofemodo@zynthian.org>
+ * Copyright (C) 2015-2025 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
  * 
@@ -23,29 +23,33 @@
  * ******************************************************************
  */
 
-//#include "gpiod_callback.h"
-#include "zyncontrol.h"
-#include "zynmidirouter.h"
-#include "zynmaster.h"
 
 //-----------------------------------------------------------------------------
+// Wrap functions to inform the GUI about not having zynpots nor zynswitches
+//-----------------------------------------------------------------------------
 
-int init_zyncore() {
-	if (!init_zyncontrol()) return 1;
-	if (!init_zynmidirouter()) return 2;
-	if (!init_zynmaster_jack()) return 3;
+
+int get_num_zynswitches() {
 	return 0;
 }
 
-int init_zyncore_minimal() {
-	//gpiod_init_callbacks();
+int get_last_zynswitch_index() {
+	return -1;
+}
+
+int get_num_zynpots() {
 	return 0;
 }
 
-int end_zyncore() {
-	if (!end_zynmaster_jack()) return 0;
-	if (!end_zynmidirouter()) return 0;
-	if (!end_zyncontrol()) return 0;
+//-----------------------------------------------------------------------------
+// Zyncontrol Initialization
+//-----------------------------------------------------------------------------
+
+int init_zyncontrol() {
+	return 1;
+}
+
+int end_zyncontrol() {
 	return 1;
 }
 

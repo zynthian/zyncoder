@@ -217,6 +217,10 @@ elseif ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "V5_ZYNFACE")
 	add_executable(mcp4728_set_address mcp4728_set_address.c)
 	target_link_libraries(mcp4728_set_address MCP4728)
 
+elseif (("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "TOUCH_ONLY") OR ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "DUMMIES"))
+	add_library(zyncore SHARED zyncore.c zyncontrol.h zyncontrol_none.c zynmidirouter.h zynmidirouter.c zynmaster.h zynmaster.c)
+	target_link_libraries(zyncore jack lo)
+
 else ()
 	if (BUILD_ZYNTOF AND BUILD_ZYNAPTIK)
 		message("++ Building Zynaptik & Zyntof support")
@@ -237,7 +241,10 @@ else ()
 
 endif()
 
-add_executable(zyncoder_test zyncoder_test.c)
-target_link_libraries(zyncoder_test zyncore)
+
+if (NOT ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "TOUCH_ONLY") AND NOT ("$ENV{ZYNTHIAN_WIRING_LAYOUT}" STREQUAL "DUMMIES") )
+	add_executable(zyncoder_test zyncoder_test.c)
+	target_link_libraries(zyncoder_test zyncore)
+endif()
 
 install(TARGETS zyncore LIBRARY DESTINATION lib)
