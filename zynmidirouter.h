@@ -445,6 +445,8 @@ int ctrlfb_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
 int ctrlfb_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
 int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm);
+int ctrlfb_send_chan_press(uint8_t chan, uint8_t val);
+int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb);
 
 // ZMOP_DEV Direct Send Functions
 int dev_send_midi_event(uint8_t idev, uint8_t *event_buffer, int event_size);
@@ -452,6 +454,8 @@ int dev_send_note_off(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel);
 int dev_send_note_on(uint8_t idev, uint8_t chan, uint8_t note, uint8_t vel);
 int dev_send_ccontrol_change(uint8_t idev, uint8_t chan, uint8_t ctrl, uint8_t val);
 int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm);
+int dev_send_chan_press(uint8_t idev, uint8_t chan, uint8_t val);
+int dev_send_pitchbend_change(uint8_t idev, uint8_t chan, uint16_t pb);
 
 //-----------------------------------------------------------------------------
 // MIDI Internal Ouput Events Buffer => UI

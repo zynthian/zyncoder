@@ -2036,6 +2036,14 @@ int ctrlfb_send_program_change(uint8_t chan, uint8_t prgm) {
 	zmop_send_program_change(ZMOP_CTRL, chan, prgm);
 }
 
+int ctrlfb_send_chan_press(uint8_t chan, uint8_t val) {
+    zmop_send_chan_press(ZMOP_CTRL, chan, val);
+}
+
+int ctrlfb_send_pitchbend_change(uint8_t chan, uint16_t pb) {
+    zmop_send_pitchbend_change(ZMOP_CTRL, chan, pb);
+}
+
 //-----------------------------------------------------------------------------
 // ZMOP_DEV Direct Send Functions
 //-----------------------------------------------------------------------------
@@ -2058,6 +2066,14 @@ int dev_send_ccontrol_change(uint8_t idev, uint8_t chan, uint8_t ctrl, uint8_t v
 
 int dev_send_program_change(uint8_t idev, uint8_t chan, uint8_t prgm) {
 	zmop_send_program_change(ZMOP_DEV0 + idev, chan, prgm);
+}
+
+int dev_send_chan_press(uint8_t idev, uint8_t chan, uint8_t val) {
+    zmop_send_chan_press(ZMOP_DEV0 + idev, chan, val);
+}
+
+int dev_send_pitchbend_change(uint8_t idev, uint8_t chan, uint16_t pb) {
+    zmop_send_pitchbend_change(ZMOP_DEV0 + idev, chan, pb);
 }
 
 //-----------------------------------------------------------------------------
