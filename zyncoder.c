@@ -381,15 +381,17 @@ void send_zynswitch_midi(zynswitch_t *zsw) {
 		}
 	}
 	else if (zsw->midi_event.type==TIME_CLOCK || zsw->midi_event.type==TRANSPORT_START || zsw->midi_event.type==TRANSPORT_CONTINUE || zsw->midi_event.type==TRANSPORT_STOP) {
-		//Send MIDI event to engines and ouput (ZMOPS)
-		uint8_t buffer[3];
-		buffer[0] = zsw->midi_event.type;
-		buffer[1] = 0;
-		buffer[2] = 0;
-		zmip_send_midi_event(ZMIP_FAKE_INT, buffer, 3);
-		//Send MIDI event to UI
-		write_zynmidi((uint32_t)zsw->midi_event.type << 16);
-		//fprintf(stderr, "ZynCore: Zynswitch MIDI SYSTEM RT event=> %d\n", zsw->midi_event.type);
+		if (zsw->status!=zsw->off_state) {
+			//Send MIDI event to engines and ouput (ZMOPS)
+			uint8_t buffer[3];
+			buffer[0] = zsw->midi_event.type;
+			buffer[1] = 0;
+			buffer[2] = 0;
+			zmip_send_midi_event(ZMIP_FAKE_INT, buffer, 3);
+			//Send MIDI event to UI
+			write_zynmidi((uint32_t)zsw->midi_event.type << 16);
+			//fprintf(stderr, "ZynCore: Zynswitch MIDI SYSTEM RT event=> %d\n", zsw->midi_event.type);
+		}
 	}
 }
 
@@ -623,9 +625,12 @@ int setup_behaviour_zyncoder(uint8_t i, int32_t step) {
 	else zyncoders[i].step = 1;
 	
 	zyncoders[i].value = 0;
+	zyncoders[i].subvalue = 0;
 	zyncoders[i].tsms = 0;
+	zyncoders[i].tsms_detent = 0;
 	zyncoders[i].short_history = 0;
 	zyncoders[i].long_history = 0;
+
 	return 1;
 }
 
