@@ -438,6 +438,17 @@ int zmop_send_ccontrol_change(uint8_t iz, uint8_t chan, uint8_t ctrl, uint8_t va
 int zmop_send_program_change(uint8_t iz, uint8_t chan, uint8_t prgm);
 int zmop_send_chan_press(uint8_t iz, uint8_t chan, uint8_t val);
 int zmop_send_pitchbend_change(uint8_t iz, uint8_t chan, uint16_t pb);
+int zmop_send_clock(uint8_t iz);
+
+// ZMOP_STEP Direct Send Functions
+int zynstep_send_midi_event(uint8_t *event_buffer, int event_size);
+int zynstep_send_note_off(uint8_t chan, uint8_t note, uint8_t vel);
+int zynstep_send_note_on(uint8_t chan, uint8_t note, uint8_t vel);
+int zynstep_send_ccontrol_change(uint8_t chan, uint8_t ctrl, uint8_t val);
+int zynstep_send_program_change(uint8_t chan, uint8_t prgm);
+int zynstep_send_chan_press(uint8_t chan, uint8_t val);
+int zynstep_send_pitchbend_change(uint8_t chan, uint16_t pb);
+int zynstep_send_clock();
 
 // ZMOP_CTRL Direct Send Functions
 int ctrlfb_send_midi_event(uint8_t *event_buffer, int event_size);
