@@ -211,6 +211,8 @@ int zmip_get_seq_index();
 int zmip_get_step_index();
 int zmip_get_int_index();
 int zmip_get_ctrl_index();
+int zmip_get_clock_index();
+int zmip_set_clock_index(int iz);
 
 // Flag management
 int zmip_set_flags(int iz, uint32_t flags);
