@@ -211,8 +211,10 @@ int zmip_get_seq_index();
 int zmip_get_step_index();
 int zmip_get_int_index();
 int zmip_get_ctrl_index();
-int zmip_get_clock_index();
-int zmip_set_clock_index(int iz);
+
+// MIDI Clock source
+int zmip_get_midi_clock_source();
+int zmip_set_midi_clock_source(int iz);
 
 // Flag management
 int zmip_set_flags(int iz, uint32_t flags);
@@ -293,8 +295,8 @@ int zmip_set_route_chains(int iz, int route);			// Route/un-route a MIDI input p
 #define FLAG_ZMOP_CHAN_TRANSFILTER 128
 #define FLAG_ZMOP_DIRECTOUT 256
 
-//#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_CHAN_TRANSFILTER|FLAG_ZMOP_DIRECTOUT)
-#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_CHAN_TRANSFILTER|FLAG_ZMOP_DIRECTOUT)
+#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYS|FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_CHAN_TRANSFILTER|FLAG_ZMOP_DIRECTOUT)
+//#define ZMOP_CHAIN_FLAGS (FLAG_ZMOP_TUNING|FLAG_ZMOP_NOTERANGE|FLAG_ZMOP_DROPSYSEX|FLAG_ZMOP_CHAN_TRANSFILTER|FLAG_ZMOP_DIRECTOUT)
 
 // Structure describing a MIDI output
 struct zmop_st {
