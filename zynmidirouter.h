@@ -212,10 +212,6 @@ int zmip_get_step_index();
 int zmip_get_int_index();
 int zmip_get_ctrl_index();
 
-// MIDI Clock source
-int zmip_get_midi_clock_source();
-int zmip_set_midi_clock_source(int iz);
-
 // Flag management
 int zmip_set_flags(int iz, uint32_t flags);
 uint32_t zmip_get_flags(int iz);
