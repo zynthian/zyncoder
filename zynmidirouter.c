@@ -1,13 +1,13 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: ZynMidiRouter Library
- * 
- * MIDI router library: Implements the MIDI router & filter 
- * 
+ *
+ * MIDI router library: Implements the MIDI router & filter
+ *
  * Copyright (C) 2015-2024 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -645,6 +645,14 @@ int zmop_get_num_chains() {
 
 int zmop_get_num_devs() {
 	return NUM_ZMOP_DEVS;
+}
+
+int zmop_get_mod_index() {
+	return ZMOP_MOD;
+}
+
+int zmop_get_step_index() {
+	return ZMOP_STEP;
 }
 
 // Flags management
@@ -1700,7 +1708,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	uint8_t event_chan = ev->buffer[0] & 0x0F;
 	int event_num = -1;
 
-	if ((zmop->flags & FLAG_ZMOP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {		
+	if ((zmop->flags & FLAG_ZMOP_NOTERANGE) && (event_type == NOTE_OFF || event_type == NOTE_ON)) {
 		// Note-range & Transpose Note-on/off messages
 		int8_t offset;
 		event_num = ev->buffer[1];
@@ -1731,7 +1739,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 		event_chan = zmop->midi_chans[event_chan] & 0x0F;
 		ev->buffer[0] = (ev->buffer[0] & 0xF0) | event_chan;
 	}
-	
+
 	// Fine-Tuning, using pitch-bending messages ...
 	jack_midi_event_t xev;
 	jack_midi_data_t xev_buffer[3];
@@ -1770,7 +1778,7 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 	if (xev.size > 0)
 		if (jack_midi_event_write(zmop->buffer, xev.time, xev.buffer, ev->size))
 			fprintf(stderr, "ZynMidiRouter: Error writing jack midi output event!\n");
-	
+
 	// Restore the original note before transpose
 	if (event_num >= 0)
 		ev->buffer[1] = (uint8_t)(event_num & 0x7F);

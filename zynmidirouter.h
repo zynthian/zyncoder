@@ -1,13 +1,13 @@
 /*
  * ******************************************************************
  * ZYNTHIAN PROJECT: ZynMidiRouter Library
- * 
- * MIDI router library: Implements the MIDI router & filter 
- * 
+ *
+ * MIDI router library: Implements the MIDI router & filter
+ *
  * Copyright (C) 2015-2025 Fernando Moyano <jofemodo@zynthian.org>
  *
  * ******************************************************************
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * For a full copy of the GNU General Public License see the LICENSE.txt file.
- * 
+ *
  * ******************************************************************
  */
 
@@ -326,6 +326,9 @@ int zmop_init(int iz, char *name, uint32_t flags);
 int zmop_end(int iz);
 int zmop_get_num_chains();
 int zmop_get_num_devs();
+int zmop_get_mod_index();
+int zmop_get_step_index();
+
 // Flag management
 int zmop_set_flags(int iz, uint32_t flags);
 uint32_t zmop_get_flags(int iz);
