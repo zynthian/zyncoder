@@ -43,7 +43,6 @@ int active_chain;						// Index of the active chain zmop
 int active_midi_chan;					// Flag to enable/disable active MIDI channel. When enable, active's chain MIDI channel is the active MIDI channel
 int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
-int midi_clock_zmip = -1;				// Index of zmip used as MIDI clock source (-1 for none)
 int8_t global_transpose;     			// All incoming (zmip) notes are transposed
 jack_nframes_t last_frame;				// Index of last frame in each jack cycle
 uint32_t pedal_sent[4];					// Bitwise flag indicating if CC value>0 sent to a chain zmop for each pedal type
@@ -507,19 +506,6 @@ int zmip_set_flag_system_rt(int iz, uint8_t flag) {
 	else
 		zmips[ZMIP_DEV0 + iz].flags &= ~(uint32_t)FLAG_ZMIP_SYSTEM_RT;
 	//fprintf(stderr, "ZynMidiRouter: Flags for zmip (%d) => %x\n", iz, zmips[ZMIP_DEV0 + iz].flags);
-	return 1;
-}
-
-int zmip_get_midi_clock_source() {
-	return midi_clock_zmip;
-}
-
-int zmip_set_midi_clock_source(int iz) {
-	if (iz < -1 || iz >= MAX_NUM_ZMIPS) {
-		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
-		return 0;
-	}
-	midi_clock_zmip = iz;
 	return 1;
 }
 
@@ -1406,11 +1392,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Get event type & chan
 		if (ev->buffer[0] == TIME_CLOCK) {
-			// Ignore MIDI clock messages if not coming from the MIDI clock source zmip
-			if (izmip != midi_clock_zmip)
-				goto event_processed;
-			event_type = ev->buffer[0];
-			event_chan = 0;
+			// Ignore MIDI clock messages
+			goto event_processed;
 		} else if (ev->buffer[0] > TIME_CLOCK) {
 			// Ignore System RT Events depending on ZMIP flag
 			if (!(zmip->flags & FLAG_ZMIP_SYSTEM_RT))
