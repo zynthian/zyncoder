@@ -118,7 +118,7 @@ int get_num_zynswitches() {
 
 int get_last_zynswitch_index() {
 	int i;
-	int li = 0;
+	int li = -1;
 	for (i=0;i<MAX_NUM_ZYNSWITCHES;i++) {
 		if (zynswitches[i].enabled!=0) li = i;
 	}
