@@ -1441,9 +1441,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//Map event ...
 			if (event_map->type >= 0) {
 				//fprintf(stderr, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
-				event_type = event_map->type;
-				event_chan = event_map->chan;
-				ev->buffer[0] = (event_type << 4) | event_chan;
 				if (event_map->type == PROG_CHANGE || event_map->type == CHAN_PRESS) {
 					ev->buffer[1] = event_num;
 					event_val = 0;
@@ -1456,9 +1453,15 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				} else {
 					event_num = event_map->num;
 					ev->buffer[1] = event_num;
-					ev->buffer[2] = event_val;
+					if (event_type == NOTE_OFF)
+						ev->buffer[2] = 0;
+					else
+						ev->buffer[2] = event_val;
 					ev->size = 3;
 				}
+				event_type = event_map->type;
+				event_chan = event_map->chan;
+				ev->buffer[0] = (event_type << 4) | event_chan;
 				//fprintf(stderr, "MIDI EVENT: "); for(int x = 0; x < ev->size; ++x) fprintf(stderr, "%x ", ev->buffer[x]); fprintf(stderr, "\n");
 			}
 		}
