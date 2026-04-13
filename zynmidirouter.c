@@ -1454,9 +1454,8 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					event_num = event_map->num;
 					ev->buffer[1] = event_num;
 					if (event_type == NOTE_OFF)
-						ev->buffer[2] = 0;
-					else
-						ev->buffer[2] = event_val;
+						event_val = 0;
+					ev->buffer[2] = event_val;
 					ev->size = 3;
 				}
 				event_type = event_map->type;
