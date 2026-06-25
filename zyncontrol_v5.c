@@ -25,8 +25,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <wiringPi.h>
 
-#include "gpiod_callback.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 #include "tpa6130.h"
@@ -147,7 +147,7 @@ uint8_t get_hpvol_max() { return tpa6130_get_volume_max(); }
 #endif
 
 int init_zyncontrol() {
-	gpiod_init_callbacks();
+	wiringPiSetupPinType(WPI_PIN_BCM);
 	#ifdef TPA6130_DRIVER
 	tpa6130_init();
 	#endif
@@ -157,12 +157,10 @@ int init_zyncontrol() {
 	#ifdef ZYNAPTIK_CONFIG
 	init_zynaptik();
 	#endif
-	gpiod_start_callbacks();
 	return 1;
 }
 
 int end_zyncontrol() {
-	gpiod_stop_callbacks();
 	#ifdef ZYNAPTIK_CONFIG
 	end_zynaptik();
 	#endif

@@ -33,10 +33,9 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <gpiod.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
 
-#include "gpiod_callback.h"
-#include "wiringPiI2C.h"
 #include "zynmcp23017.h"
 #include "zyncoder.h"
 
@@ -148,32 +147,12 @@ int setup_zynmcp23017(uint8_t i, uint16_t base_pin, uint8_t i2c_address, uint8_t
 	zynmcp23017s[i].enabled = 1;
 
 	// Setup callbacks for the interrupt pins
-	struct gpiod_line *line_a = gpiod_chip_get_line(gpio_chip, intA_pin);
-	if (line_a) {
-		if (gpiod_line_request_rising_edge_events_flags(line_a, ZYNCORE_CONSUMER, 0) < 0) {
-			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTA pin %d\n", i, intA_pin);
-			return 0;
-		}
-		if (gpiod_line_register_callback(line_a, isrs[0]) < 0) {
-			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't register callback for INTA pin %d\n", i, intA_pin);
-			return 0;
-		}
-	} else {
-		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't get line for INTA pin %d\n", i, intA_pin);
+	if (wiringPiISR(intA_pin, INT_EDGE_RISING, isrs[0]) != 0) {
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't interrupt callback for INTA pin %d\n", i, intA_pin);
 		return 0;
 	}
-	struct gpiod_line *line_b = gpiod_chip_get_line(gpio_chip, intB_pin);
-	if (line_b) {
-		if (gpiod_line_request_rising_edge_events_flags(line_b, ZYNCORE_CONSUMER, 0) < 0) {
-			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't request line for INTB pin %d\n", i, intB_pin);
-			return 0;
-		}
-		if (gpiod_line_register_callback(line_b, isrs[1]) < 0) {
-			fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't register callback for INTB pin %d\n", i, intB_pin);
-			return 0;
-		}
-	} else {
-		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't get line for INTB pin %d\n", i, intB_pin);
+	if (wiringPiISR(intB_pin, INT_EDGE_RISING, isrs[1]) != 0) {
+		fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): Can't interrupt callback for INTA pin %d\n", i, intB_pin);
 		return 0;
 	}
 	//fprintf(stderr, "ZynCore->setup_zynmcp23017(%d, ...): I2C %x, base-pin %d, INTA %d, INTB %d\n", i, i2c_address, base_pin, intA_pin, intB_pin);

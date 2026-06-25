@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <wiringPi.h>
 
-#include "gpiod_callback.h"
 #include "zynmcp23008.h"
 #include "zynpot.h"
 #include "zyncoder.h"
@@ -39,6 +39,78 @@
 #ifdef ZYNTOF_CONFIG
 #include "zyntof.h"
 #endif
+
+//-----------------------------------------------------------------------------
+// WiringPi to BCM GPIO tables
+//-----------------------------------------------------------------------------
+
+// WiringPi => GPIO number (BCM)
+int8_t wpi2gpio[32] = {
+	17, // 0
+	18, // 1
+	27, // 2
+	22, // 3
+	23, // 4
+	24, // 5
+	25, // 6
+	4,  // 7
+	2,  // 8
+	3,  // 9
+	8,  // 10
+	7,  // 11
+	10, // 12
+	9,  // 13
+	11, // 14
+	14, // 15
+	15, // 16
+	-1, // 17
+	-1, // 18
+	-1, // 19
+	-1, // 20
+	5,  // 21
+	6,  // 22
+	13, // 23
+	19, // 24
+	26, // 25
+	12, // 26
+	16, // 27
+	20, // 28
+	21, // 29
+	0,  // 30
+	1   // 31
+};
+
+// GPIO number (BCM) => WiringPi
+int8_t gpio2wpi[28] = {
+	30, // 0
+	31, // 1
+	8,  // 2
+	9,  // 3
+	7,  // 4
+	21, // 5
+	22, // 6
+	11, // 7
+	10, // 8
+	13, // 9
+	12, // 10
+	14, // 11
+	26, // 12
+	23, // 13
+	15, // 14
+	16, // 15
+	27, // 16
+	0,  // 17
+	1,  // 18
+	24, // 19
+	28, // 20
+	29, // 21
+	3,  // 22
+	4,  // 23
+	5,  // 24
+	6,  // 25
+	25, // 26
+	2   // 27
+};
 
 //-----------------------------------------------------------------------------
 // GPIO Expander
@@ -63,7 +135,6 @@
 	#define MCP23008_BASE_PIN 100
 	#define MCP23008_I2C_ADDRESS 0x20
 #endif
-
 
 #if defined(MCP23017_ENCODERS)
 
@@ -190,7 +261,7 @@ void init_zynpots() {
 //-----------------------------------------------------------------------------
 
 int init_zyncontrol() {
-	gpiod_init_callbacks();
+	wiringPiSetupPinType(WPI_PIN_BCM);
 	get_wiring_config();
 	#if defined(MCP23017_ENCODERS)
 		init_zynmcp23017s();
@@ -206,7 +277,6 @@ int init_zyncontrol() {
 	#ifdef ZYNTOF_CONFIG
 		init_zyntof();
 	#endif
-	gpiod_start_callbacks();
 	#if defined(MCP23008_ENCODERS)
 		init_poll_zynswitches();
 	#endif
@@ -217,7 +287,6 @@ int end_zyncontrol() {
 	#if defined(MCP23008_ENCODERS)
 		end_poll_zynswitches();
 	#endif
-	gpiod_stop_callbacks();
 	#ifdef ZYNTOF_CONFIG
 		end_zyntof();
 	#endif
