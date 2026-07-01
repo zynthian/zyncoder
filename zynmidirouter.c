@@ -1441,9 +1441,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 			//Map event ...
 			if (event_map->type >= 0) {
 				//fprintf(stderr, "ZynMidiRouter: Event Map %x, %x => ",ev->buffer[0],ev->buffer[1]);
-				if (event_map->type == PROG_CHANGE || event_map->type == CHAN_PRESS) {
-					ev->buffer[1] = event_num;
-					event_val = 0;
+				if (event_map->type == PROG_CHANGE) {
+					ev->buffer[1] = event_map->num;
+					ev->size=2;
+				} else if (event_map->type == CHAN_PRESS) {
+					ev->buffer[1] = event_val;
 					ev->size=2;
 				} else if (event_map->type == PITCH_BEND) {
 					event_num = 0;
