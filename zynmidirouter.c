@@ -893,7 +893,7 @@ int zmop_set_midi_chan_all_trans(int iz, int midi_chan) {
 		zmops[iz].midi_chans[i] = midi_chan;
 	}
 	zmops[iz].midi_chan = -1;
-	zmop_set_flag_chan_transfilter(iz, 0);
+	zmop_set_flag_chan_transfilter(iz, 1);
 	return 1;
 }
 
@@ -1562,24 +1562,29 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				if (zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER && zmop->midi_chan >= 0) {
 					// ACTI => route events to active chain, translating channel as required  ...
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN) {
-						// If (active MIDI channel
-						if (((active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan)
-						// or active chain)
-						|| izmop == active_chain) &&
+						// If (active chain or
+						if ((izmop == active_chain ||
+						// or active MIDI channel)
+						(active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan)) &&
 						// and output midi channel is mapped => Send to active zmop's MIDI channel
 						zmop->midi_chans[zmop->midi_chan] >= 0) {
-							// NOTE-OFF => Release pressed notes across active chain changes
+							// note-off => Release pressed notes across active chain changes
 							if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
 								// If not matching note-on on this chain, try rest of chains ...
 								if (zmop->note_state[event_num] == 0) {
+									int noff_count = 0;
 									for (j = 1; j < NUM_ZMOP_CHAINS; j++) {
 										int xiz = (izmop + j) % NUM_ZMOP_CHAINS;
 										// If found a matching note-on for this note-off event on other chain
-										if (zmops[xiz].note_state[event_num] > 0 && zmops[xiz].midi_chan >= 0 && zmops[xiz].n_connections > 0  && zmops[xiz].route_from_zmips[izmip]) {
-											zmop = zmops + xiz;
-											break;
+										if (zmops[xiz].note_state[event_num] > 0 && zmops[xiz].n_connections > 0 && zmops[xiz].route_from_zmips[izmip] &&
+											zmops[xiz].midi_chan >= 0 && (zmops[xiz].midi_chan != zmop->midi_chan || !active_midi_chan))  {
+											zmops[xiz].note_state[event_num] = 0;
+											ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmops[xiz].midi_chan & 0x0F);
+											zmop_push_event(zmops + xiz, ev);
+											noff_count++;
 										}
 									}
+									if (noff_count > 0) ev->buffer[0] = event_b0;
 								}
 							} else if (pedal < 4) {
 								if (!event_val) {
@@ -1600,19 +1605,36 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 							continue;
 						}
 					} else if (zmop->midi_chans[event_chan] == -1) {
-						// MULTI => no translate, but filter MIDI channels not configured in zmop
+						// MULTI => Discard messages in MIDI channels not configured in zmop
 						continue;
 					}
 				}
 				// No Channel Translation & No Channel Filtering:
-				// + Ignore ACTI/MULTI flag
-				// + ALL channel messages pass untranslated
+				// + MIDI chan = "All Channel" => Ignore ACTI/MULTI flag
 				else {
 					// Discard messages in disabled channels
 					if (zmop->midi_chans[event_chan] == -1)
 						continue;
-					// Leave MIDI channel untouched
+					// Leave MIDI channel untouched => it's translated as required in zmop_push_event
 					//fprintf(stderr, "MIDI message untouched to ZMOP %d => %d, %d, 0x%x!\n", izmop, izmip, event_chan, event_type);
+
+					// note-off => Release pressed notes across active chain changes
+					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN &&
+						(event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0))) {
+						int noff_count = 0;
+						for (j = 1; j < NUM_ZMOP_CHAINS; j++) {
+							int xiz = (izmop + j) % NUM_ZMOP_CHAINS;
+							// If found a matching note-on for this note-off event on other chain
+							if (zmops[xiz].note_state[event_num] > 0 && zmops[xiz].n_connections > 0 && zmops[xiz].route_from_zmips[izmip] &&
+								zmops[xiz].midi_chan >= 0 && (zmops[xiz].midi_chan != zmop->midi_chan || !active_midi_chan))  {
+								zmops[xiz].note_state[event_num] = 0;
+								ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmops[xiz].midi_chan & 0x0F);
+								zmop_push_event(zmops + xiz, ev);
+								noff_count++;
+							}
+						}
+						if (noff_count > 0) ev->buffer[0] = event_b0;
+					}
 				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
