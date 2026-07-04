@@ -1687,6 +1687,10 @@ void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev) {
 
 		// Note-off => Send the note-off with the same transpose value that the tracked note-on
 		if (event_type == NOTE_OFF) {
+			// Note-range
+			if (event_num < zmop->note_low || event_num > zmop->note_high)
+				return; // Raw note out of range
+
 			offset = zmop->note_transpose[event_num];
 		}
 		// Note-on
