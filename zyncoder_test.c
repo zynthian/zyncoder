@@ -28,7 +28,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "gpiod_callback.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 #include "zynaptik.h"

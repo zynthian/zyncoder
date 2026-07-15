@@ -32,8 +32,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <sys/time.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
 
-#include "wiringPiI2C.h"
 #include "zynads1115.h"
 
 

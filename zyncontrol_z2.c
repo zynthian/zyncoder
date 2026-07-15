@@ -25,8 +25,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <wiringPi.h>
 
-#include "gpiod_callback.h"
 #include "zynpot.h"
 #include "zyncoder.h"
 #include "zynads1115.h"
@@ -163,17 +163,15 @@ uint8_t get_hpvol() { return lm4811_get_volume(); }
 uint8_t get_hpvol_max() { return lm4811_get_volume_max(); }
 
 int init_zyncontrol() {
-	gpiod_init_callbacks();
+	wiringPiSetupPinType(WPI_PIN_BCM);
 	lm4811_init();
 	init_zynmcp23017s();
 	init_zynswitches();
 	init_zynpots();
-	gpiod_start_callbacks();
 	return 1;
 }
 
 int end_zyncontrol() {
-	gpiod_stop_callbacks();
 	end_zynpots();
 	reset_zyncoders();
 	reset_zynswitches();

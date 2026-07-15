@@ -31,10 +31,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
 
 //#define DEBUG
 
-#include "wiringPiI2C.h"
 #include "zynmcp23008.h"
 #include "zyncoder.h"
 
