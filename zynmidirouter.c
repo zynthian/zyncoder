@@ -172,9 +172,12 @@ int get_active_chain() {
 }
 
 void set_active_midi_chan(int flag) {
-	active_midi_chan = flag;
-	for (uint8_t izmip = 0; izmip < MAX_NUM_ZMIPS; ++izmip)
-		clear_cc_pedals(izmip);
+	if (active_midi_chan != flag) {
+		active_midi_chan = flag;
+		for (uint8_t izmip = 0; izmip < MAX_NUM_ZMIPS; ++izmip) {
+			clear_cc_pedals(izmip);
+		}
+	}
 }
 
 int get_active_midi_chan() {
@@ -458,11 +461,13 @@ int zmip_set_flag_active_chain(int iz, uint8_t flag) {
 		fprintf(stderr, "ZynMidiRouter: Bad input port number (%d).\n", iz);
 		return 0;
 	}
-	if (flag)
-		zmips[ZMIP_DEV0 + iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAIN;
-	else
-		zmips[ZMIP_DEV0 + iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAIN;
-	clear_cc_pedals(iz);
+	if (!zmip_get_flag_active_chain(iz) != !flag) {
+		if (flag)
+			zmips[ZMIP_DEV0 + iz].flags |= (uint32_t)FLAG_ZMIP_ACTIVE_CHAIN;
+		else
+			zmips[ZMIP_DEV0 + iz].flags &= ~(uint32_t)FLAG_ZMIP_ACTIVE_CHAIN;
+		clear_cc_pedals(iz);
+	}
 	//fprintf(stderr, "ZynMidiRouter: Flags for zmip (%d) => %x\n", iz, zmips[ZMIP_DEV0 + iz].flags);
 	return 1;
 }
@@ -835,14 +840,16 @@ int zmop_set_midi_chan(int iz, int midi_chan) {
 		fprintf(stderr, "ZynMidiRouter: Bad chan number (%d).\n", midi_chan);
 		return 0;
 	}
-	int i;
-	for (i = 0; i < 16; i++) {
-		zmops[iz].midi_chans[i] = -1;
+	if (zmops[iz].midi_chan != midi_chan) {
+		int i;
+		for (i = 0; i < 16; i++) {
+			zmops[iz].midi_chans[i] = -1;
+		}
+		zmops[iz].midi_chan = midi_chan;
+		zmops[iz].midi_chans[midi_chan] = midi_chan;
+		zmop_set_flag_chan_transfilter(iz, 1);
+		clear_cc_pedals(iz);
 	}
-	zmops[iz].midi_chan = midi_chan;
-	zmops[iz].midi_chans[midi_chan] = midi_chan;
-	zmop_set_flag_chan_transfilter(iz, 1);
-	clear_cc_pedals(iz);
 	return 1;
 }
 
@@ -956,8 +963,10 @@ int zmop_set_route_from(int izmop, int izmip, int route) {
 		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", izmip);
 		return 0;
 	}
-	zmops[izmop].route_from_zmips[izmip] = route;
-	clear_cc_pedals(izmip);
+	if (zmops[izmop].route_from_zmips[izmip] != route) {
+		zmops[izmop].route_from_zmips[izmip] = route;
+		clear_cc_pedals(izmip);
+	}
 	return 1;
 }
 
