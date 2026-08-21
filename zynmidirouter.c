@@ -1372,7 +1372,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 	uint8_t event_num;
 	uint8_t event_val;
 	uint32_t ui_event;
-	int j, xch;
 
 	// Process MIDI input messages in the order they were received
 	while (1) {
@@ -1545,21 +1544,37 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		//printf("ZynMidiRouter: Processing event from zmip %d, type %d, channel %d, translated to channel %d\n", izmip, event_type, event_chan);
 
-		// Send the processed message to configured output queues
+		// Save status byte to allow easy re-using event data struct
 		uint8_t event_b0 = ev->buffer[0];
+
+		// Note-off => Release pressed notes across active chain changes
+		if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN && (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0))) {
+			int noff_count = 0;
+			for (int izmop = 0; izmop < NUM_ZMOP_CHAINS; izmop++) {
+				zmop = zmops + izmop;
+				// If found a matching note-on for this note-off event on other chain
+				if (izmop != active_chain && zmop->note_state[event_num] > 0 && zmop->n_connections > 0 && zmop->route_from_zmips[izmip] &&
+					zmop->midi_chan >= 0 && ((active_chain >=0 && zmop->midi_chan != zmops[active_chain].midi_chan) || !active_midi_chan))  {
+					zmop->note_state[event_num] = 0;
+					ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmop->midi_chan & 0x0F);
+					zmop_push_event(zmop, ev);
+					noff_count++;
+				}
+			}
+			if (noff_count > 0) ev->buffer[0] = event_b0;
+		}
+
+		// Send the processed message to configured output queues
 		for (int izmop = 0; izmop < MAX_NUM_ZMOPS; ++izmop) {
 			zmop = zmops + izmop;
-			uint8_t pedal = 4;
 
 			// Don't waste CPU cycles with unconnected output ports. Nobody is listening there!!
-			if (zmop->n_connections==0)
-				continue;
-
 			// Do not send to unrouted output ports
-			if (!zmop->route_from_zmips[izmip])
+			if (zmop->n_connections == 0 || !zmop->route_from_zmips[izmip])
 				continue;
 
 			// Channel messages ...
+			uint8_t pedal = 4;
 			if (event_type < SYSTEM_EXCLUSIVE) {
 				// Detect pedals
 				if (event_type == CTRL_CHANGE) {
@@ -1575,29 +1590,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN) {
 						// If (active chain or
 						if ((izmop == active_chain ||
-						// or active MIDI channel)
-						(active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan)) &&
-						// and output midi channel is mapped => Send to active zmop's MIDI channel
-						zmop->midi_chans[zmop->midi_chan] >= 0) {
-							// note-off => Release pressed notes across active chain changes
-							if (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0)) {
-								// If not matching note-on on this chain, try rest of chains ...
-								if (zmop->note_state[event_num] == 0) {
-									int noff_count = 0;
-									for (j = 1; j < NUM_ZMOP_CHAINS; j++) {
-										int xiz = (izmop + j) % NUM_ZMOP_CHAINS;
-										// If found a matching note-on for this note-off event on other chain
-										if (zmops[xiz].note_state[event_num] > 0 && zmops[xiz].n_connections > 0 && zmops[xiz].route_from_zmips[izmip] &&
-											zmops[xiz].midi_chan >= 0 && (zmops[xiz].midi_chan != zmop->midi_chan || !active_midi_chan))  {
-											zmops[xiz].note_state[event_num] = 0;
-											ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmops[xiz].midi_chan & 0x0F);
-											zmop_push_event(zmops + xiz, ev);
-											noff_count++;
-										}
-									}
-									if (noff_count > 0) ev->buffer[0] = event_b0;
-								}
-							} else if (pedal < 4) {
+							// or active MIDI channel)
+							(active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan)) &&
+							// and output midi channel is mapped => Send to active zmop's MIDI channel
+							zmop->midi_chans[zmop->midi_chan] >= 0) {
+							if (pedal < 4) {
 								if (!event_val) {
 									if ((pedal_sent[pedal] & (1 << izmop)) == 0)
 										continue;
@@ -1628,24 +1625,6 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 						continue;
 					// Leave MIDI channel untouched => it's translated as required in zmop_push_event
 					//fprintf(stderr, "MIDI message untouched to ZMOP %d => %d, %d, 0x%x!\n", izmop, izmip, event_chan, event_type);
-
-					// note-off => Release pressed notes across active chain changes
-					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN &&
-						(event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0))) {
-						int noff_count = 0;
-						for (j = 1; j < NUM_ZMOP_CHAINS; j++) {
-							int xiz = (izmop + j) % NUM_ZMOP_CHAINS;
-							// If found a matching note-on for this note-off event on other chain
-							if (zmops[xiz].note_state[event_num] > 0 && zmops[xiz].n_connections > 0 && zmops[xiz].route_from_zmips[izmip] &&
-								zmops[xiz].midi_chan >= 0 && (zmops[xiz].midi_chan != zmop->midi_chan || !active_midi_chan))  {
-								zmops[xiz].note_state[event_num] = 0;
-								ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmops[xiz].midi_chan & 0x0F);
-								zmop_push_event(zmops + xiz, ev);
-								noff_count++;
-							}
-						}
-						if (noff_count > 0) ev->buffer[0] = event_b0;
-					}
 				}
 
 				// Drop "CC messages" if configured in zmop options, except from internal sources (UI, etc.)
