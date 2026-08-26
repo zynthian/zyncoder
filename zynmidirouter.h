@@ -99,6 +99,10 @@ int get_active_chain();
 void set_active_midi_chan(int flag);
 int get_active_midi_chan();
 
+// Classic MIDI cc flag
+void set_classic_midi_cc(int flag);
+int get_classic_midi_cc();
+
 //Global tuning => Based on MIDI Pitch-Bending messages
 void set_tuning_freq(double freq);
 int get_tuning_pitchbend();

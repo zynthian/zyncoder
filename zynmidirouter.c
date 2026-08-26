@@ -41,6 +41,7 @@
 int tuning_pitchbend;					// Global tunning, implemented using MIDI pitchbend messages
 int active_chain;						// Index of the active chain zmop
 int active_midi_chan;					// Flag to enable/disable active MIDI channel. When enable, active's chain MIDI channel is the active MIDI channel
+int classic_midi_cc;					// Flag to enable/disable classic MIDI CC behavior (CC follows notes)
 int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
 int8_t global_transpose;     			// All incoming (zmip) notes are transposed
@@ -182,6 +183,16 @@ void set_active_midi_chan(int flag) {
 
 int get_active_midi_chan() {
 	return active_midi_chan;
+}
+
+void set_classic_midi_cc(int flag) {
+	if (classic_midi_cc != flag) {
+		classic_midi_cc = flag;
+	}
+}
+
+int get_classic_midi_cc() {
+	return classic_midi_cc;
 }
 
 // Global tuning based in MIDI pitch-bending
@@ -1203,7 +1214,7 @@ int init_jack_midi(char *name) {
 	for (i = ZMOP_CH0; i <= ZMOP_CH15; i++) {
 		sprintf(port_name, "ch%d_out", i);
 		if (!zmop_init(ZMOP_CH0 + i, port_name, ZMOP_CHAIN_FLAGS)) return 0;
-		//zmop_set_midi_chan(ZMOP_CH0 + i, i);
+		zmop_set_midi_chan(ZMOP_CH0 + i, i);
 	}
 	if (!zmop_init(ZMOP_MOD, "mod_out", ZMOP_CHAIN_FLAGS)) return 0;
 	zmop_set_midi_chan_all(ZMOP_MOD);
@@ -1585,7 +1596,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				}
 				// If zmop have enabled Channel Translation / Channel Filtering (ACTI/MULTI) and
 				// has a single midi_chan (aka it's not using multi-channel mapping! => ALL CHANS)
-				if (zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER && zmop->midi_chan >= 0) {
+				if (event_type == CTRL_CHANGE) {
+					// CCs are delivered to every ZMOP listening on the input channel.
+					if (zmop->midi_chans[event_chan] == -1)
+						continue;
+				} else if (zmop->flags & FLAG_ZMOP_CHAN_TRANSFILTER && zmop->midi_chan >= 0) {
 					// ACTI => route events to active chain, translating channel as required  ...
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN) {
 						// If (active chain or
