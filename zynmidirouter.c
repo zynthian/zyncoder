@@ -583,6 +583,8 @@ int zmop_init(int iz, char *name, uint32_t flags) {
 	zmops[iz].transpose_octave = 0;
 	zmops[iz].transpose_semitone = 0;
 	memset(zmops[iz].note_state, 0, 128);
+	memset(zmops[iz].note_zmip, 0, 128);
+	memset(zmops[iz].note_active_chain, 0, 128);
 	memset(zmops[iz].note_transpose, 0, 128);
 	int i;
 	for (i = 0; i < 16; i++) {
@@ -1546,22 +1548,20 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 		// Save status byte to allow easy re-using event data struct
 		uint8_t event_b0 = ev->buffer[0];
+		int _active_chain = active_chain;
 
 		// Note-off => Release pressed notes across active chain changes
 		if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN && (event_type == NOTE_OFF || (event_type == NOTE_ON && event_val == 0))) {
-			int noff_count = 0;
 			for (int izmop = 0; izmop < NUM_ZMOP_CHAINS; izmop++) {
 				zmop = zmops + izmop;
-				// If found a matching note-on for this note-off event on other chain
-				if (izmop != active_chain && zmop->note_state[event_num] > 0 && zmop->n_connections > 0 && zmop->route_from_zmips[izmip] &&
-					zmop->midi_chan >= 0 && ((active_chain >=0 && zmop->midi_chan != zmops[active_chain].midi_chan) || !active_midi_chan))  {
-					zmop->note_state[event_num] = 0;
-					ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmop->midi_chan & 0x0F);
-					zmop_push_event(zmop, ev);
-					noff_count++;
+				// If found a matching note-on for this note-off in other chain, started when a different chain was active ...
+				if (izmop != active_chain && zmop->n_connections > 0 && zmop->midi_chan >= 0 && zmop->route_from_zmips[izmip] &&
+					zmop->note_state[event_num] > 0 && zmop->note_zmip[event_num] == izmip && zmop->note_active_chain[event_num] != active_chain) {
+					// Process the note-off event with effective active chain = the chain that was active when the note-on was pressed
+					_active_chain = zmop->note_active_chain[event_num];
+					break;
 				}
 			}
-			if (noff_count > 0) ev->buffer[0] = event_b0;
 		}
 
 		// Send the processed message to configured output queues
@@ -1589,18 +1589,18 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					// ACTI => route events to active chain, translating channel as required  ...
 					if (zmip->flags & FLAG_ZMIP_ACTIVE_CHAIN) {
 						// If (active chain or
-						if ((izmop == active_chain ||
+						if ((izmop == _active_chain ||
 							// or active MIDI channel)
-							(active_midi_chan && zmops[active_chain].midi_chan == zmop->midi_chan)) &&
+							(active_midi_chan && zmops[_active_chain].midi_chan == zmop->midi_chan)) &&
 							// and output midi channel is mapped => Send to active zmop's MIDI channel
 							zmop->midi_chans[zmop->midi_chan] >= 0) {
 							if (pedal < 4) {
 								if (!event_val) {
 									if ((pedal_sent[pedal] & (1 << izmop)) == 0)
 										continue;
-								} else if (active_midi_chan && zmops[active_chain].midi_chan != zmop->midi_chan)
+								} else if (active_midi_chan && zmops[_active_chain].midi_chan != zmop->midi_chan)
 									continue;
-							} else if (zmops[active_chain].midi_chan != zmop->midi_chan)
+							} else if (zmops[_active_chain].midi_chan != zmop->midi_chan)
 								continue;
 							// Update event data with the translated MIDI channel
 							ev->buffer[0] = (ev->buffer[0] & 0xF0) | (zmop->midi_chan & 0x0F);
@@ -1640,8 +1640,11 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 					goto zmop_event_processed;
 
 				// Save note state for each zmop
-				if (event_type == NOTE_ON)
+				if (event_type == NOTE_ON) {
 					zmop->note_state[event_num] = event_val;
+					zmop->note_zmip[event_num] = izmip;
+					zmop->note_active_chain[event_num] = _active_chain;
+				}
 				else if (event_type == NOTE_OFF)
 					zmop->note_state[event_num] = 0;
 			}

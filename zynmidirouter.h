@@ -311,6 +311,8 @@ struct zmop_st {
 	int8_t transpose_semitone;				// Transpose fine => semitone
 
 	uint8_t note_state[128];				// Note state array for managing pressed notes across active chain changes.
+	uint8_t note_zmip[128];					// Zmip from witch the note was pressed (for orphan detection).
+	int8_t note_active_chain[128];			// Chain that was active when each note was pressed (for orphan detection).
 	int8_t note_transpose[128];				// Note transpose array for managing pressed notes across transpose changes.
 	uint16_t last_pb_val[16];				// Last pitch-bending value. Do we need multi-channel tracking for MPE?
 
