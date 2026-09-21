@@ -377,6 +377,8 @@ int zmop_reset_note_range_transpose(int iz);
 int zmop_reset_cc_route(int iz);
 int zmop_set_cc_route(int iz, uint8_t *cc_route);
 int zmop_get_cc_route(int iz, uint8_t *cc_route);
+// ZMOP note activity
+uint32_t zmop_get_midi_activity();
 // ----------------------------------------------------------------------------
 // This is called from jack process!!
 void zmop_push_event(struct zmop_st * zmop, jack_midi_event_t * ev); // Add event to MIDI output port
