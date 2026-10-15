@@ -46,6 +46,7 @@ int midi_master_chan;					// MIDI Master channel. -1 to disable master channel.
 int midi_learning_mode;					// To flag "MIDI learning" from UI => Is it needed?
 int8_t global_transpose;     			// All incoming (zmip) notes are transposed
 jack_nframes_t last_frame;				// Index of last frame in each jack cycle
+uint32_t zmop_midi_activity;			// Bitmap tracking MIDI activity for each zmop (MIDI events sent to zmops)
 uint32_t pedal_sent[4];					// Bitwise flag indicating if CC value>0 sent to a chain zmop for each pedal type
 uint8_t reassert_pedal = 0;				// 1 to reassert pedal CC when switching active chain
 midi_filter_t midi_filter;
@@ -1151,6 +1152,15 @@ int zmop_get_cc_route(int iz, uint8_t *cc_route) {
 	return 1;
 }
 
+
+uint32_t zmop_get_midi_activity() {
+	uint32_t res = zmop_midi_activity;
+	// Reset activity bits for all zmops
+	zmop_midi_activity = 0;
+	// Return last activity report
+	return res;
+}
+
 //-----------------------------------------------------------------------------
 // Pedal Management
 //-----------------------------------------------------------------------------
@@ -1681,6 +1691,9 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 
 			// Add processed event to MIDI output port buffer
 			zmop_push_event(zmop, ev);
+
+			// Track zmop MIDI activity
+			zmop_midi_activity |= (1 << izmop);
 
 			zmop_event_processed:
  			// Restore original channel in event object before processing next zmop
