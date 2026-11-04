@@ -381,6 +381,7 @@ int zmip_init(int iz, char *name, uint32_t flags) {
 	zmips[iz].flags = flags;
 	zmips[iz].ui_midi_chans = 0;
 	memset(zmips[iz].last_ctrl_val, 0, 16 * 128);
+	memset(zmips[iz].cc_ui_only, 0, 16 * 128);
 
 	// Create direct input ring-buffer
 	if (flags & FLAG_ZMIP_DIRECTIN) {
@@ -539,6 +540,35 @@ uint16_t zmip_get_ui_midi_chans(int iz) {
 		return 0;
 	}
 	return zmips[iz].ui_midi_chans;
+}
+
+// CC messages that are captured for the UI but not routed to zmops
+int zmip_set_cc_ui_only(int iz, uint8_t chan, uint8_t cc, uint8_t flag) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	if (chan > 15 || cc > 127) {
+		fprintf(stderr, "ZynMidiRouter: Bad MIDI channel (%d) or CC number (%d).\n", chan, cc);
+		return 0;
+	}
+	zmips[iz].cc_ui_only[chan][cc] = flag ? 1 : 0;
+	return 1;
+}
+
+int zmip_get_cc_ui_only(int iz, uint8_t chan, uint8_t cc) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS || chan > 15 || cc > 127)
+		return 0;
+	return zmips[iz].cc_ui_only[chan][cc];
+}
+
+int zmip_reset_cc_ui_only(int iz) {
+	if (iz < 0 || iz >= MAX_NUM_ZMIPS) {
+		fprintf(stderr, "ZynMidiRouter: Bad input port index (%d).\n", iz);
+		return 0;
+	}
+	memset(zmips[iz].cc_ui_only, 0, 16 * 128);
+	return 1;
 }
 
 //Route/unroute a MIDI input device (zmip) to *ALL* chain zmops
@@ -1553,6 +1583,10 @@ int jack_process(jack_nframes_t nframes, void *arg) {
 				if (event_type < SYSTEM_EXCLUSIVE && ((zmip->ui_midi_chans >> event_chan) & 0x1)) goto event_processed;
 			}
 		}
+
+		// CC flagged as UI only (e.g. step sequencer parameter automation) was captured for UI above so don't route to zmops
+		if (event_type == CTRL_CHANGE && zmip->cc_ui_only[event_chan][event_num])
+			goto event_processed;
 
 		//printf("ZynMidiRouter: Processing event from zmip %d, type %d, channel %d, translated to channel %d\n", izmip, event_type, event_chan);
 
