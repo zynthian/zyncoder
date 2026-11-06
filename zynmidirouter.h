@@ -201,6 +201,7 @@ struct zmip_st {
 	jack_midi_event_t event;		// Event currently being processed
 
 	uint8_t last_ctrl_val[16][128];			// Last CC value tracked for each CC x 16 chans
+	uint8_t cc_ui_only[16][128];			// CCs (chan x cc) captured for UI but not routed to zmops (0 = routed, 1 = UI only)
 };
 
 // MIDI Input port (ZMIPs) management
@@ -226,6 +227,11 @@ int zmip_get_flag_system_rt(int iz);
 // MIDI chans reserved for UI
 int zmip_set_ui_midi_chans(int iz, uint16_t ui_midi_chans);
 uint16_t zmip_get_ui_midi_chans(int iz);
+
+// CC messages captured for UI but not routed to zmops, e.g. step sequencer parameter automation
+int zmip_set_cc_ui_only(int iz, uint8_t chan, uint8_t cc, uint8_t flag);
+int zmip_get_cc_ui_only(int iz, uint8_t chan, uint8_t cc);
+int zmip_reset_cc_ui_only(int iz);
 
 // Routing
 int zmip_set_route_chains(int iz, int route);			// Route/un-route a MIDI input port (zmip) to/from *ALL* zmop chains
